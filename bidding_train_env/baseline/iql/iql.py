@@ -100,7 +100,7 @@ class IQL(nn.Module):
     '''
 
     def __init__(self, dim_obs=3, dim_actions=1, gamma=0.99, tau=0.01, V_lr=1e-4, critic_lr=1e-4, actor_lr=1e-4,
-                 network_random_seed=1, expectile=0.7, temperature=3.0):
+                 network_random_seed=1, expectile=0.7, temperature=3.0, device='cuda:0'):
         super().__init__()
         self.num_of_states = dim_obs
         self.num_of_actions = dim_actions
@@ -126,15 +126,14 @@ class IQL(nn.Module):
         self.critic2_optimizer = Adam(self.critic2.parameters(), lr=self.critic_lr)
         self.actor_optimizer = Adam(self.actors.parameters(), lr=self.actor_lr)
         self.deterministic_action = True
-        self.use_cuda = torch.cuda.is_available()
-        if self.use_cuda:
-            self.critic1.cuda()
-            self.critic2.cuda()
-            self.critic1_target.cuda()
-            self.critic2_target.cuda()
-            self.value_net.cuda()
-            self.actors.cuda()
-        self.FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
+        self.device = device
+        self.critic1.to(device)
+        self.critic2.to(device)
+        self.critic1_target.to(device)
+        self.critic2_target.to(device)
+        self.value_net.to(device)
+        self.actors.to(device)
+        self.exp_clip = torch.tensor([100.0], dtype=torch.float32, device=device)
 
     def step(self, states, actions, rewards, next_states, dones):
         '''
@@ -168,7 +167,7 @@ class IQL(nn.Module):
         '''
         take action
         '''
-        states = torch.Tensor(states).type(self.FloatTensor)
+        states = torch.Tensor(states).to(self.device)
         if self.deterministic_action:
             actions = self.actors.get_det_action(states)
         else:
@@ -191,7 +190,7 @@ class IQL(nn.Module):
             min_Q = torch.min(q1, q2)
 
         exp_a = torch.exp(min_Q - v) * self.temperature
-        exp_a = torch.min(exp_a, torch.FloatTensor([100.0]))
+        exp_a = torch.min(exp_a, self.exp_clip)
 
         _, dist = self.actors.evaluate(states)
         log_probs = dist.log_prob(actions)

@@ -6,6 +6,7 @@ from bidding_train_env.baseline.iql.iql import IQL
 import sys
 import pandas as pd
 import ast
+import torch
 
 np.set_printoptions(suppress=True, precision=4)
 logging.basicConfig(level=logging.INFO,
@@ -19,6 +20,7 @@ def train_iql_model():
     """
     Train the IQL model.
     """
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     train_data_path = "./data/traffic/training_data_rlData_folder/training_data_all-rlData.csv"
     training_data = pd.read_csv(train_data_path)
 
@@ -44,12 +46,12 @@ def train_iql_model():
         save_normalize_dict(normalize_dic, "saved_model/IQLtest")
 
     # Build replay buffer
-    replay_buffer = ReplayBuffer()
+    replay_buffer = ReplayBuffer(device=device)
     add_to_replay_buffer(replay_buffer, training_data, is_normalize)
     print(len(replay_buffer.memory))
 
     # Train model
-    model = IQL(dim_obs=STATE_DIM)
+    model = IQL(dim_obs=STATE_DIM, device=device)
     train_model_steps(model, replay_buffer)
 
     # Save model
