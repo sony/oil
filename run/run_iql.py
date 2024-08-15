@@ -13,15 +13,18 @@ logging.basicConfig(level=logging.INFO,
                     format="[%(asctime)s] [%(name)s] [%(filename)s(%(lineno)d)] [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-STATE_DIM = 16
+STATE_DIM = 29
+IDX_NORM = list(range(STATE_DIM))  # [13, 14, 15]
 
 
-def train_iql_model():
+def train_iql_model(
+    train_data_path="./data/traffic/custom_training_data/training_data_all-rlData.csv",
+    out_path="saved_model/IQL_custom_dataset"
+    ):
     """
     Train the IQL model.
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    train_data_path = "./data/traffic/training_data_rlData_folder/training_data_all-rlData.csv"
     training_data = pd.read_csv(train_data_path)
 
     def safe_literal_eval(val):
@@ -38,12 +41,12 @@ def train_iql_model():
     is_normalize = True
 
     if is_normalize:
-        normalize_dic = normalize_state(training_data, STATE_DIM, normalize_indices=[13, 14, 15])
+        normalize_dic = normalize_state(training_data, STATE_DIM, normalize_indices=IDX_NORM)
         # select use continuous reward
         training_data['reward'] = normalize_reward(training_data, "reward_continuous")
         # select use sparse reward
         # training_data['reward'] = normalize_reward(training_data, "reward")
-        save_normalize_dict(normalize_dic, "saved_model/IQLtest")
+        save_normalize_dict(normalize_dic, out_path)
 
     # Build replay buffer
     replay_buffer = ReplayBuffer(device=device)
@@ -55,7 +58,7 @@ def train_iql_model():
     train_model_steps(model, replay_buffer)
 
     # Save model
-    model.save_jit("saved_model/IQLtest")
+    model.save_jit(out_path)
 
     # Test trained model
     test_trained_model(model, replay_buffer)
@@ -73,11 +76,21 @@ def add_to_replay_buffer(replay_buffer, training_data, is_normalize):
                                np.array([done]))
 
 
-def train_model_steps(model, replay_buffer, step_num=20000, batch_size=100):
+def train_model_steps(model, replay_buffer, step_num=200_000, batch_size=100):
     for i in range(step_num):
+        cum_q_loss = 0
+        cum_v_loss = 0
+        cum_a_loss = 0
         states, actions, rewards, next_states, terminals = replay_buffer.sample(batch_size)
         q_loss, v_loss, a_loss = model.step(states, actions, rewards, next_states, terminals)
-        logger.info(f'Step: {i} Q_loss: {q_loss} V_loss: {v_loss} A_loss: {a_loss}')
+        cum_q_loss += q_loss
+        cum_v_loss += v_loss
+        cum_a_loss += a_loss
+        if i % 100 == 0:
+            logger.info(f"Step: {i} Q_loss: {cum_q_loss / 100} V_loss: {cum_v_loss / 100} A_loss: {cum_a_loss / 100}")
+            cum_q_loss = 0
+            cum_v_loss = 0
+            cum_a_loss = 0
 
 
 def test_trained_model(model, replay_buffer):
