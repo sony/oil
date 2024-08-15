@@ -1,9 +1,9 @@
 import numpy as np
 import math
 import logging
-from bidding_train_env.strategy import PlayerBiddingStrategy
 from bidding_train_env.dataloader.test_dataloader import TestDataLoader
 from bidding_train_env.environment.offline_env import OfflineEnv
+from bidding_train_env.strategy.bidding_strategy_factory import BiddingStrategyFactory
 from definitions import ROOT_DIR
 
 # Configure logging
@@ -29,7 +29,7 @@ def run_test(
     target_cpa=8,
     category=4,
     experiment_path=ROOT_DIR / "saved_model" / "onlineLpTest",
-    # experiment_path=ROOT_DIR / "saved_model" / "IQL_custom_dataset",
+    strategy_name="default",
 ):
     """
     offline evaluation
@@ -37,7 +37,8 @@ def run_test(
 
     data_loader = TestDataLoader(file_path=data_path)
     env = OfflineEnv()
-    agent = PlayerBiddingStrategy(
+    agent = BiddingStrategyFactory.create(
+        strategy_name=strategy_name,
         budget=budget,
         cpa=target_cpa,
         category=category,
@@ -60,7 +61,7 @@ def run_test(
     }
 
     for timeStep_index in range(num_timeStepIndex):
-        logger.info(f"Timestep Index: {timeStep_index + 1} Begin")
+        # logger.info(f"Timestep Index: {timeStep_index + 1} Begin")
 
         pValue = pValues[timeStep_index]
         pValueSigma = pValueSigmas[timeStep_index]
@@ -125,7 +126,7 @@ def run_test(
             [(tick_conversion[i], tick_conversion[i]) for i in range(pValue.shape[0])]
         )
         history["historyImpressionResult"].append(temImpressionResult)
-        logger.info(f"Timestep Index: {timeStep_index + 1} End")
+        # logger.info(f"Timestep Index: {timeStep_index + 1} End")
     all_reward = np.sum(rewards)
     all_cost = agent.budget - agent.remaining_budget
     cpa_real = all_cost / (all_reward + 1e-10)
