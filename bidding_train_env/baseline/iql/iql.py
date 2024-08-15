@@ -238,6 +238,7 @@ class IQL(nn.Module):
             os.makedirs(save_path)
         jit_model = torch.jit.script(self.cpu())
         torch.jit.save(jit_model, f'{save_path}/iql_model.pth')
+        self.to(self.device)  # Go back to the original device
 
     def load_net(self, load_path="saved_model/fixed_initial_budget", device='cuda:0'):
         '''
@@ -260,15 +261,12 @@ class IQL(nn.Module):
         self.critic2_optimizer = Adam(self.critic2.parameters(), lr=self.critic_lr)
         self.actor_optimizer = Adam(self.actors.parameters(), lr=self.actor_lr)
 
-        # cuda usage
-        self.use_cuda = torch.cuda.is_available()
-        if self.use_cuda:
-            self.critic1.cuda()
-            self.critic2.cuda()
-            self.value_net.cuda()
-            self.actors.cuda()
-            self.critic1_target.cuda()
-            self.critic2_target.cuda()
+        self.critic1.to(device)
+        self.critic2.to(device)
+        self.value_net.to(device)
+        self.actors.to(device)
+        self.critic1_target.to(device)
+        self.critic2_target.to(device)
         print("model stored path " + next(self.critic1.parameters()).device.type)
 
     def l2_loss(self, diff, expectile=0.8):

@@ -74,6 +74,7 @@ class BC(nn.Module):
             os.makedirs(save_path)
         jit_model = torch.jit.script(self.cpu())
         torch.jit.save(jit_model, f'{save_path}/bc_model.pth')
+        self.to(self.device)  # Go back to the original device
 
     def forward(self, states):
 
