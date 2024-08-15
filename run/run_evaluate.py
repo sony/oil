@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import logging
+import pathlib
 from bidding_train_env.dataloader.test_dataloader import TestDataLoader
 from bidding_train_env.environment.offline_env import OfflineEnv
 from bidding_train_env.strategy.bidding_strategy_factory import BiddingStrategyFactory
@@ -24,12 +25,13 @@ def getScore_nips(reward, cpa, cpa_constraint):
 
 
 def run_test(
-    data_path="./data/traffic/period-12.csv",
+    data_path=pathlib.Path("./data/traffic/period-12.csv"),
     budget=500,
     target_cpa=8,
     category=4,
-    experiment_path=ROOT_DIR / "saved_model" / "onlineLpTest",
-    strategy_name="default",
+    experiment_path=ROOT_DIR / "saved_model" / "IQL" / "train_003" / "checkpoint_5000",
+    strategy_name="iql",
+    device="cpu",
 ):
     """
     offline evaluation
@@ -43,6 +45,7 @@ def run_test(
         cpa=target_cpa,
         category=category,
         experiment_path=experiment_path,
+        device=device,
     )
     print(agent.name)
 

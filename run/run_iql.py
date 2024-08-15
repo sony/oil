@@ -14,7 +14,6 @@ from bidding_train_env.common.utils import (
 from bidding_train_env.baseline.iql.replay_buffer import ReplayBuffer
 from bidding_train_env.baseline.iql.iql import IQL
 from run.run_evaluate import run_test
-from bidding_train_env.strategy.iql_bidding_strategy import IqlBiddingStrategy
 
 np.set_printoptions(suppress=True, precision=4)
 logging.basicConfig(
