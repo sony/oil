@@ -20,7 +20,7 @@ class TestDataLoader:
 
         """
         self.file_path = file_path
-        self.raw_data_path = file_path.replace('.csv', '-raw_data.pkl')
+        self.raw_data_path = file_path.with_suffix('').with_name(file_path.stem + '-raw_data.pkl')
         self.raw_data = self._get_raw_data()
         self.keys, self.test_dict = self._get_test_data_dict()
 

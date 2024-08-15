@@ -3,6 +3,7 @@ import os
 from bidding_train_env.strategy.base_bidding_strategy import BaseBiddingStrategy
 from definitions import ROOT_DIR
 
+
 class OnlineLpBiddingStrategy(BaseBiddingStrategy):
     """
     OnlineLpBidding Strategy
@@ -80,10 +81,10 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
 
         # bids = 5 * self.cpa * pValues if self.remaining_budget >= 0 else 0
 
-        # remaining_budget_excess = self.remaining_budget * 48 / (self.budget * (48 - timeStepIndex))
-        # # used_budget_defect = 
+        remaining_budget_excess = self.remaining_budget * 48 / (self.budget * (48 - timeStepIndex))
+        # used_budget_defect =
         # print(remaining_budget_excess)
-        # # print(used_budget_defect)
-        # # bids = 0.8 * self.cpa * remaining_budget_excess * used_budget_defect * pValues if self.remaining_budget >= 0 else 0
-        # bids = 0.5 * self.cpa * remaining_budget_excess * pValues if self.remaining_budget >= 0 else 0
+        # print(used_budget_defect)
+        # bids = 0.8 * self.cpa * remaining_budget_excess * used_budget_defect * pValues if self.remaining_budget >= 0 else 0
+        bids = 1.2 * self.cpa * remaining_budget_excess * pValues if self.remaining_budget >= 0 else 0
         return bids

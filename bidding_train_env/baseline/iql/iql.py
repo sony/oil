@@ -18,11 +18,11 @@ class Q(nn.Module):
         self.dim_observation = dim_observation
         self.dim_action = dim_action
 
-        self.obs_FC = nn.Linear(self.dim_observation, 64)
-        self.action_FC = nn.Linear(dim_action, 64)
-        self.FC1 = nn.Linear(128, 64)
-        self.FC2 = nn.Linear(64, 64)
-        self.FC3 = nn.Linear(64, 1)
+        self.obs_FC = nn.Linear(self.dim_observation, 128)
+        self.action_FC = nn.Linear(dim_action, 128)
+        self.FC1 = nn.Linear(256, 256)
+        self.FC2 = nn.Linear(256, 256)
+        self.FC3 = nn.Linear(256, 1)
 
     # obs: batch_size * obs_dim
     def forward(self, obs, acts):
@@ -40,10 +40,10 @@ class V(nn.Module):
 
     def __init__(self, dim_observation):
         super(V, self).__init__()
-        self.FC1 = nn.Linear(dim_observation, 128)
-        self.FC2 = nn.Linear(128, 64)
-        self.FC3 = nn.Linear(64, 32)
-        self.FC4 = nn.Linear(32, 1)
+        self.FC1 = nn.Linear(dim_observation, 256)
+        self.FC2 = nn.Linear(256, 256)
+        self.FC3 = nn.Linear(256, 256)
+        self.FC4 = nn.Linear(256, 1)
 
     # obs: batch_size * obs_dim
     def forward(self, obs):
@@ -62,10 +62,10 @@ class Actor(nn.Module):
         super(Actor, self).__init__()
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
-        self.FC1 = nn.Linear(dim_observation, 128)
-        self.FC2 = nn.Linear(128, 64)
-        self.FC_mu = nn.Linear(64, dim_action)
-        self.FC_std = nn.Linear(64, dim_action)
+        self.FC1 = nn.Linear(dim_observation, 256)
+        self.FC2 = nn.Linear(256, 256)
+        self.FC_mu = nn.Linear(256, dim_action)
+        self.FC_std = nn.Linear(256, dim_action)
 
     def forward(self, obs):
         x = F.relu(self.FC1(obs))

@@ -17,7 +17,7 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
         name="Iql-PlayerStrategy",
         cpa=2,
         category=1,
-        experiment_path=ROOT_DIR / "saved_model" / "IQL_custom_dataset",
+        experiment_path=ROOT_DIR / "saved_model" / "IQL" / "train_003" / "checkpoint_5000",
     ):
         super().__init__(budget, name, cpa, category)
 
