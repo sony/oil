@@ -3,6 +3,7 @@ import torch
 import pickle
 from bidding_train_env.strategy.base_bidding_strategy import BaseBiddingStrategy
 import os
+from definitions import ROOT_DIR
 
 
 class IqlBiddingStrategy(BaseBiddingStrategy):
@@ -10,23 +11,36 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
     IQL Strategy
     """
 
-    def __init__(self, budget=100, name="Iql-PlayerStrategy", cpa=2, category=1):
+    def __init__(
+        self,
+        budget=100,
+        name="Iql-PlayerStrategy",
+        cpa=2,
+        category=1,
+        experiment_path=ROOT_DIR / "saved_model" / "IQL_custom_dataset",
+    ):
         super().__init__(budget, name, cpa, category)
 
-        file_name = os.path.dirname(os.path.realpath(__file__))
-        dir_name = os.path.dirname(file_name)
-        dir_name = os.path.dirname(dir_name)
-        model_path = os.path.join(dir_name,"saved_model","IQLtest","iql_model.pth")
-        dict_path = os.path.join(dir_name,"saved_model","IQLtest","normalize_dict.pkl")
+        model_path = experiment_path / "iql_model.pth"
+        dict_path = experiment_path / "normalize_dict.pkl"
         self.model = torch.jit.load(model_path)
-        with open(dict_path, 'rb') as file:
+        with open(dict_path, "rb") as file:
             self.normalize_dict = pickle.load(file)
 
     def reset(self):
         self.remaining_budget = self.budget
 
-    def bidding(self, timeStepIndex, pValues, pValueSigmas, historyPValueInfo, historyBid,
-                historyAuctionResult, historyImpressionResult, historyLeastWinningCost):
+    def bidding(
+        self,
+        timeStepIndex,
+        pValues,
+        pValueSigmas,
+        historyPValueInfo,
+        historyBid,
+        historyAuctionResult,
+        historyImpressionResult,
+        historyLeastWinningCost,
+    ):
         """
         Bids for all the opportunities in a delivery period
 
@@ -48,51 +62,184 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
         history_xi = [result[:, 0] for result in historyAuctionResult]
         history_pValue = [result[:, 0] for result in historyPValueInfo]
         history_conversion = [result[:, 1] for result in historyImpressionResult]
+        history_opportunity = [
+            p / lwc * self.cpa
+            for p, lwc in zip(history_pValue, historyLeastWinningCost)
+        ]
 
-        historical_xi_mean = np.mean([np.mean(xi) for xi in history_xi]) if history_xi else 0
+        historical_xi_mean = (
+            np.mean([np.mean(xi) for xi in history_xi]) if history_xi else 0
+        )
 
-        historical_conversion_mean = np.mean(
-            [np.mean(reward) for reward in history_conversion]) if history_conversion else 0
+        historical_conversion_mean = (
+            np.mean([np.mean(reward) for reward in history_conversion])
+            if history_conversion
+            else 0
+        )
 
-        historical_LeastWinningCost_mean = np.mean(
-            [np.mean(price) for price in historyLeastWinningCost]) if historyLeastWinningCost else 0
+        historical_LeastWinningCost_mean = (
+            np.mean([np.mean(price) for price in historyLeastWinningCost])
+            if historyLeastWinningCost
+            else 0
+        )
 
-        historical_pValues_mean = np.mean([np.mean(value) for value in history_pValue]) if history_pValue else 0
+        historical_pValues_mean = (
+            np.mean([np.mean(value) for value in history_pValue])
+            if history_pValue
+            else 0
+        )
 
-        historical_bid_mean = np.mean([np.mean(bid) for bid in historyBid]) if historyBid else 0
+        historical_bid_mean = (
+            np.mean([np.mean(bid) for bid in historyBid]) if historyBid else 0
+        )
+
+        historical_opportunity_mean = (
+            np.mean([np.mean(opportunity) for opportunity in history_opportunity])
+            if history_opportunity
+            else 0
+        )
+        historical_opportunity_median = (
+            np.median([np.median(opportunity) for opportunity in history_opportunity])
+            if history_opportunity
+            else 0
+        )
+        historical_opportunity_90_pct = (
+            np.percentile(
+                [np.percentile(opportunity, 90) for opportunity in history_opportunity],
+                90,
+            )
+            if history_opportunity
+            else 0
+        )
+        historical_opportunity_99_pct = (
+            np.percentile(
+                [np.percentile(opportunity, 99) for opportunity in history_opportunity],
+                99,
+            )
+            if history_opportunity
+            else 0
+        )
 
         def mean_of_last_n_elements(history, n):
-            last_three_data = history[max(0, n - 3):n]
+            last_three_data = history[max(0, n - 3) : n]
             if len(last_three_data) == 0:
                 return 0
             else:
                 return np.mean([np.mean(data) for data in last_three_data])
 
+        def median_of_last_n_elements(history, n):
+            last_three_data = history[max(0, n - 3) : n]
+            if len(last_three_data) == 0:
+                return 0
+            else:
+                return np.median([np.median(data) for data in last_three_data])
+
+        def percentile_of_last_n_elements(history, n, percentile):
+            last_three_data = history[max(0, n - 3) : n]
+            if len(last_three_data) == 0:
+                return 0
+            else:
+                return np.percentile(
+                    [np.percentile(data, percentile) for data in last_three_data],
+                    percentile,
+                )
+
         last_three_xi_mean = mean_of_last_n_elements(history_xi, 3)
         last_three_conversion_mean = mean_of_last_n_elements(history_conversion, 3)
-        last_three_LeastWinningCost_mean = mean_of_last_n_elements(historyLeastWinningCost, 3)
+        last_three_LeastWinningCost_mean = mean_of_last_n_elements(
+            historyLeastWinningCost, 3
+        )
         last_three_pValues_mean = mean_of_last_n_elements(history_pValue, 3)
         last_three_bid_mean = mean_of_last_n_elements(historyBid, 3)
+        last_three_opportunity_mean = mean_of_last_n_elements(history_opportunity, 3)
+        last_three_opportunity_median = median_of_last_n_elements(
+            history_opportunity, 3
+        )
+        last_three_opportunity_90_pct = percentile_of_last_n_elements(
+            history_opportunity, 3, 90
+        )
+        last_three_opportunity_99_pct = percentile_of_last_n_elements(
+            history_opportunity, 3, 99
+        )
 
         current_pValues_mean = np.mean(pValues)
         current_pv_num = len(pValues)
 
-        historical_pv_num_total = sum(len(bids) for bids in historyBid) if historyBid else 0
+        historical_pv_num_total = (
+            sum(len(bids) for bids in historyBid) if historyBid else 0
+        )
         last_three_ticks = slice(max(0, timeStepIndex - 3), timeStepIndex)
-        last_three_pv_num_total = sum(
-            [len(historyBid[i]) for i in range(max(0, timeStepIndex - 3), timeStepIndex)]) if historyBid else 0
+        last_three_pv_num_total = (
+            sum(
+                [
+                    len(historyBid[i])
+                    for i in range(max(0, timeStepIndex - 3), timeStepIndex)
+                ]
+            )
+            if historyBid
+            else 0
+        )
+        last_five_pv_num_total = (
+            sum(
+                [
+                    len(historyBid[i])
+                    for i in range(max(0, timeStepIndex - 5), timeStepIndex)
+                ]
+            )
+            if historyBid
+            else 0
+        )
+        last_ten_pv_num_total = (
+            sum(
+                [
+                    len(historyBid[i])
+                    for i in range(max(0, timeStepIndex - 10), timeStepIndex)
+                ]
+            )
+            if historyBid
+            else 0
+        )
 
-        test_state = np.array([
-            time_left, budget_left, historical_bid_mean, last_three_bid_mean,
-            historical_LeastWinningCost_mean, historical_pValues_mean, historical_conversion_mean,
-            historical_xi_mean, last_three_LeastWinningCost_mean, last_three_pValues_mean,
-            last_three_conversion_mean, last_three_xi_mean,
-            current_pValues_mean, current_pv_num, last_three_pv_num_total,
-            historical_pv_num_total
-        ])
+        test_state = np.array(
+            [
+                time_left,
+                budget_left,
+                self.budget,
+                self.cpa,
+                self.category,
+                historical_bid_mean,
+                last_three_bid_mean,
+                historical_LeastWinningCost_mean,
+                historical_pValues_mean,
+                historical_conversion_mean,
+                historical_xi_mean,
+                last_three_LeastWinningCost_mean,
+                last_three_pValues_mean,
+                last_three_conversion_mean,
+                last_three_xi_mean,
+                historical_opportunity_mean,
+                last_three_opportunity_mean,
+                historical_opportunity_median,
+                last_three_opportunity_median,
+                historical_opportunity_90_pct,
+                last_three_opportunity_90_pct,
+                historical_opportunity_99_pct,
+                last_three_opportunity_99_pct,
+                current_pValues_mean,
+                current_pv_num,
+                last_three_pv_num_total,
+                last_five_pv_num_total,
+                last_ten_pv_num_total,
+                historical_pv_num_total,
+            ]
+        )
 
         def normalize(value, min_value, max_value):
-            return (value - min_value) / (max_value - min_value) if max_value > min_value else 0
+            return (
+                (value - min_value) / (max_value - min_value)
+                if max_value > min_value
+                else 0
+            )
 
         for key, value in self.normalize_dict.items():
             test_state[key] = normalize(test_state[key], value["min"], value["max"])

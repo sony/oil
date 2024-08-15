@@ -1,20 +1,23 @@
 import pandas as pd
 import os
-
 from bidding_train_env.strategy.base_bidding_strategy import BaseBiddingStrategy
-
+from definitions import ROOT_DIR
 
 class OnlineLpBiddingStrategy(BaseBiddingStrategy):
     """
     OnlineLpBidding Strategy
     """
 
-    def __init__(self, budget=100, name="OnlineLpBiddingStrategy", cpa=2, category=1):
+    def __init__(
+        self,
+        budget=100,
+        name="OnlineLpBiddingStrategy",
+        cpa=2,
+        category=1,
+        experiment_path=ROOT_DIR / "saved_model" / "onlineLpTest",
+    ):
         super().__init__(budget, name, cpa, category)
-        file_name = os.path.dirname(os.path.realpath(__file__))
-        dir_name = os.path.dirname(file_name)
-        dir_name = os.path.dirname(dir_name)
-        model_path = os.path.join(dir_name, "saved_model", "onlineLpTest", f"period.csv")
+        model_path = experiment_path / "period.csv"
         self.category = category
 
         self.model = pd.read_csv(model_path)
@@ -22,8 +25,17 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
     def reset(self):
         self.remaining_budget = self.budget
 
-    def bidding(self, timeStepIndex, pValues, pValueSigmas, historyPValueInfo, historyBid,
-                historyAuctionResult, historyImpressionResult, historyLeastWinningCost):
+    def bidding(
+        self,
+        timeStepIndex,
+        pValues,
+        pValueSigmas,
+        historyPValueInfo,
+        historyBid,
+        historyAuctionResult,
+        historyImpressionResult,
+        historyLeastWinningCost,
+    ):
         """
         Bids for all the opportunities in a delivery period
 
@@ -41,16 +53,19 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
             Return the bids for all the opportunities in the delivery period.
         """
         tem = self.model[
-            (self.model["timeStepIndex"] == timeStepIndex) & (self.model["advertiserCategoryIndex"] == self.category)]
+            (self.model["timeStepIndex"] == timeStepIndex)
+            & (self.model["advertiserCategoryIndex"] == self.category)
+        ]
         alpha = self.cpa
-        if (len(tem) == 0):
+        if len(tem) == 0:
             pass
         else:
+
             def find_first_cpa_above_budget(df, budget):
-                filtered_df = df[df['cum_cost'] > budget]
+                filtered_df = df[df["cum_cost"] > budget]
 
                 if not filtered_df.empty:
-                    return filtered_df.iloc[0]['realCPA']
+                    return filtered_df.iloc[0]["realCPA"]
                 else:
                     return None
 
@@ -62,4 +77,13 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
 
         alpha = min(self.cpa * 1.5, alpha)
         bids = alpha * pValues
+
+        # bids = 5 * self.cpa * pValues if self.remaining_budget >= 0 else 0
+
+        # remaining_budget_excess = self.remaining_budget * 48 / (self.budget * (48 - timeStepIndex))
+        # # used_budget_defect = 
+        # print(remaining_budget_excess)
+        # # print(used_budget_defect)
+        # # bids = 0.8 * self.cpa * remaining_budget_excess * used_budget_defect * pValues if self.remaining_budget >= 0 else 0
+        # bids = 0.5 * self.cpa * remaining_budget_excess * pValues if self.remaining_budget >= 0 else 0
         return bids
