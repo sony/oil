@@ -3,8 +3,9 @@ import numpy as np
 import pandas as pd
 import pickle
 import warnings
+import pathlib
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 
 class TestDataLoader:
@@ -12,7 +13,7 @@ class TestDataLoader:
     Offline evaluation data loader.
     """
 
-    def __init__(self, file_path="./data/log.csv"):
+    def __init__(self, file_path=pathlib.Path("./data/log.csv")):
         """
         Initialize the data loader.
         Args:
@@ -20,7 +21,9 @@ class TestDataLoader:
 
         """
         self.file_path = file_path
-        self.raw_data_path = file_path.with_suffix('').with_name(file_path.stem + '-raw_data.pkl')
+        self.raw_data_path = file_path.with_suffix("").with_name(
+            file_path.stem + "-raw_data.pkl"
+        )
         self.raw_data = self._get_raw_data()
         self.keys, self.test_dict = self._get_test_data_dict()
 
@@ -32,11 +35,11 @@ class TestDataLoader:
             pd.DataFrame: The raw data as a DataFrame.
         """
         if os.path.exists(self.raw_data_path):
-            with open(self.raw_data_path, 'rb') as file:
+            with open(self.raw_data_path, "rb") as file:
                 return pickle.load(file)
         else:
             tem = pd.read_csv(self.file_path)
-            with open(self.raw_data_path, 'wb') as file:
+            with open(self.raw_data_path, "wb") as file:
                 pickle.dump(tem, file)
             return tem
 
@@ -49,7 +52,9 @@ class TestDataLoader:
             dict: A dictionary with grouped data.
 
         """
-        grouped_data = self.raw_data.sort_values('timeStepIndex').groupby(['deliveryPeriodIndex', 'advertiserNumber'])
+        grouped_data = self.raw_data.sort_values("timeStepIndex").groupby(
+            ["deliveryPeriodIndex", "advertiserNumber"]
+        )
         data_dict = {key: group for key, group in grouped_data}
         return list(data_dict.keys()), data_dict
 
@@ -58,12 +63,24 @@ class TestDataLoader:
         Get training data based on deliveryPeriodIndex and advertiserNumber, and construct the test data.
         """
         data = self.test_dict[key]
-        pValues = data.groupby('timeStepIndex')['pValue'].apply(list).apply(np.array).tolist()
-        pValueSigmas = data.groupby('timeStepIndex')['pValueSigma'].apply(list).apply(np.array).tolist()
-        leastWinningCosts = data.groupby('timeStepIndex')['leastWinningCost'].apply(list).apply(np.array).tolist()
+        pValues = (
+            data.groupby("timeStepIndex")["pValue"].apply(list).apply(np.array).tolist()
+        )
+        pValueSigmas = (
+            data.groupby("timeStepIndex")["pValueSigma"]
+            .apply(list)
+            .apply(np.array)
+            .tolist()
+        )
+        leastWinningCosts = (
+            data.groupby("timeStepIndex")["leastWinningCost"]
+            .apply(list)
+            .apply(np.array)
+            .tolist()
+        )
         num_timeStepIndex = len(pValues)
         return num_timeStepIndex, pValues, pValueSigmas, leastWinningCosts
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pass
