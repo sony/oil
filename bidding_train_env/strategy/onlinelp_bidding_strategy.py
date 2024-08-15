@@ -16,6 +16,7 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
         cpa=2,
         category=1,
         experiment_path=ROOT_DIR / "saved_model" / "onlineLpTest",
+        device="cpu",
     ):
         super().__init__(budget, name, cpa, category)
         model_path = experiment_path / "period.csv"
@@ -81,10 +82,16 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
 
         # bids = 5 * self.cpa * pValues if self.remaining_budget >= 0 else 0
 
-        remaining_budget_excess = self.remaining_budget * 48 / (self.budget * (48 - timeStepIndex))
+        remaining_budget_excess = (
+            self.remaining_budget * 48 / (self.budget * (48 - timeStepIndex))
+        )
         # used_budget_defect =
         # print(remaining_budget_excess)
         # print(used_budget_defect)
         # bids = 0.8 * self.cpa * remaining_budget_excess * used_budget_defect * pValues if self.remaining_budget >= 0 else 0
-        bids = 1.2 * self.cpa * remaining_budget_excess * pValues if self.remaining_budget >= 0 else 0
+        bids = (
+            1.2 * self.cpa * remaining_budget_excess * pValues
+            if self.remaining_budget >= 0
+            else 0
+        )
         return bids

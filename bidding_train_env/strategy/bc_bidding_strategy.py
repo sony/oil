@@ -18,13 +18,14 @@ class BcBiddingStrategy(BaseBiddingStrategy):
         cpa=2,
         category=1,
         experiment_path=ROOT_DIR / "saved_model" / "BC_custom_dataset",
+        device="cpu",
     ):
         super().__init__(budget, name, cpa, category)
 
         model_path = experiment_path / "bc_model.pth"
         dict_path = experiment_path / "normalize_dict.pkl"
-
-        self.model = torch.jit.load(model_path)
+        self.model = torch.jit.load(model_path, map_location=torch.device(device))
+        self.model.device = device
 
         with open(dict_path, "rb") as f:
             self.normalize_dict = pickle.load(f)
