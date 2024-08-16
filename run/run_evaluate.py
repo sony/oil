@@ -2,6 +2,7 @@ import numpy as np
 import math
 import logging
 import pathlib
+import shutil
 from bidding_train_env.dataloader.test_dataloader import TestDataLoader
 from bidding_train_env.environment.offline_env import OfflineEnv
 from bidding_train_env.strategy.bidding_strategy_factory import BiddingStrategyFactory
@@ -25,17 +26,28 @@ def getScore_nips(reward, cpa, cpa_constraint):
 
 
 def run_test(
-    data_path=pathlib.Path("./data/traffic/period-12.csv"),
-    budget=500,
+    data_path=ROOT_DIR / "data/traffic/period-13.csv",
+    budget=3000,
     target_cpa=8,
-    category=4,
-    experiment_path=ROOT_DIR / "saved_model" / "IQL" / "train_003" / "checkpoint_5000",
-    strategy_name="iql",
+    category=0,
+    experiment_path=ROOT_DIR / "saved_model" / "BC" / "train_004" / "checkpoint_10000",
+    strategy_name="bc",
     device="cpu",
 ):
     """
     offline evaluation
     """
+    if not experiment_path.exists():
+        # Check if there is the same file in the output directory instead of the saved_model directory
+        output_path = ROOT_DIR / "output" / experiment_path.relative_to(ROOT_DIR / "saved_model")
+        
+        # Copy the file from output_path to experiment_path
+        if output_path.exists():
+            shutil.copytree(output_path, experiment_path)
+        else:
+            raise FileNotFoundError(
+                f"Model file not found in {experiment_path} or {output_path}"
+            )
 
     data_loader = TestDataLoader(file_path=data_path)
     env = OfflineEnv()

@@ -14,6 +14,7 @@ from bidding_train_env.common.utils import (
 from bidding_train_env.baseline.iql.replay_buffer import ReplayBuffer
 from bidding_train_env.baseline.iql.iql import IQL
 from run.run_evaluate import run_test
+from definitions import ROOT_DIR
 
 np.set_printoptions(suppress=True, precision=4)
 logging.basicConfig(
@@ -25,10 +26,9 @@ logger = logging.getLogger(__name__)
 STATE_DIM = 29
 ACTION_DIM = 1
 IDX_NORM = list(range(STATE_DIM))  # [13, 14, 15]
-train_data_path = pathlib.Path(
-    "data/traffic/custom_training_data/training_data_all-rlData.csv"
-)
-out_path = pathlib.Path("saved_model") / "IQL" / "train_003"
+# train_data_path = ROOT_DIR / "data/traffic/custom_training_data/training_data_all-rlData.csv"
+train_data_path = ROOT_DIR / "data/traffic_top_quantile/custom_training_data/training_data_all-rlData.csv"
+out_path = ROOT_DIR / "output" / "IQL" / "train_005"
 iql_params = {
     "gamma": 0.99,
     "tau": 0.01,
@@ -36,7 +36,7 @@ iql_params = {
     "critic_lr": 0.0001,
     "actor_lr": 1e-4,
     "network_random_seed": 1,
-    "expectile": 0.3,
+    "expectile": 0.5,
     "temperature": 1.0,
 }
 step_num = 200_000
@@ -44,10 +44,10 @@ batch_size = 100
 print_every = 100
 eval_every = 1_000
 eval_params = {
-    "data_path": "./data/traffic/period-12.csv",
-    "budget": 500,
+    "data_path": ROOT_DIR / "data/traffic/period-13.csv",
+    "budget": 3000,
     "target_cpa": 8,
-    "category": 4,
+    "category": 0,
 }
 
 
@@ -58,7 +58,7 @@ def train_iql_model():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     training_data = pd.read_csv(train_data_path)
 
-    # Save the iql parametes and a copy of the current script tothe output path
+    # Save the iql parametes and a copy of the current script to the output path
     out_path.mkdir(parents=True, exist_ok=True)
     with open(out_path / "iql_params.json", "w") as f:
         json.dump(iql_params, f, indent=4)
