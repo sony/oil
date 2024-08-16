@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import warnings
 import glob
+import argparse
 
 warnings.filterwarnings("ignore")
 
@@ -259,11 +260,44 @@ class RlDataGenerator:
         return training_data
 
 
-def generate_rl_data():
-    file_folder_path = "./data/traffic"
+class ParquetRLDataGenerator(RlDataGenerator):
+    def batch_generate_rl_data(self):
+        os.makedirs(self.training_data_path, exist_ok=True)
+        parquet_files = glob.glob(os.path.join(self.file_folder_path, "*.parquet"))
+        print(parquet_files)
+        training_data_list = []
+        for parquet_path in parquet_files:
+            print("开始处理文件：", parquet_path)
+            df = pd.read_parquet(parquet_path)
+            df_processed = self._generate_rl_data(df)
+            parquet_filename = os.path.basename(parquet_path)
+            trainData_filename = parquet_filename.replace(".parquet", "-rlData.csv")
+            trainData_path = os.path.join(self.training_data_path, trainData_filename)
+            df_processed.to_csv(trainData_path, index=False)
+            training_data_list.append(df_processed)
+            del df, df_processed
+            print("处理文件成功：", parquet_path)
+        combined_dataframe = pd.concat(training_data_list, axis=0, ignore_index=True)
+        combined_dataframe_path = os.path.join(
+            self.training_data_path, "training_data_all-rlData.csv"
+        )
+        combined_dataframe.to_csv(combined_dataframe_path, index=False)
+        print("整合多天训练数据成功；保存至:", combined_dataframe_path)
+
+
+def generate_rl_data(file_folder_path="./data/traffic"):
     data_loader = RlDataGenerator(file_folder_path=file_folder_path)
     data_loader.batch_generate_rl_data()
 
 
+def generate_rl_data_parquet(file_folder_path="./data/traffic_top_quantile"):
+    data_loader = ParquetRLDataGenerator(file_folder_path=file_folder_path)
+    data_loader.batch_generate_rl_data()
+
+
 if __name__ == "__main__":
-    generate_rl_data()
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("--file_folder_path", type=str, default="./data/traffic")
+    args = argparser.parse_args()
+
+    generate_rl_data_parquet(args.file_folder_path)

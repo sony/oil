@@ -38,7 +38,11 @@ class TestDataLoader:
             with open(self.raw_data_path, "rb") as file:
                 return pickle.load(file)
         else:
-            tem = pd.read_csv(self.file_path)
+            # Check whether to use parquet or csv
+            if self.file_path.suffix == ".parquet":
+                tem = pd.read_parquet(self.file_path)
+            else:
+                tem = pd.read_csv(self.file_path)
             with open(self.raw_data_path, "wb") as file:
                 pickle.dump(tem, file)
             return tem

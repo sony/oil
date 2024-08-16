@@ -90,7 +90,7 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
         # print(used_budget_defect)
         # bids = 0.8 * self.cpa * remaining_budget_excess * used_budget_defect * pValues if self.remaining_budget >= 0 else 0
         bids = (
-            1.2 * self.cpa * remaining_budget_excess * pValues
+            1 * self.cpa * remaining_budget_excess * pValues
             if self.remaining_budget >= 0
             else 0
         )

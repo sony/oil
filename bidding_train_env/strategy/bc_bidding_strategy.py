@@ -21,7 +21,6 @@ class BcBiddingStrategy(BaseBiddingStrategy):
         device="cpu",
     ):
         super().__init__(budget, name, cpa, category)
-
         model_path = experiment_path / "bc_model.pth"
         dict_path = experiment_path / "normalize_dict.pkl"
         self.model = torch.jit.load(model_path, map_location=torch.device(device))
