@@ -1,6 +1,10 @@
 import numpy as np
 import torch
 import pandas as pd
+import logging
+import ast
+import json
+import os
 from bidding_train_env.baseline.iql.replay_buffer import ReplayBuffer
 from bidding_train_env.baseline.bc.behavior_clone import BC
 from definitions import ROOT_DIR
@@ -10,9 +14,7 @@ from bidding_train_env.common.utils import (
     normalize_reward,
     save_normalize_dict,
 )
-import logging
-import ast
-import json
+from bidding_train_env.dataloader.test_dataloader import TestDataLoader
 
 np.set_printoptions(suppress=True, precision=4)
 
@@ -25,23 +27,25 @@ logger = logging.getLogger(__name__)
 
 STATE_DIM = 29
 ACTION_DIM = 1
-IDX_NORM = list(range(STATE_DIM))  # [13, 14, 15]
+IDX_NORM = [24, 25, 26, 27, 28] # [13, 14, 15] for 16, [16, 17, 18] for 19, [24, 25, 26, 27, 28] for 29
 # train_data_path = ROOT_DIR / "data/traffic/custom_training_data/training_data_all-rlData.csv"
 train_data_path = (
-    ROOT_DIR
-    / "data/traffic_top_regression/custom_training_data/training_data_all-rlData.csv"
+    ROOT_DIR / "data/traffic_top_regression/training_data_29/training_data_all-rlData.csv"
 )
-out_path = ROOT_DIR / "output" / "BC" / "train_004"
+experiment_name = "BC/026_train_regression_29"
 bc_params = {}
-step_num = 200_000
+step_num = 50_000
 batch_size = 100
-print_every = 1000
-eval_every = 10_000
+actor_lr = 1e-4
+actor_train_iter = 3
+print_every = 300
+eval_every = 1_000
+data_path = ROOT_DIR / "data/traffic/all_periods.parquet"
+
 eval_params = {
-    "data_path": ROOT_DIR / "data/traffic/period-13.csv",
-    "budget": 3000,
-    "target_cpa": 8,
-    "category": 0,
+    "budget_list": [500, 3000, 7000, 11000],
+    "target_cpa_list": [4, 8, 12],
+    "category_list": [0],
 }
 
 
@@ -51,7 +55,7 @@ def run_bc():
     """
     train_model(
         train_data_path=train_data_path, step_num=step_num, batch_size=batch_size
-    )
+)
     # load_model()
 
 
@@ -61,6 +65,8 @@ def train_model(train_data_path, step_num, batch_size):
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
     training_data = pd.read_csv(train_data_path)
+
+    out_path = ROOT_DIR / "output" / experiment_name
 
     # Save the bc parametes and a copy of the current script to the output path
     out_path.mkdir(parents=True, exist_ok=True)
@@ -82,11 +88,9 @@ def train_model(train_data_path, step_num, batch_size):
     training_data["state"] = training_data["state"].apply(safe_literal_eval)
     training_data["next_state"] = training_data["next_state"].apply(safe_literal_eval)
 
-    state_dim = 29
-    normalize_indices = list(range(state_dim))  # [13, 14, 15]
     is_normalize = True
 
-    normalize_dic = normalize_state(training_data, state_dim, normalize_indices)
+    normalize_dic = normalize_state(training_data, STATE_DIM, IDX_NORM)
     normalize_reward(training_data, "reward_continuous")
     # save_normalize_dict(normalize_dic, "saved_model/BCtest")
 
@@ -96,7 +100,30 @@ def train_model(train_data_path, step_num, batch_size):
 
     logger.info(f"Replay buffer size: {len(replay_buffer.memory)}")
 
-    model = BC(dim_obs=state_dim)
+    model = BC(dim_obs=STATE_DIM, actor_lr=actor_lr, actor_train_iter=actor_train_iter)
+
+    # Load the test data once and keep them in memory as it takes some time
+    logger.info(f"Loading data from {data_path}")
+    dataloader = TestDataLoader(file_path=data_path)
+    logger.info(f"Data loaded successfully")
+
+    # Save untrained model
+    checkpoint_num = 0
+    logger.info(f"Saving model at step {checkpoint_num}")
+    checkpoint_path = out_path / f"checkpoint_{checkpoint_num}"
+    model.save_jit(checkpoint_path)
+    save_normalize_dict(normalize_dic, checkpoint_path)
+
+    model.eval()
+    model_name = os.path.join(experiment_name, f"checkpoint_{checkpoint_num}")
+    logger.info(f"Evaluating model at step {checkpoint_num}")
+    run_test(
+        saved_model_name=model_name,
+        strategy_name="bc",
+        data_path_or_dataloader=dataloader,
+        **eval_params,
+    )
+    model.train()
 
     num_runs = step_num // eval_every
     for i in range(num_runs):
@@ -119,25 +146,28 @@ def train_model(train_data_path, step_num, batch_size):
         save_normalize_dict(normalize_dic, checkpoint_path)
 
         # Evaluate checkpoint
-        logger.info(f"Evaluating model at step {i * eval_every}")
+        logger.info(f"Evaluating model at step {(i + 1) * eval_every}")
+        model_name = os.path.join(experiment_name, f"checkpoint_{checkpoint_num}")
+
         model.eval()
         run_test(
-            experiment_path=checkpoint_path,
+            saved_model_name=model_name,
             strategy_name="bc",
+            data_path_or_dataloader=dataloader,
             **eval_params,
         )
         model.train()
 
-    test_trained_model(model, replay_buffer)
+    # test_trained_model(model, replay_buffer)
 
 
 def load_model():
     """
     load model
     """
-    model = BC(dim_obs=16)
+    model = BC(dim_obs=STATE_DIM)
     model.load_net("saved_model/BCtest")
-    test_state = np.ones(16, dtype=np.float32)
+    test_state = np.ones(STATE_DIM, dtype=np.float32)
     test_state_tensor = torch.tensor(test_state, dtype=torch.float)
     logger.info(f"Test action: {model.take_actions(test_state_tensor)}")
 
