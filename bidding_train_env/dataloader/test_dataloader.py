@@ -21,31 +21,30 @@ class TestDataLoader:
 
         """
         self.file_path = file_path
-        self.raw_data_path = file_path.with_suffix("").with_name(
-            file_path.stem + "-raw_data.pkl"
+        self.test_data_path = file_path.with_suffix("").with_name(
+            file_path.stem + "-test_data.pkl"
         )
-        self.raw_data = self._get_raw_data()
         self.keys, self.test_dict = self._get_test_data_dict()
 
-    def _get_raw_data(self):
-        """
-        Read raw data from a pickle file.
+    # def _get_raw_data(self):
+    #     """
+    #     Read raw data from a pickle file.
 
-        Returns:
-            pd.DataFrame: The raw data as a DataFrame.
-        """
-        if os.path.exists(self.raw_data_path):
-            with open(self.raw_data_path, "rb") as file:
-                return pickle.load(file)
-        else:
-            # Check whether to use parquet or csv
-            if self.file_path.suffix == ".parquet":
-                tem = pd.read_parquet(self.file_path)
-            else:
-                tem = pd.read_csv(self.file_path)
-            with open(self.raw_data_path, "wb") as file:
-                pickle.dump(tem, file)
-            return tem
+    #     Returns:
+    #         pd.DataFrame: The raw data as a DataFrame.
+    #     """
+    #     if os.path.exists(self.raw_data_path):
+    #         with open(self.raw_data_path, "rb") as file:
+    #             return pickle.load(file)
+    #     else:
+    #         # Check whether to use parquet or csv
+    #         if self.file_path.suffix == ".parquet":
+    #             tem = pd.read_parquet(self.file_path)
+    #         else:
+    #             tem = pd.read_csv(self.file_path)
+    #         with open(self.raw_data_path, "wb") as file:
+    #             pickle.dump(tem, file)
+    #         return tem
 
     def _get_test_data_dict(self):
         """
@@ -56,10 +55,20 @@ class TestDataLoader:
             dict: A dictionary with grouped data.
 
         """
-        grouped_data = self.raw_data.sort_values("timeStepIndex").groupby(
-            ["deliveryPeriodIndex", "advertiserNumber"]
-        )
-        data_dict = {key: group for key, group in grouped_data}
+        if os.path.exists(self.test_data_path):
+            with open(self.test_data_path, "rb") as file:
+                data_dict = pickle.load(file)
+        else:
+            if self.file_path.suffix == ".parquet":
+                raw_data = pd.read_parquet(self.file_path)
+            else:
+                raw_data = pd.read_csv(self.file_path)
+            grouped_data = raw_data.sort_values("timeStepIndex").groupby(
+                ["deliveryPeriodIndex", "advertiserNumber"]
+            )
+            data_dict = {key: group for key, group in grouped_data}
+            with open(self.test_data_path, "wb") as file:
+                pickle.dump(data_dict, file)
         return list(data_dict.keys()), data_dict
 
     def mock_data(self, key):

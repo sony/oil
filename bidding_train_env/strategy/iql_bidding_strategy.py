@@ -211,9 +211,9 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
             [
                 time_left,
                 budget_left,
-                self.budget,
-                self.cpa,
-                self.category,
+                # self.budget,
+                # self.cpa,
+                # self.category,
                 historical_bid_mean,
                 last_three_bid_mean,
                 historical_LeastWinningCost_mean,
@@ -224,19 +224,19 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
                 last_three_pValues_mean,
                 last_three_conversion_mean,
                 last_three_xi_mean,
-                historical_opportunity_mean,
-                last_three_opportunity_mean,
-                historical_opportunity_median,
-                last_three_opportunity_median,
-                historical_opportunity_90_pct,
-                last_three_opportunity_90_pct,
-                historical_opportunity_99_pct,
-                last_three_opportunity_99_pct,
+                # historical_opportunity_mean,
+                # last_three_opportunity_mean,
+                # historical_opportunity_median,
+                # last_three_opportunity_median,
+                # historical_opportunity_90_pct,
+                # last_three_opportunity_90_pct,
+                # historical_opportunity_99_pct,
+                # last_three_opportunity_99_pct,
                 current_pValues_mean,
                 current_pv_num,
                 last_three_pv_num_total,
-                last_five_pv_num_total,
-                last_ten_pv_num_total,
+                # last_five_pv_num_total,
+                # last_ten_pv_num_total,
                 historical_pv_num_total,
             ]
         )
@@ -255,5 +255,4 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
         alpha = self.model(test_state)
         alpha = alpha.cpu().numpy()
         bids = alpha * pValues
-
         return bids

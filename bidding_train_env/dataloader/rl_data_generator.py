@@ -13,10 +13,12 @@ class RlDataGenerator:
     Reads raw data and constructs training data suitable for reinforcement learning.
     """
 
-    def __init__(self, file_folder_path="./data/traffic"):
+    def __init__(
+        self, file_folder_path="./data/traffic", out_folder_name="default_training_data"
+    ):
 
         self.file_folder_path = file_folder_path
-        self.training_data_path = self.file_folder_path + "/" + "custom_training_data"
+        self.training_data_path = self.file_folder_path + "/" + out_folder_name
 
     def batch_generate_rl_data(self):
         os.makedirs(self.training_data_path, exist_ok=True)
@@ -186,19 +188,19 @@ class RlDataGenerator:
                     state_features["avg_pValue_last_3"],
                     state_features["avg_conversionAction_last_3"],
                     state_features["avg_xi_last_3"],
-                    state_features["avg_opportunity_all"],
-                    state_features["avg_opportunity_last_3"],
-                    state_features["avg_opportunity_median_all"],
-                    state_features["avg_opportunity_median_last_3"],
-                    state_features["avg_opportunity_90_pct_all"],
-                    state_features["avg_opportunity_90_pct_last_3"],
-                    state_features["avg_opportunity_99_pct_all"],
-                    state_features["avg_opportunity_99_pct_last_3"],
+                    # state_features["avg_opportunity_all"],
+                    # state_features["avg_opportunity_last_3"],
+                    # state_features["avg_opportunity_median_all"],
+                    # state_features["avg_opportunity_median_last_3"],
+                    # state_features["avg_opportunity_90_pct_all"],
+                    # state_features["avg_opportunity_90_pct_last_3"],
+                    # state_features["avg_opportunity_99_pct_all"],
+                    # state_features["avg_opportunity_99_pct_last_3"],
                     state_features["pValue_agg"],
                     state_features["timeStepIndex_volume_agg"],
                     state_features["last_3_timeStepIndexs_volume"],
-                    state_features["last_5_timeStepIndexs_volume"],
-                    state_features["last_10_timeStepIndexs_volume"],
+                    # state_features["last_5_timeStepIndexs_volume"],
+                    # state_features["last_10_timeStepIndexs_volume"],
                     state_features["historical_volume"],
                 )
 
@@ -221,7 +223,7 @@ class RlDataGenerator:
                     ) ** 2
                     reward_scaler = min(
                         cpa_scaler, 1
-                    )  # Might be too conservative to always penalize - it does not consider that we can use defect cpa from previous time steps
+                    )  # Might be too conservative to always penalize - it does not consider that we can use deficit cpa from previous time steps
                     reward = reward * reward_scaler
                     reward_continuous = reward_continuous * reward_scaler
 
@@ -285,19 +287,33 @@ class ParquetRLDataGenerator(RlDataGenerator):
         print("整合多天训练数据成功；保存至:", combined_dataframe_path)
 
 
-def generate_rl_data(file_folder_path="./data/traffic"):
-    data_loader = RlDataGenerator(file_folder_path=file_folder_path)
+def generate_rl_data(
+    file_folder_path="./data/traffic", out_folder_name="default_training_data"
+):
+    data_loader = RlDataGenerator(
+        file_folder_path=file_folder_path, out_folder_name=out_folder_name
+    )
     data_loader.batch_generate_rl_data()
 
 
-def generate_rl_data_parquet(file_folder_path="./data/traffic_top_quantile"):
-    data_loader = ParquetRLDataGenerator(file_folder_path=file_folder_path)
+def generate_rl_data_parquet(
+    file_folder_path="./data/traffic_top_quantile",
+    out_folder_name="default_training_data",
+):
+    data_loader = ParquetRLDataGenerator(
+        file_folder_path=file_folder_path, out_folder_name=out_folder_name
+    )
     data_loader.batch_generate_rl_data()
 
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--file_folder_path", type=str, default="./data/traffic")
+    argparser.add_argument(
+        "--out_folder_name", type=str, default="default_training_data"
+    )
     args = argparser.parse_args()
 
-    generate_rl_data_parquet(args.file_folder_path)
+    generate_rl_data_parquet(
+        file_folder_path=args.file_folder_path, out_folder_name=args.out_folder_name
+    )
