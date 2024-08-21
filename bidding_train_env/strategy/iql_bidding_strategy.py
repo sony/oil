@@ -20,8 +20,8 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
         experiment_path=ROOT_DIR
         / "saved_model"
         / "IQL"
-        / "train_003"
-        / "checkpoint_5000",
+        / "train_regression_16_002"
+        / "checkpoint_9000",
         device="cpu",
     ):
         super().__init__(budget, name, cpa, category)
@@ -106,22 +106,20 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
             else 0
         )
         historical_opportunity_median = (
-            np.median([np.median(opportunity) for opportunity in history_opportunity])
+            np.mean([np.median(opportunity) for opportunity in history_opportunity])
             if history_opportunity
             else 0
         )
         historical_opportunity_90_pct = (
-            np.percentile(
-                [np.percentile(opportunity, 90) for opportunity in history_opportunity],
-                90,
+            np.mean(
+                [np.quantile(opportunity, 0.9) for opportunity in history_opportunity]
             )
             if history_opportunity
             else 0
         )
         historical_opportunity_99_pct = (
-            np.percentile(
-                [np.percentile(opportunity, 99) for opportunity in history_opportunity],
-                99,
+            np.mean(
+                [np.quantile(opportunity, 0.99) for opportunity in history_opportunity]
             )
             if history_opportunity
             else 0
@@ -134,23 +132,6 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
             else:
                 return np.mean([np.mean(data) for data in last_three_data])
 
-        def median_of_last_n_elements(history, n):
-            last_three_data = history[max(0, n - 3) : n]
-            if len(last_three_data) == 0:
-                return 0
-            else:
-                return np.median([np.median(data) for data in last_three_data])
-
-        def percentile_of_last_n_elements(history, n, percentile):
-            last_three_data = history[max(0, n - 3) : n]
-            if len(last_three_data) == 0:
-                return 0
-            else:
-                return np.percentile(
-                    [np.percentile(data, percentile) for data in last_three_data],
-                    percentile,
-                )
-
         last_three_xi_mean = mean_of_last_n_elements(history_xi, 3)
         last_three_conversion_mean = mean_of_last_n_elements(history_conversion, 3)
         last_three_LeastWinningCost_mean = mean_of_last_n_elements(
@@ -159,14 +140,14 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
         last_three_pValues_mean = mean_of_last_n_elements(history_pValue, 3)
         last_three_bid_mean = mean_of_last_n_elements(historyBid, 3)
         last_three_opportunity_mean = mean_of_last_n_elements(history_opportunity, 3)
-        last_three_opportunity_median = median_of_last_n_elements(
+        last_three_opportunity_median = mean_of_last_n_elements(
             history_opportunity, 3
         )
-        last_three_opportunity_90_pct = percentile_of_last_n_elements(
-            history_opportunity, 3, 90
+        last_three_opportunity_90_pct = mean_of_last_n_elements(
+            history_opportunity, 3
         )
-        last_three_opportunity_99_pct = percentile_of_last_n_elements(
-            history_opportunity, 3, 99
+        last_three_opportunity_99_pct = mean_of_last_n_elements(
+            history_opportunity, 3
         )
 
         current_pValues_mean = np.mean(pValues)
@@ -211,9 +192,9 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
             [
                 time_left,
                 budget_left,
-                # self.budget,
-                # self.cpa,
-                # self.category,
+                self.budget,
+                self.cpa,
+                self.category,
                 historical_bid_mean,
                 last_three_bid_mean,
                 historical_LeastWinningCost_mean,
@@ -224,19 +205,19 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
                 last_three_pValues_mean,
                 last_three_conversion_mean,
                 last_three_xi_mean,
-                # historical_opportunity_mean,
-                # last_three_opportunity_mean,
-                # historical_opportunity_median,
-                # last_three_opportunity_median,
-                # historical_opportunity_90_pct,
-                # last_three_opportunity_90_pct,
-                # historical_opportunity_99_pct,
-                # last_three_opportunity_99_pct,
+                historical_opportunity_mean,
+                last_three_opportunity_mean,
+                historical_opportunity_median,
+                last_three_opportunity_median,
+                historical_opportunity_90_pct,
+                last_three_opportunity_90_pct,
+                historical_opportunity_99_pct,
+                last_three_opportunity_99_pct,
                 current_pValues_mean,
                 current_pv_num,
                 last_three_pv_num_total,
-                # last_five_pv_num_total,
-                # last_ten_pv_num_total,
+                last_five_pv_num_total,
+                last_ten_pv_num_total,
                 historical_pv_num_total,
             ]
         )
@@ -255,4 +236,5 @@ class IqlBiddingStrategy(BaseBiddingStrategy):
         alpha = self.model(test_state)
         alpha = alpha.cpu().numpy()
         bids = alpha * pValues
+
         return bids

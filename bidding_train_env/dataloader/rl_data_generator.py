@@ -53,7 +53,6 @@ class RlDataGenerator:
         Returns:
             pd.DataFrame: The constructed training data in reinforcement learning format.
         """
-
         training_data_rows = []
 
         for (
@@ -188,19 +187,19 @@ class RlDataGenerator:
                     state_features["avg_pValue_last_3"],
                     state_features["avg_conversionAction_last_3"],
                     state_features["avg_xi_last_3"],
-                    # state_features["avg_opportunity_all"],
-                    # state_features["avg_opportunity_last_3"],
-                    # state_features["avg_opportunity_median_all"],
-                    # state_features["avg_opportunity_median_last_3"],
-                    # state_features["avg_opportunity_90_pct_all"],
-                    # state_features["avg_opportunity_90_pct_last_3"],
-                    # state_features["avg_opportunity_99_pct_all"],
-                    # state_features["avg_opportunity_99_pct_last_3"],
+                    state_features["avg_opportunity_all"],
+                    state_features["avg_opportunity_last_3"],
+                    state_features["avg_opportunity_median_all"],
+                    state_features["avg_opportunity_median_last_3"],
+                    state_features["avg_opportunity_90_pct_all"],
+                    state_features["avg_opportunity_90_pct_last_3"],
+                    state_features["avg_opportunity_99_pct_all"],
+                    state_features["avg_opportunity_99_pct_last_3"],
                     state_features["pValue_agg"],
                     state_features["timeStepIndex_volume_agg"],
                     state_features["last_3_timeStepIndexs_volume"],
-                    # state_features["last_5_timeStepIndexs_volume"],
-                    # state_features["last_10_timeStepIndexs_volume"],
+                    state_features["last_5_timeStepIndexs_volume"],
+                    state_features["last_10_timeStepIndexs_volume"],
                     state_features["historical_volume"],
                 )
 
