@@ -42,7 +42,6 @@ def generate_bids_df(data):
             {
                 "bid": lambda x: x.tolist(),
                 "isExposed": lambda x: x.tolist(),
-                "cost": lambda x: x.tolist(),
             }
         )
     )
@@ -51,7 +50,6 @@ def generate_bids_df(data):
         {
             "bid": lambda x: x.tolist(),
             "isExposed": lambda x: x.tolist(),
-            "cost": lambda x: x.tolist(),
         }
     )
     bids_df.reset_index(inplace=True)
@@ -64,30 +62,49 @@ def generate_bids_df(data):
     bids_df["isExposed"] = bids_df.apply(
         lambda x: reorder_list_of_lists(x.isExposed, x.positions), axis=1
     )
-    bids_df["cost"] = bids_df.apply(
-        lambda x: reorder_list_of_lists(x.cost, x.positions), axis=1
-    )
     bids_df.drop(columns=["positions"], inplace=True)
     return bids_df
 
 
-def generate_online_rl_data(traffic_data_paths, out_dir):
+def generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=False):
     """
     Generate online rl data for training.
     """
-    for traffic_data_path in traffic_data_paths:
-        print("Reading data from", traffic_data_path)
-        data = pd.read_csv(traffic_data_path, dtype=np.float32)
-        file_name = traffic_data_path.stem
 
-        print("Generating online rl data for", file_name)
-        pvalues_df = generate_pvalue_df(data)
-        pvalues_file_name = f"{file_name}_pvalues.parquet"
-        pvalues_df.to_parquet(out_dir / pvalues_file_name)
+    if use_precomputed:
+        for data_type in ["pvalues", "bids"]:
+            print(f"Generating {data_type} data")
+            data_list = []
+            for traffic_data_path in traffic_data_paths:
+                file_name = traffic_data_path.stem
+                file_path = out_dir / f"{file_name}_{data_type}.parquet"
+                print("Reading data from", file_path)
+                data = pd.read_parquet(file_path)
+                data_list.append(data)
+            data = pd.concat(data_list)
+            data.to_parquet(out_dir / f"{data_type}.parquet")
+    else:
+        pvalues_df_list = []
+        bids_df_list = []
+        for traffic_data_path in traffic_data_paths:
+            print("Reading data from", traffic_data_path)
+            data = pd.read_csv(traffic_data_path, dtype=np.float32)
+            file_name = traffic_data_path.stem
 
-        bids_df = generate_bids_df(data)
-        bids_file_name = f"{file_name}_bids.parquet"
-        bids_df.to_parquet(out_dir / bids_file_name)
+            print("Generating online rl data for", file_name)
+            pvalues_df = generate_pvalue_df(data)
+            pvalues_file_name = f"{file_name}_pvalues.parquet"
+            pvalues_df_list.append(pvalues_df)
+            pvalues_df.to_parquet(out_dir / pvalues_file_name)
+
+            bids_df = generate_bids_df(data)
+            bids_file_name = f"{file_name}_bids.parquet"
+            bids_df_list.append(bids_df)
+            bids_df.to_parquet(out_dir / bids_file_name)
+        pvalues_df = pd.concat(pvalues_df_list)
+        bids_df = pd.concat(bids_df_list)
+        pvalues_df.to_parquet(out_dir / "pvalues.parquet")
+        bids_df.to_parquet(out_dir / "bids.parquet")
 
 
 if __name__ == "__main__":
@@ -96,4 +113,5 @@ if __name__ == "__main__":
     out_dir = ROOT_DIR / "data" / "online_rl_data"
 
     traffic_data_paths = [data_dir / f"period-{period}.csv" for period in periods]
-    generate_online_rl_data(traffic_data_paths, out_dir)
+    use_precomputed = True
+    generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=True)
