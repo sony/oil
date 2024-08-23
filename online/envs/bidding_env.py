@@ -70,7 +70,7 @@ class BiddingEnv(gym.Env):
         pvalues, pvalues_std = self.get_pvalues_mean_and_std()
         state = self.get_state(pvalues)
 
-        return state
+        return state, {}
 
     def step(self, action):
         bid_data = self.get_bid_data()
@@ -92,22 +92,21 @@ class BiddingEnv(gym.Env):
         )  # only the smallest bid
         self.mean_conversion_list.append(np.mean(bid_conversion))
 
-        # TODO: check this last part
         self.mean_bid_success_list.append(np.mean(bid_success))
         self.num_pv_list.append(len(pvalues))
         self.time_step += 1
         self.total_conversions += np.sum(bid_conversion)
         self.total_cost += np.sum(bid_cost)
         self.remaining_budget -= np.sum(bid_cost)
-        done = self.time_step >= self.episode_length
-        if done:
+        terminated = self.time_step >= self.episode_length
+        if terminated:
             cpa = self.total_cost / self.total_conversions
             cpa_coeff = min(1, (self.target_cpa / cpa) ** 2)
             reward = cpa_coeff * self.total_conversions
         else:
             reward = 0  # First attempt: all the reward is assigned at the last step
         state = self.get_state(pvalues)
-        return state, reward, done, {}
+        return state, reward, terminated, False, {}
 
     def simulate_ad_bidding(
         self,
@@ -270,5 +269,4 @@ class BiddingEnv(gym.Env):
         bids_df = pd.read_parquet(bids_df_path)
         bids_df["bid"] = bids_df["bid"].apply(np.stack)
         bids_df["isExposed"] = bids_df["isExposed"].apply(np.stack)
-        bids_df["cost"] = bids_df["cost"].apply(np.stack)
         return bids_df
