@@ -12,7 +12,6 @@ from stable_baselines3.common.vec_env import VecNormalize
 class SingleEnvTrainer:
     algo: str
     envs: VecNormalize
-    env_config: dict
     load_model_path: str
     log_dir: str
     model_config: dict = field(default_factory=dict)
@@ -24,8 +23,6 @@ class SingleEnvTrainer:
         self.agent = self._init_agent()
                 
     def dump_configs(self, path: str) -> None:
-        with open(os.path.join(path, "env_config.json"), "w", encoding="utf8") as f:
-            json.dump(self.env_config, f, indent=4, default=lambda _: '<not serializable>')
         with open(os.path.join(path, "model_config.json"), "w", encoding="utf8") as f:
             json.dump(self.model_config, f, indent=4, default=lambda _: '<not serializable>')
 

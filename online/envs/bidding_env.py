@@ -29,14 +29,14 @@ class BiddingEnv(gym.Env):
         bids_df_path,
         budget_range,
         target_cpa_range,
-        rng,
         obs_keys=DEFAULT_OBS_KEYS,
+        seed=0,
     ):
         self.observation_space = gym.spaces.Box(
             low=-np.inf, high=np.inf, shape=(len(obs_keys),), dtype=np.float32
         )
         self.action_space = gym.spaces.Box(
-            low=0, high=np.inf, shape=(1,), dtype=np.float32
+            low=0, high=1000, shape=(1,), dtype=np.float32
         )
         self.pvalues_df = self.load_pvalues_df(pvalues_df_path)
         self.bids_df = self.load_bids_df(bids_df_path)
@@ -45,9 +45,8 @@ class BiddingEnv(gym.Env):
         self.period_list = list(self.pvalues_df.deliveryPeriodIndex.unique())
         self.budget_range = budget_range
         self.target_cpa_range = target_cpa_range
-        self.rng = rng
         self.obs_keys = obs_keys
-        self.reset_campaign_params()
+        self.reset(seed=seed)
 
     def reset_campaign_params(self, budget=None, target_cpa=None):
         self.advertiser = self.sample_advertiser()
@@ -65,7 +64,8 @@ class BiddingEnv(gym.Env):
         self.total_conversions = 0
         self.total_cost = 0
 
-    def reset(self, budget=None, target_cpa=None):
+    def reset(self, budget=None, target_cpa=None, seed=None, options=None):
+        super().reset(seed=seed)
         self.reset_campaign_params(budget, target_cpa)
         pvalues, pvalues_std = self.get_pvalues_mean_and_std()
         state = self.get_state(pvalues)
@@ -75,7 +75,7 @@ class BiddingEnv(gym.Env):
     def step(self, action):
         bid_data = self.get_bid_data()
         pvalues, pvalues_sigma = self.get_pvalues_mean_and_std()
-        advertiser_bids = action * pvalues
+        advertiser_bids = action * pvalues * self.target_cpa
         top_bids = bid_data.bid.item()
 
         # TODO: we should simulate exposure as a Beroulli
@@ -100,13 +100,31 @@ class BiddingEnv(gym.Env):
         self.remaining_budget -= np.sum(bid_cost)
         terminated = self.time_step >= self.episode_length
         if terminated:
-            cpa = self.total_cost / self.total_conversions
-            cpa_coeff = min(1, (self.target_cpa / cpa) ** 2)
+            cpa = (
+                self.total_cost / self.total_conversions
+                if self.total_conversions > 0
+                else 0
+            )
+            cpa_coeff = min(1, (self.target_cpa / cpa) ** 2) if cpa > 0 else 0
             reward = cpa_coeff * self.total_conversions
+            info = {
+                "conversions": self.total_conversions,
+                "cost": self.total_cost,
+                "cpa": cpa,
+                "target_cpa": self.target_cpa,
+                "budget": self.total_budget,
+                "avg_pvalues": np.mean(self.mean_pvalues_list),
+                "score_over_pvalue": reward / np.mean(self.mean_pvalues_list),
+                "score_over_budget": reward / self.total_budget,
+                "score_over_cpa": reward / cpa if cpa > 0 else 0,
+                "cost_over_budget": self.total_cost / self.total_budget,
+                "target_cpa_over_cpa": self.target_cpa / cpa if cpa > 0 else 0,
+            }
         else:
+            info = {}
             reward = 0  # First attempt: all the reward is assigned at the last step
         state = self.get_state(pvalues)
-        return state, reward, terminated, False, {}
+        return state, reward, terminated, False, info
 
     def simulate_ad_bidding(
         self,
@@ -130,8 +148,8 @@ class BiddingEnv(gym.Env):
         )
 
         # TODO: check if the conversion depends on the position (AC: small dependence, we ignore it for now)
-        pvalues_sampled = np.clip(self.rng.normal(pvalues, pvalues_sigma), 0, 1)
-        bid_conversion = self.rng.binomial(n=1, p=pvalues_sampled) * bid_exposed
+        pvalues_sampled = np.clip(self.np_random.normal(pvalues, pvalues_sigma), 0, 1)
+        bid_conversion = self.np_random.binomial(n=1, p=pvalues_sampled) * bid_exposed
         return bid_success, bid_cost, bid_conversion
 
     def compute_success_exposition_cost(
@@ -165,7 +183,7 @@ class BiddingEnv(gym.Env):
             # Set a fraction of successful bids to 0
             over_cost_ratio = (total_cost - self.remaining_budget) / total_cost
             bid_success_index = np.where(bid_success)[0]
-            dropped_index = self.rng.choice(
+            dropped_index = self.np_random.choice(
                 bid_success_index,
                 int(np.ceil(bid_success_index.shape[0] * over_cost_ratio)),
                 replace=False,
@@ -187,16 +205,16 @@ class BiddingEnv(gym.Env):
         pass
 
     def sample_budget(self):
-        return self.rng.uniform(*self.budget_range)
+        return self.np_random.uniform(*self.budget_range)
 
     def sample_cpa(self):
-        return self.rng.uniform(*self.target_cpa_range)
+        return self.np_random.uniform(*self.target_cpa_range)
 
     def sample_advertiser(self):
-        return self.rng.choice(self.advertiser_list)
+        return self.np_random.choice(self.advertiser_list)
 
     def sample_period(self):
-        return self.rng.choice(self.period_list)
+        return self.np_random.choice(self.period_list)
 
     def get_state_dict(self, pvalues):
         if self.time_step == 0:
@@ -244,7 +262,7 @@ class BiddingEnv(gym.Env):
 
     def get_state(self, pvalues):
         state_dict = self.get_state_dict(pvalues)
-        state = np.array([state_dict[key] for key in self.obs_keys])
+        state = np.array([state_dict[key] for key in self.obs_keys]).astype(np.float32)
         return state
 
     def get_pvalues_mean_and_std(self):
@@ -263,9 +281,11 @@ class BiddingEnv(gym.Env):
         return bid_data
 
     def load_pvalues_df(self, pvalues_df_path):
+        print(f"Loading pvalues from {pvalues_df_path}")
         return pd.read_parquet(pvalues_df_path)
 
     def load_bids_df(self, bids_df_path):
+        print(f"Loading bids from {bids_df_path}")
         bids_df = pd.read_parquet(bids_df_path)
         bids_df["bid"] = bids_df["bid"].apply(np.stack)
         bids_df["isExposed"] = bids_df["isExposed"].apply(np.stack)

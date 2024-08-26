@@ -1,17 +1,22 @@
+import pathlib
+import sys
+
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
+
 import os
 import shutil
 import argparse
 import json
 import torch.nn as nn
 import wandb
+import numpy as np
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import VecNormalize
 from stable_baselines3.common.vec_env.subproc_vec_env import SubprocVecEnv
-from datetime import datetime
 from definitions import ROOT_DIR
 from envs.environment_factory import EnvironmentFactory
-from metrics.custom_callbacks import EnvDumpCallback, TensorboardCallback
+from metrics.custom_callbacks import TensorboardCallback
 from train.trainer import SingleEnvTrainer
 from envs.helpers import get_model_and_env_path
 
@@ -33,6 +38,7 @@ parser.add_argument(
 parser.add_argument(
     "--env_name",
     type=str,
+    default="BiddingEnv",
     help="Name of the environment",
 )
 parser.add_argument(
@@ -86,86 +92,72 @@ parser.add_argument(
 parser.add_argument(
     "--project_name",
     type=str,
-    default="arnold",
+    default="alibaba",
     help="Project name for wandb",
 )
 parser.add_argument(
     "--save_every",
     type=int,
-    default=500_000,
+    default=250_000,
     help="Save a checkpoint every N number of steps",
 )
 parser.add_argument(
-    "--target_elevation",
+    "--budget_min",
     type=float,
-    default=0.04,
-    help="Target elevation",
+    default=200,
+    help="Minimum budget",
 )
 parser.add_argument(
-    "--traj_mul",
-    type=int,
-    default=1,
-    help="Trajectory multiplier",
-)
-parser.add_argument(
-    "--target_character",
-    type=str,
-    default="random",
-    help="Target character for the BionicHand environment",
-)
-parser.add_argument(
-    "--pose",
+    "--budget_max",
     type=float,
-    default=1,
-    help="Rwd pose",
+    default=12_000,
+    help="Maximum budget",
 )
 parser.add_argument(
-    "--force",
+    "--target_cpa_min",
     type=float,
-    default=0.1,
-    help="Rwd force",
+    default=6,
+    help="Minimum target CPA",
 )
 parser.add_argument(
-    "--prev_pentip",
+    "--target_cpa_max",
     type=float,
-    default=-0.1,
-    help="Rwd prev_pentip",
+    default=12,
+    help="Maximum target CPA",
 )
-parser.add_argument(
-    "--pentip_ground",
-    type=float,
-    default=-0.01,
-    help="Rwd pentip_ground",
-)
-parser.add_argument('--flag_kill', action='store_true', default=False, #False
-                    help='Flag to kill if > 20 ground')
-parser.add_argument('--penfall_kill', action='store_true', default=False, #False
-                    help='Flag to kill if > 20 ground')
 args = parser.parse_args()
 
-run_name = f"{args.env_name}_trajmul_{args.traj_mul}_target_elevation_{args.target_elevation}_pose_{args.pose}_force_{args.force}_prev_pentip_{args.prev_pentip}_pentip_ground_{args.pentip_ground}_flagkill_{args.flag_kill}_penfall_kill_{args.penfall_kill}_log_std_init_{args.log_std_init}_ppo_seed_{args.seed}{args.out_suffix}"
+run_name = f"ppo_seed_{args.seed}{args.out_suffix}"
 TENSORBOARD_LOG = os.path.join(ROOT_DIR, "output", "training", "ongoing", run_name)
 
-rwd_dict = {
-        "pose": args.pose,
-        "force":args.force,
-        "prev_pentip": args.prev_pentip,
-        "pentip_ground": args.pentip_ground,
-    }
-
 # Reward structure and task parameters:
-config = {
-    "env_name": args.env_name,
-    "target_character": args.target_character,
-    "traj_mul": args.traj_mul,
-    "reward_weight_dict": rwd_dict,
-    "target_elevation":args.target_elevation,
-    "flag_kill": args.flag_kill,
-    "penfall_kill": args.penfall_kill,
-}  # , "seed": args.seed}
+config_list = []
+for period in range(7, 7 + args.num_envs):  # one period per env
+    assert os.path.exists(
+        ROOT_DIR / "data" / "online_rl_data" / f"period-{period}_bids.parquet"
+    )
+    assert os.path.exists(
+        ROOT_DIR / "data" / "online_rl_data" / f"period-{period}_pvalues.parquet"
+    )
+    pvalues_df_path = (
+        ROOT_DIR / "data" / "online_rl_data" / f"period-{period}_pvalues.parquet"
+    )
+    bids_df_path = (
+        ROOT_DIR / "data" / "online_rl_data" / f"period-{period}_bids.parquet"
+    )
+    config_list.append(
+        {
+            "env_name": args.env_name,
+            "pvalues_df_path": pvalues_df_path,
+            "bids_df_path": bids_df_path,
+            "budget_range": (args.budget_min, args.budget_max),
+            "target_cpa_range": (args.target_cpa_min, args.target_cpa_max),
+            "seed": args.seed,
+        }
+    )
 
 model_config = dict(
-    policy="MultiInputPolicy",
+    policy="MlpPolicy",
     device=args.device,
     batch_size=args.batch_size,
     n_steps=128,
@@ -187,17 +179,16 @@ model_config = dict(
 
 
 # Function that creates and monitors vectorized environments:
-def make_parallel_envs(env_config, num_env, start_index=0):
-    def make_env(_):
+def make_parallel_envs(env_config_list):
+    def make_env(env_config):
         def _thunk():
             env = EnvironmentFactory.create(**env_config)
-            # env.seed(args.seed)
             env = Monitor(env, TENSORBOARD_LOG)
             return env
 
         return _thunk
 
-    return SubprocVecEnv([make_env(i + start_index) for i in range(num_env)])
+    return SubprocVecEnv([make_env(c) for c in env_config_list])
 
 
 if __name__ == "__main__":
@@ -206,17 +197,18 @@ if __name__ == "__main__":
         name=run_name,
         config=model_config,
         sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
-        monitor_gym=True,  # auto-upload the videos of agents playing the game
-        save_code=True,  # optional
+        monitor_gym=False,  # auto-upload the videos of agents playing the game
+        save_code=False,  # optional
     )
-    # ensure tensorboard log directory exists and copy this file to track
+
+    # ensure tensorboard log directory exists and copy this file and the args
     os.makedirs(TENSORBOARD_LOG, exist_ok=True)
     shutil.copy(os.path.abspath(__file__), TENSORBOARD_LOG)
     with open(os.path.join(TENSORBOARD_LOG, "args.json"), "w") as file:
         json.dump(args.__dict__, file, indent=4, default=lambda _: "<not serializable>")
 
     checkpoint_callback = CheckpointCallback(
-        save_freq=int(args.save_every/args.num_envs),
+        save_freq=int(args.save_every / args.num_envs),
         save_path=TENSORBOARD_LOG,
         save_vecnormalize=True,
         verbose=1,
@@ -224,12 +216,17 @@ if __name__ == "__main__":
 
     tensorboard_callback = TensorboardCallback(
         info_keywords=(
-            "pose",
-            "force",
-            "prev_pentip",
-            # "solved",
-            # "rwd_dense",
-            # "done",
+            "conversions",
+            "cost",
+            "cpa",
+            "target_cpa",
+            "budget",
+            "avg_pvalues",
+            "score_over_pvalue",
+            "score_over_budget",
+            "score_over_cpa",
+            "cost_over_budget",
+            "target_cpa_over_cpa",
         ),
     )
 
@@ -238,7 +235,7 @@ if __name__ == "__main__":
     )
 
     # Create and wrap the training and evaluations environments
-    envs = make_parallel_envs(config, args.num_envs)
+    envs = make_parallel_envs(config_list)
     if env_path is not None:
         envs = VecNormalize.load(env_path, envs)
     else:
@@ -248,7 +245,6 @@ if __name__ == "__main__":
     trainer = SingleEnvTrainer(
         algo="ppo",
         envs=envs,
-        env_config=config,
         load_model_path=model_path,
         log_dir=TENSORBOARD_LOG,
         model_config=model_config,
@@ -259,3 +255,7 @@ if __name__ == "__main__":
     # Train agent
     trainer.train()
     trainer.save()
+
+"""
+python online/main_train.py --num_envs 1 --batch_size 8 --num_steps 1000000 --out_suffix _test_004
+"""
