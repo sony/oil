@@ -68,13 +68,19 @@ parser.add_argument(
     "--num_steps",
     type=int,
     default=100_000_000,
-    help="Number of training steps once an environment is sampled",
+    help="Number of training steps",
 )
 parser.add_argument(
     "--batch_size",
     type=int,
     default=256,
-    help="Batch size for training",
+    help="Batch size",
+)
+parser.add_argument(
+    "--out_prefix",
+    type=str,
+    default="",
+    help="Prefix to prepend to the training run name",
 )
 parser.add_argument(
     "--out_suffix",
@@ -125,9 +131,14 @@ parser.add_argument(
     default=12,
     help="Maximum target CPA",
 )
+parser.add_argument(
+    "--new_action",
+    action="store_true",
+    help="Use the new action transformation",
+)
 args = parser.parse_args()
 
-run_name = f"ppo_seed_{args.seed}{args.out_suffix}"
+run_name = f"{args.out_prefix}ppo_seed_{args.seed}{args.out_suffix}"
 TENSORBOARD_LOG = os.path.join(ROOT_DIR, "output", "training", "ongoing", run_name)
 
 # Reward structure and task parameters:
@@ -145,6 +156,12 @@ for period in range(7, 7 + args.num_envs):  # one period per env
     bids_df_path = (
         ROOT_DIR / "data" / "online_rl_data" / f"period-{period}_bids.parquet"
     )
+
+    rwd_weights = {
+        "dense": 1,
+        "sparse": 0,
+    }
+
     config_list.append(
         {
             "env_name": args.env_name,
@@ -152,6 +169,8 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "bids_df_path": bids_df_path,
             "budget_range": (args.budget_min, args.budget_max),
             "target_cpa_range": (args.target_cpa_min, args.target_cpa_max),
+            "rwd_weights": rwd_weights,
+            "new_action": args.new_action,
             "seed": args.seed,
         }
     )
@@ -227,6 +246,11 @@ if __name__ == "__main__":
             "score_over_cpa",
             "cost_over_budget",
             "target_cpa_over_cpa",
+            "score",
+            "sparse",
+            "dense",
+            "action",
+            "bid",
         ),
     )
 
@@ -257,5 +281,30 @@ if __name__ == "__main__":
     trainer.save()
 
 """
-python online/main_train.py --num_envs 1 --batch_size 8 --num_steps 1000000 --out_suffix _test_004
+python online/main_train.py --num_envs 1 --batch_size 8 --num_steps 1_000_000 --out_suffix _test_004
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 10_000_000 --out_suffix _test_005 \
+    --budget_min 6000 --budget_max 6000 --target_cpa_min 8 --target_cpa_max 8
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 10_000_000 --out_prefix 006_ \
+    --budget_min 2000 --budget_max 2000 --target_cpa_min 8 --target_cpa_max 8
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 10_000_000 --out_prefix 007_ \
+    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 10_000_000 --out_prefix 010_ \
+    --budget_min 6000 --budget_max 6000 --target_cpa_min 8 --target_cpa_max 8 \
+        --load_path output/training/ongoing/008_ppo_seed_0 --checkpoint_num 5250000
+        
+python online/main_train.py --num_envs 1 --batch_size 256 --num_steps 10_000_000 --out_prefix 012_ \
+    --budget_min 6000 --budget_max 6000 --target_cpa_min 8 --target_cpa_max 8 \
+        --load_path output/training/ongoing/008_ppo_seed_0 --checkpoint_num 5250000
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 013_ \
+    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --load_path output/training/ongoing/008_ppo_seed_0  --out_suffix=_old_action
+        
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 014_ \
+    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --out_suffix=_new_action_from_scratch
 """

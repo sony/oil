@@ -1,8 +1,12 @@
+import pathlib
+import sys
+
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
+
 import argparse
 import os
 import json
 import numpy as np
-import pandas as pd
 import glob
 from definitions import ROOT_DIR
 from envs.environment_factory import EnvironmentFactory
@@ -11,36 +15,30 @@ from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 from scipy.signal import savgol_filter
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from typing import Iterable
-from torch import nn
-import skvideo
-import platform
 import subprocess
+from torch import nn
 
 
 MODEL_PATTERN = "rl_model_*_steps.zip"
 ENV_PATTERN = "rl_model_vecnormalize_*_steps.pkl"
-TB_DIR_NAME = "PPO_1"  # "RecurrentPPO_1", "SAC_1"
+TB_DIR_NAME = "PPO_0"  # "RecurrentPPO_1", "SAC_1"
 CKPT_CHOICE_CRITERION = "rollout/ep_rew_mean"  # "rollout/ep_rew_mean", "rollout/solved"
-VIDEO_DIR = os.path.join(ROOT_DIR, "data", "videos")
-HOST = "chiappa@sv-rcp-gateway.intranet.epfl.ch"
-HOST_PROJECT_ROOT = "/storage-rcp-pure/upamathis_scratch/alberto/SharedBionicControl"
 
 
 def get_number(filename):
     return int(filename.split("_steps.zip")[0].split("_")[-1])
 
 
-def load_model(experiment_path, checkpoint_number=None, action_space=None, observation_space=None, model_config=None):
-    custom_objects = {}
+def load_model(
+    experiment_path,
+    checkpoint_number,
+):
     if checkpoint_number is None:
         model_file = "best_model"
     else:
         model_file = MODEL_PATTERN.replace("*", str(checkpoint_number))
     model_path = os.path.join(experiment_path, model_file)
-    if not os.path.exists(model_path):
-        print("Attempting to fetch remote experiment...")
-        get_remote_checkpoint(experiment_path, checkpoint_number)
-    model = PPO.load(model_path, custom_objects=custom_objects)
+    model = PPO.load(model_path)
     return model
 
 
@@ -50,9 +48,6 @@ def load_vecnormalize(experiment_path, checkpoint_number, base_env):
     else:
         env_file = ENV_PATTERN.replace("*", str(checkpoint_number))
     env_path = os.path.join(experiment_path, env_file)
-    if not os.path.exists(env_path):
-        print("Attempting to fetch remote experiment...")
-        get_remote_checkpoint(experiment_path, checkpoint_number)
     venv = DummyVecEnv([lambda: base_env])
     print("env path", env_path)
     vecnormalize = VecNormalize.load(env_path, venv)
@@ -126,48 +121,28 @@ def get_experiment_data(tb_dir_path, attributes, tb_config=None):
     return experiment_data
 
 
-def get_remote_checkpoint(experiment_path, checkpoint_num):
-    if checkpoint_num is None:
-        raise NotImplementedError("Selection of best checkpoint from the remote not implemented")
-    file_names = [
-        "args.json",
-        "env_config.json",
-        "*_config.json",
-        f"rl_model_{checkpoint_num}_steps.zip",
-        f"rl_model_vecnormalize_{checkpoint_num}_steps.pkl"
-    ]
-    file_paths = [os.path.join(f"{HOST}:{HOST_PROJECT_ROOT}", experiment_path, f) for f in file_names]
-    os.makedirs(os.path.join(ROOT_DIR, experiment_path), exist_ok=True)
-    subprocess.run(["rsync",  *file_paths, os.path.join(ROOT_DIR, experiment_path)])
-
-
 def main(args):
     if args.experiment_path is None:
-        env = EnvironmentFactory.create(args.env_name)
-        model = PPO(policy="MultiInputPolicy", env=env)
+        env_config = json.load(open(args.eval_config_path, "r"))
+        env = EnvironmentFactory.create(**env_config)
+        model = PPO(policy="MlpPolicy", env=env)
         venv = DummyVecEnv([lambda: env])
         vecnormalize = VecNormalize(venv)
-        sde_sample_freq = 1
     else:
-        config_path = os.path.join(args.experiment_path, f"env_config.json")
-        if not os.path.exists(config_path):
-            print("Attempting to fetch remote experiment...")
-            get_remote_checkpoint(args.experiment_path, args.checkpoint)
-        env_config = json.load(open(config_path, "r"))
-        ## TODO: remove
-        if args.env_name is not None:
-            env_config = {"env_name": args.env_name}
+        experiment_path = ROOT_DIR / args.experiment_path
+        env_config = json.load(open(args.eval_config_path, "r"))
         env = EnvironmentFactory.create(**env_config)
+        baseline_env = EnvironmentFactory.create(**env_config)
         if args.checkpoint is None:
             # First get the training data from the tensorboard log
-            tb_dir_path = os.path.join(args.experiment_path, TB_DIR_NAME)
+            tb_dir_path = os.path.join(experiment_path, TB_DIR_NAME)
             experiment_data = get_experiment_data(tb_dir_path, CKPT_CHOICE_CRITERION)
             steps = experiment_data[CKPT_CHOICE_CRITERION]["x"][0]
             rewards = experiment_data[CKPT_CHOICE_CRITERION]["y"][0]
 
             # Get the list of checkpoints
             model_list = sorted(
-                glob.glob(os.path.join(args.experiment_path, MODEL_PATTERN)),
+                glob.glob(os.path.join(experiment_path, MODEL_PATTERN)),
                 key=get_number,
             )
             checkpoints = [
@@ -182,62 +157,56 @@ def main(args):
                 checkpoint = None
         else:
             checkpoint = args.checkpoint
-        model_config_path = os.path.join(args.experiment_path, "model_config.json")
-        model_config = json.load(open(model_config_path, "r"))
-        model = load_model(args.experiment_path, checkpoint, action_space=env.action_space, observation_space=env.observation_space)
-        vecnormalize = load_vecnormalize(args.experiment_path, checkpoint, env)
+
+        model = load_model(
+            experiment_path,
+            checkpoint,
+        )
+        vecnormalize = load_vecnormalize(experiment_path, checkpoint, env)
 
     # Collect rollouts and store them
     vecnormalize.training = False
-    # if args.render:
-    #     env.mujoco_render_frames = True
-    if args.save_video:
-        env.mujoco_render_frames = False
-        frames = []
+    mean_ep_rew = 0
+    mean_baseline_ep_rew = 0
     for i in range(args.num_episodes):
         lstm_states = None
-        cum_rew = 0
+        ep_rew = 0
+        baseline_ep_rew = 0
         step = 0
         obs, _ = env.reset()
+        baseline_env.reset()
         episode_starts = np.ones((1,), dtype=bool)
         done = False
         while not done:
-            if args.render:
-                # env.sim.renderer.render_to_window()
-                env.render()
-            if args.save_video:
-                curr_frame = env.sim.renderer.render_offscreen(
-                        # cameras=[None],
-                        width=640,
-                        height=480,
-                        camera_id=1,
-                        device_id=0
-                    )
-                frames.append(curr_frame)
-            if model.use_sde and not args.deterministic and step % sde_sample_freq == 0:
-                model.policy.reset_noise()
-
-            action, lstm_states = model.predict(
+            action, _ = model.predict(
                 vecnormalize.normalize_obs(obs),
                 state=lstm_states,
                 episode_start=episode_starts,
                 deterministic=args.deterministic,
             )
-            next_obs, rewards, terminated, truncated, _ = env.step(action)
-            print(rewards)
-            if(env.data.time == 0):
-                print("Done should be true", terminated or truncated)
-            # print("qpos", next_obs["qpos"][-6:-3])
-            # print("tip err", np.linalg.norm(next_obs["error_pos"]))
-            import time
-            time.sleep(0.05)
-            print(env.reward_dict)
+            obs, rewards, terminated, truncated, _ = env.step(action)
+
+            baseline_action = env.get_baseline_action()
+            _, baseline_rewards, _, _, _ = baseline_env.step(baseline_action)
+
             done = terminated or truncated
             episode_starts = done
-            cum_rew += rewards
+            ep_rew += rewards
+            baseline_ep_rew += baseline_rewards
             step += 1
-        print("Episode", i, ", len:", step, ", cum rew: ", cum_rew)
-        
+        mean_ep_rew = (mean_ep_rew * i + ep_rew) / (i + 1)
+        mean_baseline_ep_rew = (mean_baseline_ep_rew * i + baseline_ep_rew) / (i + 1)
+        print(
+            "Ep:",
+            i,
+            "ep rew:",
+            ep_rew,
+            "avg score:",
+            mean_ep_rew,
+            "avg_baseline_score:",
+            mean_baseline_ep_rew,
+        )
+
     env.close()
 
 
@@ -259,10 +228,10 @@ if __name__ == "__main__":
         help="Number of the checkpoint to select. Otherwise the checkpoint corresponding to the highest reward is selected.",
     )
     parser.add_argument(
-        "--env_name",
+        "--eval_config_path",
         type=str,
-        default=None,
-        help="Name of the environment where to test the agent",
+        default=ROOT_DIR / "data" / "env_configs" / "eval_config.json",
+        help="Path to the eval config",
     )
     parser.add_argument(
         "--num_episodes", type=int, default=100, help="Number of episodes to collect"
@@ -286,24 +255,21 @@ if __name__ == "__main__":
         default=False,
         help="Flag to not save the dataframe",
     )
-    parser.add_argument(
-        "--render",
-        action="store_true",
-        default=False,
-        help="Flag to render at the screen",
-    )
-    parser.add_argument(
-        "--save_video",
-        action="store_true",
-        default=False,
-        help="Flag to save a video",
-    )
     args = parser.parse_args()
     main(args)
+
+"""Example:
+# mjpython src/main_dataset_recurrent_ppo.py --experiment_path=output/training/2023-09-17/15-29-45_CustomChaseTag_sde_False_lattice_True_freq_1_log_std_init_0.0_ppo_seed_0_xrange_-1_1_yrange_-5_5_static_max_1000_steps \
+#     --num_episodes=100 --no_save_df --render --deterministic    
+#         mjpython src/main_dataset_recurrent_ppo.py --experiment_path=output/training/ongoing/CustomChaseTag_seed_8_x_-1.0_1.0_y_-5.0_0.0_dist_0.05_hip_0.001_period_100.0_alive_0.0_solved_0.0_early_solved_0.1_joints_0.005_lose_0.0_ref_0.002_heel_0_gait_l_0.8_gait_c_1.0_fix_0.1_ran_0.9_mov_0.0_job_60 \
+# --num_episodes=100 --no_save_df --render --deterministic --checkpoint=211986432
+
+python online/main_eval.py --experiment_path=output/training/ongoing/008_ppo_seed_0 \
+    --checkpoint=5250000 --num_episodes=100 --no_save_df
     
-    """Example:
-    # mjpython src/main_dataset_recurrent_ppo.py --experiment_path=output/training/2023-09-17/15-29-45_CustomChaseTag_sde_False_lattice_True_freq_1_log_std_init_0.0_ppo_seed_0_xrange_-1_1_yrange_-5_5_static_max_1000_steps \
-    #     --num_episodes=100 --no_save_df --render --deterministic    
-    #         mjpython src/main_dataset_recurrent_ppo.py --experiment_path=output/training/ongoing/CustomChaseTag_seed_8_x_-1.0_1.0_y_-5.0_0.0_dist_0.05_hip_0.001_period_100.0_alive_0.0_solved_0.0_early_solved_0.1_joints_0.005_lose_0.0_ref_0.002_heel_0_gait_l_0.8_gait_c_1.0_fix_0.1_ran_0.9_mov_0.0_job_60 \
-    # --num_episodes=100 --no_save_df --render --deterministic --checkpoint=211986432
-    """
+python online/main_eval.py --experiment_path=output/training/ongoing/013_ppo_seed_0_old_action \
+    --checkpoint=27000000 --num_episodes=100 --no_save_df
+
+python online/main_eval.py \
+    --num_episodes=100 --no_save_df
+"""

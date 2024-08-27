@@ -6,6 +6,7 @@ from definitions import ROOT_DIR, MODEL_PATTERN
 def get_number(filename):
     return int(filename.split("_steps.zip")[0].split("_")[-1])
 
+
 def get_last_checkpoint(path):
     model_list = sorted(
         glob.glob(os.path.join(path, MODEL_PATTERN)),
@@ -16,7 +17,8 @@ def get_last_checkpoint(path):
         return max(checkpoints_list)
     else:
         return None
-    
+
+
 def get_model_and_env_path(tensorboard_log, load_path, checkpoint_num):
     """This function is used to robustly recover the checkpoint when the training is interrupted.
     When tensorboard_log already exists, the function looks for the latest checkpoint in such
@@ -33,14 +35,15 @@ def get_model_and_env_path(tensorboard_log, load_path, checkpoint_num):
     """
     if os.path.isdir(tensorboard_log):
         # The folder already exists, then we resume the training if there are already checkpoints
-        checkpoint_num = get_last_checkpoint(tensorboard_log)
-        if checkpoint_num is None:
+        c_n = get_last_checkpoint(tensorboard_log)
+        if c_n is None:
             print(
                 f"WARNING: A training at {tensorboard_log} already exists, but no checkpoint was found."
                 f"Searching for a checkpoint at {load_path}."
             )
         else:
             load_path = tensorboard_log
+            checkpoint_num = c_n
             if load_path is not None:
                 print(
                     f"WARNING: A checkpoint was found at {tensorboard_log}, so we are resuming from there."

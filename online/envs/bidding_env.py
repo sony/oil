@@ -23,6 +23,11 @@ class BiddingEnv(gym.Env):
         "pv_num_total",
     ]
 
+    DEFAULT_RWD_WEIGHTS = {
+        "dense": 0.0,
+        "sparse": 1.0,
+    }
+
     def __init__(
         self,
         pvalues_df_path,
@@ -30,14 +35,22 @@ class BiddingEnv(gym.Env):
         budget_range,
         target_cpa_range,
         obs_keys=DEFAULT_OBS_KEYS,
+        rwd_weights=DEFAULT_RWD_WEIGHTS,
+        new_action=False,
         seed=0,
     ):
         self.observation_space = gym.spaces.Box(
             low=-np.inf, high=np.inf, shape=(len(obs_keys),), dtype=np.float32
         )
-        self.action_space = gym.spaces.Box(
-            low=0, high=1000, shape=(1,), dtype=np.float32
-        )
+        if new_action:
+            self.action_space = gym.spaces.Box(
+                low=-1, high=10, shape=(1,), dtype=np.float32
+            )
+        else:
+            self.action_space = gym.spaces.Box(
+                low=0, high=10, shape=(1,), dtype=np.float32
+            )
+        self.new_action = new_action
         self.pvalues_df = self.load_pvalues_df(pvalues_df_path)
         self.bids_df = self.load_bids_df(bids_df_path)
         self.episode_length = len(self.bids_df.timeStepIndex.unique())
@@ -46,6 +59,7 @@ class BiddingEnv(gym.Env):
         self.budget_range = budget_range
         self.target_cpa_range = target_cpa_range
         self.obs_keys = obs_keys
+        self.rwd_weights = rwd_weights
         self.reset(seed=seed)
 
     def reset_campaign_params(self, budget=None, target_cpa=None):
@@ -75,6 +89,8 @@ class BiddingEnv(gym.Env):
     def step(self, action):
         bid_data = self.get_bid_data()
         pvalues, pvalues_sigma = self.get_pvalues_mean_and_std()
+        if self.new_action:
+            action = action + 1
         advertiser_bids = action * pvalues * self.target_cpa
         top_bids = bid_data.bid.item()
 
@@ -99,32 +115,58 @@ class BiddingEnv(gym.Env):
         self.total_cost += np.sum(bid_cost)
         self.remaining_budget -= np.sum(bid_cost)
         terminated = self.time_step >= self.episode_length
+        dense_reward = self.compute_score(np.sum(bid_cost), np.sum(bid_conversion))
+
+        info = {
+            "action": action,
+            "bid": np.mean(advertiser_bids),
+        }
         if terminated:
             cpa = (
                 self.total_cost / self.total_conversions
                 if self.total_conversions > 0
                 else 0
             )
-            cpa_coeff = min(1, (self.target_cpa / cpa) ** 2) if cpa > 0 else 0
-            reward = cpa_coeff * self.total_conversions
-            info = {
+            sparse_reward = self.compute_score(self.total_cost, self.total_conversions)
+            reward_dict = {
+                "sparse": sparse_reward,
+                "dense": dense_reward,
+            }
+            episode_end_info = {
                 "conversions": self.total_conversions,
                 "cost": self.total_cost,
                 "cpa": cpa,
                 "target_cpa": self.target_cpa,
                 "budget": self.total_budget,
                 "avg_pvalues": np.mean(self.mean_pvalues_list),
-                "score_over_pvalue": reward / np.mean(self.mean_pvalues_list),
-                "score_over_budget": reward / self.total_budget,
-                "score_over_cpa": reward / cpa if cpa > 0 else 0,
+                "score_over_pvalue": sparse_reward / np.mean(self.mean_pvalues_list),
+                "score_over_budget": sparse_reward / self.total_budget,
+                "score_over_cpa": sparse_reward / cpa if cpa > 0 else 0,
                 "cost_over_budget": self.total_cost / self.total_budget,
                 "target_cpa_over_cpa": self.target_cpa / cpa if cpa > 0 else 0,
+                "score": sparse_reward,
             }
+            info.update(episode_end_info)
+            info.update(reward_dict)
+            reward = self.compute_reward(reward_dict)
         else:
-            info = {}
-            reward = 0  # First attempt: all the reward is assigned at the last step
+            reward_dict = {"sparse": 0, "dense": dense_reward}
+            info.update(reward_dict)
+            reward = self.compute_reward(reward_dict)
         state = self.get_state(pvalues)
         return state, reward, terminated, False, info
+
+    def compute_score(self, cost, conversions):
+        cpa = cost / conversions if conversions > 0 else 0
+        cpa_coeff = min(1, (self.target_cpa / cpa) ** 2) if cpa > 0 else 0
+        score = cpa_coeff * conversions
+        return score
+
+    def compute_reward(self, reward_dict):
+        reward = 0
+        for key, weight in self.rwd_weights.items():
+            reward += weight * reward_dict[key]
+        return reward
 
     def simulate_ad_bidding(
         self,
@@ -290,3 +332,12 @@ class BiddingEnv(gym.Env):
         bids_df["bid"] = bids_df["bid"].apply(np.stack)
         bids_df["isExposed"] = bids_df["isExposed"].apply(np.stack)
         return bids_df
+
+    def get_baseline_action(self):
+        remaining_budget_excess = (
+            self.remaining_budget
+            * self.episode_length
+            / (self.total_budget * (self.episode_length - self.time_step))
+        )
+        return remaining_budget_excess
+        

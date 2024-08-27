@@ -29,19 +29,21 @@ class SingleEnvTrainer:
     def _init_agent(self):
         algo_class = self.get_algo_class()
         if self.load_model_path is not None:
-            return algo_class.load(
-                self.load_model_path,
+            agent = algo_class.load(
+                    self.load_model_path,
+                    env=self.envs,
+                    tensorboard_log=self.log_dir,
+                    custom_objects=self.model_config,
+                )
+        else:
+            print("\nNo model path provided. Initializing new model.\n")
+            agent = algo_class(
                 env=self.envs,
+                verbose=2,
                 tensorboard_log=self.log_dir,
-                custom_objects=self.model_config,
+                **self.model_config,
             )
-        print("\nNo model path provided. Initializing new model.\n")
-        return algo_class(
-            env=self.envs,
-            verbose=2,
-            tensorboard_log=self.log_dir,
-            **self.model_config,
-        )
+        return agent
 
     def train(self) -> None:
         self.agent.learn(
