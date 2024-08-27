@@ -30,10 +30,10 @@ class BiddingEnv(gym.Env):
 
     def __init__(
         self,
-        pvalues_df_path,
-        bids_df_path,
-        budget_range,
-        target_cpa_range,
+        pvalues_df_path=None,
+        bids_df_path=None,
+        budget_range=(6000, 6000),
+        target_cpa_range=(8, 8),
         obs_keys=DEFAULT_OBS_KEYS,
         rwd_weights=DEFAULT_RWD_WEIGHTS,
         new_action=False,
@@ -50,17 +50,20 @@ class BiddingEnv(gym.Env):
             self.action_space = gym.spaces.Box(
                 low=0, high=10, shape=(1,), dtype=np.float32
             )
-        self.new_action = new_action
-        self.pvalues_df = self.load_pvalues_df(pvalues_df_path)
-        self.bids_df = self.load_bids_df(bids_df_path)
-        self.episode_length = len(self.bids_df.timeStepIndex.unique())
-        self.advertiser_list = list(self.pvalues_df.advertiserNumber.unique())
-        self.period_list = list(self.pvalues_df.deliveryPeriodIndex.unique())
-        self.budget_range = budget_range
-        self.target_cpa_range = target_cpa_range
-        self.obs_keys = obs_keys
-        self.rwd_weights = rwd_weights
-        self.reset(seed=seed)
+        if pvalues_df_path is None or bids_df_path is None:
+            print("Warning: creating a dummy environment with no dataset")
+        else:
+            self.new_action = new_action
+            self.pvalues_df = self.load_pvalues_df(pvalues_df_path)
+            self.bids_df = self.load_bids_df(bids_df_path)
+            self.episode_length = len(self.bids_df.timeStepIndex.unique())
+            self.advertiser_list = list(self.pvalues_df.advertiserNumber.unique())
+            self.period_list = list(self.pvalues_df.deliveryPeriodIndex.unique())
+            self.budget_range = budget_range
+            self.target_cpa_range = target_cpa_range
+            self.obs_keys = obs_keys
+            self.rwd_weights = rwd_weights
+            self.reset(seed=seed)
 
     def reset_campaign_params(self, budget=None, target_cpa=None):
         self.advertiser = self.sample_advertiser()

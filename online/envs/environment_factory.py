@@ -1,3 +1,8 @@
+import sys
+import pathlib
+
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
+
 import gymnasium as gym
 
 ENV_NAME_TO_ID = {
@@ -22,7 +27,7 @@ class EnvironmentFactory:
         Returns:
             gym.env: the selected environment
         """
-        
+
         env_id = ENV_NAME_TO_ID.get(env_name)
         if env_id is None:
             print(
@@ -34,5 +39,3 @@ class EnvironmentFactory:
         else:
             # return gym.make("GymV21Environment-v0", env_id=env_id, make_kwargs=kwargs)
             return gym.make(env_id, **kwargs)
-
-
