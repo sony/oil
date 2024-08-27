@@ -12,7 +12,7 @@ click==8.1.7
 cloudpickle==3.0.0
 gymnasium==0.29.1
 joblib==1.4.2
-ployly==5.23.0
+plotly==5.23.0
 scikit-learn==1.5.1
 wandb==0.16.3
 stable_baselines3==2.3.2
