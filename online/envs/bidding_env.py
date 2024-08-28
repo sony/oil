@@ -37,37 +37,54 @@ class BiddingEnv(gym.Env):
         obs_keys=DEFAULT_OBS_KEYS,
         rwd_weights=DEFAULT_RWD_WEIGHTS,
         new_action=False,
+        multi_action=False,
         seed=0,
     ):
         self.observation_space = gym.spaces.Box(
             low=-np.inf, high=np.inf, shape=(len(obs_keys),), dtype=np.float32
         )
+        if multi_action:
+            self.action_size = 5
+        else:
+            self.action_size = 1
         if new_action:
             self.action_space = gym.spaces.Box(
-                low=-1, high=10, shape=(1,), dtype=np.float32
+                low=-10, high=10, shape=(self.action_size,), dtype=np.float32
             )
         else:
             self.action_space = gym.spaces.Box(
-                low=0, high=10, shape=(1,), dtype=np.float32
+                low=0, high=10, shape=(self.action_size,), dtype=np.float32
             )
+        self.obs_keys = obs_keys
+        self.rwd_weights = rwd_weights
+        self.new_action = new_action
+
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
         else:
-            self.new_action = new_action
             self.pvalues_df = self.load_pvalues_df(pvalues_df_path)
             self.bids_df = self.load_bids_df(bids_df_path)
             self.episode_length = len(self.bids_df.timeStepIndex.unique())
             self.advertiser_list = list(self.pvalues_df.advertiserNumber.unique())
+            categories_df = self.pvalues_df.groupby(
+                "advertiserNumber"
+            ).advertiserCategoryIndex.first()
+            self.advertiser_category_dict = {
+                advertiser: category
+                for advertiser, category in zip(
+                    categories_df.index, categories_df.values
+                )
+            }
             self.period_list = list(self.pvalues_df.deliveryPeriodIndex.unique())
             self.budget_range = budget_range
             self.target_cpa_range = target_cpa_range
-            self.obs_keys = obs_keys
-            self.rwd_weights = rwd_weights
             self.reset(seed=seed)
 
-    def reset_campaign_params(self, budget=None, target_cpa=None):
-        self.advertiser = self.sample_advertiser()
-        self.period = self.sample_period()
+    def reset_campaign_params(
+        self, budget=None, target_cpa=None, advertiser=None, period=None
+    ):
+        self.advertiser = self.sample_advertiser() if advertiser is None else advertiser
+        self.period = self.sample_period() if period is None else period
         self.total_budget = self.sample_budget() if budget is None else budget
         self.target_cpa = self.sample_cpa() if target_cpa is None else target_cpa
         self.time_step = 0
@@ -81,20 +98,31 @@ class BiddingEnv(gym.Env):
         self.total_conversions = 0
         self.total_cost = 0
 
-    def reset(self, budget=None, target_cpa=None, seed=None, options=None):
+    def reset(
+        self,
+        budget=None,
+        target_cpa=None,
+        advertiser=None,
+        period=None,
+        seed=None,
+        options=None,
+    ):
         super().reset(seed=seed)
-        self.reset_campaign_params(budget, target_cpa)
+        self.reset_campaign_params(budget, target_cpa, advertiser, period)
         pvalues, pvalues_std = self.get_pvalues_mean_and_std()
-        state = self.get_state(pvalues)
+        state_dict = self.get_state_dict(pvalues)
+        state = self.get_state(state_dict)
 
         return state, {}
 
     def step(self, action):
         bid_data = self.get_bid_data()
+
+        # Get current pvalues to compute the bids
         pvalues, pvalues_sigma = self.get_pvalues_mean_and_std()
-        if self.new_action:
-            action = action + 1
-        advertiser_bids = action * pvalues * self.target_cpa
+
+        bid_coef, alpha = self.compute_bid_coef(action, pvalues, pvalues_sigma)
+        advertiser_bids = bid_coef * self.target_cpa
         top_bids = bid_data.bid.item()
 
         # TODO: we should simulate exposure as a Beroulli
@@ -106,11 +134,12 @@ class BiddingEnv(gym.Env):
 
         self.mean_bid_list.append(np.mean(advertiser_bids))
         self.mean_pvalues_list.append(np.mean(pvalues))
-        self.mean_least_winning_cost_list.append(
-            np.mean(top_bids[0])
-        )  # only the smallest bid
-        self.mean_conversion_list.append(np.mean(bid_conversion))
 
+        top_bids_cost = bid_data.cost.item()
+        self.mean_least_winning_cost_list.append(
+            np.mean(top_bids_cost[:, 0])
+        )  # only the smallest bid cost
+        self.mean_conversion_list.append(np.mean(bid_conversion))
         self.mean_bid_success_list.append(np.mean(bid_success))
         self.num_pv_list.append(len(pvalues))
         self.time_step += 1
@@ -121,7 +150,7 @@ class BiddingEnv(gym.Env):
         dense_reward = self.compute_score(np.sum(bid_cost), np.sum(bid_conversion))
 
         info = {
-            "action": action,
+            "action": alpha,
             "bid": np.mean(advertiser_bids),
         }
         if terminated:
@@ -156,7 +185,11 @@ class BiddingEnv(gym.Env):
             reward_dict = {"sparse": 0, "dense": dense_reward}
             info.update(reward_dict)
             reward = self.compute_reward(reward_dict)
-        state = self.get_state(pvalues)
+
+        # Get the new pvalues for the next state
+        new_pvalues, new_pvalues_std = self.get_pvalues_mean_and_std()
+        state_dict = self.get_state_dict(new_pvalues)
+        state = self.get_state(state_dict)
         return state, reward, terminated, False, info
 
     def compute_score(self, cost, conversions):
@@ -266,6 +299,9 @@ class BiddingEnv(gym.Env):
             return {
                 "time_left": 1,
                 "budget_left": 1,
+                "budget": self.total_budget,
+                "cpa": self.target_cpa,
+                "category": self.advertiser_category_dict[self.advertiser],
                 "historical_bid_mean": 0,
                 "last_three_bid_mean": 0,
                 "least_winning_cost_mean": 0,
@@ -276,8 +312,8 @@ class BiddingEnv(gym.Env):
                 "last_three_pvalues_mean": 0,
                 "last_three_conversion_mean": 0,
                 "last_three_bid_success_mean": 0,
-                "current_pvalues_mean": 0,
-                "current_pv_num": 0,
+                "current_pvalues_mean": np.mean(pvalues),
+                "current_pv_num": len(pvalues),
                 "last_three_pv_num": 0,
                 "pv_num_total": 0,
             }
@@ -286,6 +322,9 @@ class BiddingEnv(gym.Env):
                 "time_left": (self.episode_length - self.time_step)
                 / self.episode_length,
                 "budget_left": max(self.remaining_budget, 0) / self.total_budget,
+                "budget": self.total_budget,
+                "cpa": self.target_cpa,
+                "category": self.advertiser_category_dict[self.advertiser],
                 "historical_bid_mean": np.mean(self.mean_bid_list),
                 "last_three_bid_mean": np.mean(self.mean_bid_list[-3:]),
                 "least_winning_cost_mean": np.mean(self.mean_least_winning_cost_list),
@@ -305,10 +344,32 @@ class BiddingEnv(gym.Env):
             }
         return state_dict
 
-    def get_state(self, pvalues):
-        state_dict = self.get_state_dict(pvalues)
+    def get_state(self, state_dict):
         state = np.array([state_dict[key] for key in self.obs_keys]).astype(np.float32)
         return state
+
+    def compute_bid_coef(self, action, pvalues, pvalues_sigma):
+        if self.action_size == 1:
+            if self.new_action:
+                alpha = action + 1
+            else:
+                alpha = action
+            bid_coef = np.clip(alpha * pvalues, 0, np.inf)
+        else:
+            if self.new_action:
+                action[0] = action[0] + 1
+            pvalue_features = np.stack(
+                [
+                    pvalues,
+                    pvalues_sigma,
+                    pvalues**2,
+                    pvalues_sigma**2,
+                    pvalues * pvalues_sigma,
+                ]
+            )
+            bid_coef = np.clip(np.dot(action, pvalue_features), 0, np.inf)
+            alpha = np.sum(bid_coef) / np.sum(pvalues)
+        return bid_coef, alpha
 
     def get_pvalues_mean_and_std(self):
         p_row = self.pvalues_df[
@@ -334,13 +395,13 @@ class BiddingEnv(gym.Env):
         bids_df = pd.read_parquet(bids_df_path)
         bids_df["bid"] = bids_df["bid"].apply(np.stack)
         bids_df["isExposed"] = bids_df["isExposed"].apply(np.stack)
+        bids_df["cost"] = bids_df["cost"].apply(np.stack)
         return bids_df
 
     def get_baseline_action(self):
         remaining_budget_excess = (
             self.remaining_budget
             * self.episode_length
-            / (self.total_budget * (self.episode_length - self.time_step))
+            / (self.total_budget * (self.episode_length - self.time_step + 1))
         )
-        return remaining_budget_excess
-        
+        return 0.8 * remaining_budget_excess

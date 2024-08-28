@@ -9,8 +9,8 @@ import argparse
 import json
 import torch.nn as nn
 import wandb
-import numpy as np
-from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
+import torch
+from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import VecNormalize
 from stable_baselines3.common.vec_env.subproc_vec_env import SubprocVecEnv
@@ -19,6 +19,8 @@ from envs.environment_factory import EnvironmentFactory
 from metrics.custom_callbacks import TensorboardCallback
 from train.trainer import SingleEnvTrainer
 from envs.helpers import get_model_and_env_path
+
+torch.manual_seed(0)
 
 
 parser = argparse.ArgumentParser(description="Main script to train an agent")
@@ -136,12 +138,50 @@ parser.add_argument(
     action="store_true",
     help="Use the new action transformation",
 )
+parser.add_argument(
+    "--multi_action",
+    action="store_true",
+    help="Use an action vec of 5 elements",
+)
+parser.add_argument(
+    "--dense_weight",
+    type=float,
+    default=1,
+    help="Weight for dense reward",
+)
+parser.add_argument(
+    "--sparse_weight",
+    type=float,
+    default=0,
+    help="Weight for sparse reward",
+)
 args = parser.parse_args()
 
 run_name = f"{args.out_prefix}ppo_seed_{args.seed}{args.out_suffix}"
 TENSORBOARD_LOG = os.path.join(ROOT_DIR, "output", "training", "ongoing", run_name)
 
 # Reward structure and task parameters:
+obs_keys = [
+        "time_left",
+        "budget_left",
+        "budget",
+        "cpa",
+        "category",
+        "historical_bid_mean",
+        "last_three_bid_mean",
+        "least_winning_cost_mean",
+        "pvalues_mean",
+        "conversion_mean",
+        "bid_success_mean",
+        "last_threee_least_winning_cost_mean",
+        "last_three_pvalues_mean",
+        "last_three_conversion_mean",
+        "last_three_bid_success_mean",
+        "current_pvalues_mean",
+        "current_pv_num",
+        "last_three_pv_num",
+        "pv_num_total",
+    ]
 config_list = []
 for period in range(7, 7 + args.num_envs):  # one period per env
     assert os.path.exists(
@@ -158,8 +198,8 @@ for period in range(7, 7 + args.num_envs):  # one period per env
     )
 
     rwd_weights = {
-        "dense": 1,
-        "sparse": 0,
+        "dense": args.dense_weight,
+        "sparse": args.sparse_weight,
     }
 
     config_list.append(
@@ -171,6 +211,8 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "target_cpa_range": (args.target_cpa_min, args.target_cpa_max),
             "rwd_weights": rwd_weights,
             "new_action": args.new_action,
+            "multi_action": args.multi_action,
+            "obs_keys": obs_keys,
             "seed": args.seed,
         }
     )
@@ -225,6 +267,8 @@ if __name__ == "__main__":
     shutil.copy(os.path.abspath(__file__), TENSORBOARD_LOG)
     with open(os.path.join(TENSORBOARD_LOG, "args.json"), "w") as file:
         json.dump(args.__dict__, file, indent=4, default=lambda _: "<not serializable>")
+    with open(os.path.join(TENSORBOARD_LOG, "env_config.json"), "w") as file:
+        json.dump(config_list[0], file, indent=4, default=lambda _: "<not serializable")
 
     checkpoint_callback = CheckpointCallback(
         save_freq=int(args.save_every / args.num_envs),
@@ -307,4 +351,27 @@ python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 50_000_00
 python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 014_ \
     --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
         --new_action --out_suffix=_new_action_from_scratch
+        
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 016_ \
+    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --out_suffix=_new_action_test
+        
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 017_ \
+    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --out_suffix=_new_action_test
+        
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 018_ \
+    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --multi_action --out_suffix=_new_action_vec
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 019_ \
+    --budget_min 50 --budget_max 15000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --out_suffix=_resume_016_sparse_wider_ranges \
+            --dense_weight 0 --sparse_weight 1 \
+                --load_path output/training/ongoing/016_ppo_seed_0_new_action_test --checkpoint_num 10250000
+                
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 020_ \
+    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
+        --new_action --out_suffix=_dense_very_wide_ranges \
+            --dense_weight 1 --sparse_weight 0
 """

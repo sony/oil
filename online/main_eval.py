@@ -1,14 +1,6 @@
 import pathlib
 import sys
 
-from online.helpers import (
-    get_best_checkpoint,
-    get_experiment_data,
-    get_number,
-    load_model,
-    load_vecnormalize,
-)
-
 sys.path.append(str(pathlib.Path(__file__).parent.parent))
 
 import argparse
@@ -16,15 +8,23 @@ import os
 import json
 import numpy as np
 import glob
-from definitions import ROOT_DIR, MODEL_PATTERN, ENV_PATTERN
+import torch
+from definitions import ROOT_DIR, MODEL_PATTERN, ENV_CONFIG_NAME
 from envs.environment_factory import EnvironmentFactory
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
-import subprocess
+from helpers import (
+    get_best_checkpoint,
+    get_experiment_data,
+    get_number,
+    load_model,
+    load_vecnormalize,
+)
 
+torch.manual_seed(0)
 
 TB_DIR_NAME = "PPO_0"  # "RecurrentPPO_1", "SAC_1"
-CKPT_CHOICE_CRITERION = "rollout/ep_rew_mean"  # "rollout/ep_rew_mean", "rollout/solved"
+CKPT_CHOICE_CRITERION = "score"  # "rollout/ep_rew_mean", "rollout/solved"
 
 
 def main(args):
@@ -37,8 +37,16 @@ def main(args):
     else:
         experiment_path = ROOT_DIR / args.experiment_path
         env_config = json.load(open(args.eval_config_path, "r"))
-        env = EnvironmentFactory.create(**env_config)
         baseline_env = EnvironmentFactory.create(**env_config)
+
+        # We need to use the observation and action defined in the training config
+        train_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
+        env_config["obs_keys"] = train_config["obs_keys"]
+        env_config["new_action"] = train_config.get("new_action", False)
+        env_config["multi_action"] = train_config.get("multi_action", False)
+
+        env = EnvironmentFactory.create(**env_config)
+
         if args.checkpoint is None:
             # First get the training data from the tensorboard log
             tb_dir_path = os.path.join(experiment_path, TB_DIR_NAME)
@@ -80,7 +88,12 @@ def main(args):
         baseline_ep_rew = 0
         step = 0
         obs, _ = env.reset()
-        baseline_env.reset()
+        baseline_env.reset(
+            budget=env.unwrapped.total_budget,
+            target_cpa=env.unwrapped.target_cpa,
+            advertiser=env.unwrapped.advertiser,
+            period=env.unwrapped.period,
+        )
         episode_starts = np.ones((1,), dtype=bool)
         done = False
         while not done:
@@ -92,7 +105,7 @@ def main(args):
             )
             obs, rewards, terminated, truncated, _ = env.step(action)
 
-            baseline_action = env.get_baseline_action()
+            baseline_action = baseline_env.unwrapped.get_baseline_action()
             _, baseline_rewards, _, _, _ = baseline_env.step(baseline_action)
 
             done = terminated or truncated
@@ -106,11 +119,11 @@ def main(args):
             "Ep:",
             i,
             "ep rew:",
-            ep_rew,
+            "%.2f" % round(ep_rew, 2),
             "avg score:",
-            mean_ep_rew,
+            "%.2f" % round(mean_ep_rew, 2),
             "avg_baseline_score:",
-            mean_baseline_ep_rew,
+            "%.2f" % round(mean_baseline_ep_rew, 2),
         )
 
     env.close()
@@ -165,17 +178,18 @@ if __name__ == "__main__":
     main(args)
 
 """Example:
-# mjpython src/main_dataset_recurrent_ppo.py --experiment_path=output/training/2023-09-17/15-29-45_CustomChaseTag_sde_False_lattice_True_freq_1_log_std_init_0.0_ppo_seed_0_xrange_-1_1_yrange_-5_5_static_max_1000_steps \
-#     --num_episodes=100 --no_save_df --render --deterministic    
-#         mjpython src/main_dataset_recurrent_ppo.py --experiment_path=output/training/ongoing/CustomChaseTag_seed_8_x_-1.0_1.0_y_-5.0_0.0_dist_0.05_hip_0.001_period_100.0_alive_0.0_solved_0.0_early_solved_0.1_joints_0.005_lose_0.0_ref_0.002_heel_0_gait_l_0.8_gait_c_1.0_fix_0.1_ran_0.9_mov_0.0_job_60 \
-# --num_episodes=100 --no_save_df --render --deterministic --checkpoint=211986432
-
 python online/main_eval.py --experiment_path=output/training/ongoing/008_ppo_seed_0 \
     --checkpoint=5250000 --num_episodes=100 --no_save_df
     
 python online/main_eval.py --experiment_path=output/training/ongoing/013_ppo_seed_0_old_action \
-    --checkpoint=27000000 --num_episodes=100 --no_save_df
+    --checkpoint=28000000 --num_episodes=100 --no_save_df
 
+python online/main_eval.py --experiment_path=output/training/ongoing/017_ppo_seed_0_new_action_test \
+    --num_episodes=100 --no_save_df --checkpoint=6500000
+
+python online/main_eval.py --experiment_path=output/training/ongoing/016_ppo_seed_0_new_action_test \
+    --num_episodes=100 --no_save_df --checkpoint=10250000
+    
 python online/main_eval.py \
     --num_episodes=100 --no_save_df
 """

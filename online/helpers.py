@@ -1,3 +1,8 @@
+import pathlib
+import sys
+
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
+
 import numpy as np
 from typing import Iterable
 from scipy.signal import savgol_filter
