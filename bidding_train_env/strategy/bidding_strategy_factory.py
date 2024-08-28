@@ -2,6 +2,7 @@ from bidding_train_env.strategy.player_bidding_strategy import PlayerBiddingStra
 from bidding_train_env.strategy.bc_bidding_strategy import BcBiddingStrategy
 from bidding_train_env.strategy.onlinelp_bidding_strategy import OnlineLpBiddingStrategy
 from bidding_train_env.strategy.iql_bidding_strategy import IqlBiddingStrategy
+from bidding_train_env.strategy.ppo_bidding_strategy import PpoBiddingStrategy
 
 
 class BiddingStrategyFactory:
@@ -10,6 +11,7 @@ class BiddingStrategyFactory:
         "bc": BcBiddingStrategy,
         "onlineLp": OnlineLpBiddingStrategy,
         "iql": IqlBiddingStrategy,
+        "ppo": PpoBiddingStrategy,
     }
 
     @classmethod

@@ -1,10 +1,11 @@
 import numpy as np
 import torch
 import pickle
-import os
+import torch
 from bidding_train_env.strategy.base_bidding_strategy import BaseBiddingStrategy
 from definitions import ROOT_DIR
 
+torch.manual_seed(0)
 
 class BcBiddingStrategy(BaseBiddingStrategy):
     """

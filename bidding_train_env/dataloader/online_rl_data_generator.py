@@ -42,6 +42,7 @@ def generate_bids_df(data):
             {
                 "bid": lambda x: x.tolist(),
                 "isExposed": lambda x: x.tolist(),
+                "cost": lambda x: x.tolist(),
             }
         )
     )
@@ -50,6 +51,7 @@ def generate_bids_df(data):
         {
             "bid": lambda x: x.tolist(),
             "isExposed": lambda x: x.tolist(),
+            "cost": lambda x: x.tolist(),
         }
     )
     bids_df.reset_index(inplace=True)
@@ -61,6 +63,9 @@ def generate_bids_df(data):
     )
     bids_df["isExposed"] = bids_df.apply(
         lambda x: reorder_list_of_lists(x.isExposed, x.positions), axis=1
+    )
+    bids_df["cost"] = bids_df.apply(
+        lambda x: reorder_list_of_lists(x.cost, x.positions), axis=1
     )
     bids_df.drop(columns=["positions"], inplace=True)
     return bids_df
@@ -114,4 +119,4 @@ if __name__ == "__main__":
 
     traffic_data_paths = [data_dir / f"period-{period}.csv" for period in periods]
     use_precomputed = True
-    generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=True)
+    generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=False)
