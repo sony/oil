@@ -155,33 +155,21 @@ parser.add_argument(
     default=0,
     help="Weight for sparse reward",
 )
+parser.add_argument(
+    "--obs_type",
+    type=str,
+    default="obs_16_keys",
+    help="Type of observation",
+)
 args = parser.parse_args()
 
 run_name = f"{args.out_prefix}ppo_seed_{args.seed}{args.out_suffix}"
 TENSORBOARD_LOG = os.path.join(ROOT_DIR, "output", "training", "ongoing", run_name)
 
 # Reward structure and task parameters:
-obs_keys = [
-        "time_left",
-        "budget_left",
-        "budget",
-        "cpa",
-        "category",
-        "historical_bid_mean",
-        "last_three_bid_mean",
-        "least_winning_cost_mean",
-        "pvalues_mean",
-        "conversion_mean",
-        "bid_success_mean",
-        "last_threee_least_winning_cost_mean",
-        "last_three_pvalues_mean",
-        "last_three_conversion_mean",
-        "last_three_bid_success_mean",
-        "current_pvalues_mean",
-        "current_pv_num",
-        "last_three_pv_num",
-        "pv_num_total",
-    ]
+with open(ROOT_DIR / "data" / "env_configs" / f"{args.obs_type}.json", "r") as f:
+    obs_keys = json.load(f)
+
 config_list = []
 for period in range(7, 7 + args.num_envs):  # one period per env
     assert os.path.exists(
@@ -370,8 +358,34 @@ python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_00
             --dense_weight 0 --sparse_weight 1 \
                 --load_path output/training/ongoing/016_ppo_seed_0_new_action_test --checkpoint_num 10250000
                 
-python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 020_ \
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 021_ \
     --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
         --new_action --out_suffix=_dense_very_wide_ranges \
             --dense_weight 1 --sparse_weight 0
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 022_ \
+    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
+        --new_action --out_suffix=_sparse_very_wide_ranges \
+            --dense_weight 0 --sparse_weight 1
+            
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 023_ \
+    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
+        --new_action --out_suffix=_dense_very_wide_ranges_60_obs \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 023_ \
+    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
+        --new_action --out_suffix=_dense_very_wide_ranges_60_obs_multi_act \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys --multi_action
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 024_ \
+    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
+        --new_action --out_suffix=_dense_very_wide_ranges_60_obs \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
+            
+python online/main_train.py --num_envs 1 --batch_size 256 --num_steps 20_000_000 --out_prefix test_ \
+    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
+        --new_action --out_suffix=_dense_very_wide_ranges_60_obs \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
 """

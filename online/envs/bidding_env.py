@@ -1,6 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import pandas as pd
+from .helpers import safe_mean
 
 
 class BiddingEnv(gym.Env):
@@ -13,7 +14,7 @@ class BiddingEnv(gym.Env):
         "pvalues_mean",
         "conversion_mean",
         "bid_success_mean",
-        "last_threee_least_winning_cost_mean",
+        "last_three_least_winning_cost_mean",
         "last_three_pvalues_mean",
         "last_three_conversion_mean",
         "last_three_bid_success_mean",
@@ -27,6 +28,7 @@ class BiddingEnv(gym.Env):
         "dense": 0.0,
         "sparse": 1.0,
     }
+    EPS = 1e-6
 
     def __init__(
         self,
@@ -44,7 +46,7 @@ class BiddingEnv(gym.Env):
             low=-np.inf, high=np.inf, shape=(len(obs_keys),), dtype=np.float32
         )
         if multi_action:
-            self.action_size = 5
+            self.action_size = 6
         else:
             self.action_size = 1
         if new_action:
@@ -92,8 +94,19 @@ class BiddingEnv(gym.Env):
         self.mean_bid_list = []
         self.mean_pvalues_list = []
         self.mean_least_winning_cost_list = []
+        self.pct_10_least_winning_cost_list = []
+        self.pct_01_least_winning_cost_list = []
         self.mean_conversion_list = []
         self.mean_bid_success_list = []
+        self.mean_successful_bid_position_list = []
+        self.mean_cost_list = []
+        self.mean_cost_slot_1_list = []
+        self.mean_cost_slot_2_list = []
+        self.mean_cost_slot_3_list = []
+        self.mean_bid_over_lwc_list = []
+        self.mean_pv_over_lwc_list = []
+        self.pct_90_pv_over_lwc_list = []
+        self.pct_99_pv_over_lwc_list = []
         self.num_pv_list = []
         self.total_conversions = 0
         self.total_cost = 0
@@ -128,8 +141,10 @@ class BiddingEnv(gym.Env):
         # TODO: we should simulate exposure as a Beroulli
         top_bids_exposed = bid_data.isExposed.item()
 
-        bid_success, bid_cost, bid_conversion = self.simulate_ad_bidding(
-            pvalues, pvalues_sigma, advertiser_bids, top_bids, top_bids_exposed
+        bid_success, bid_position, bid_exposed, bid_cost, bid_conversion = (
+            self.simulate_ad_bidding(
+                pvalues, pvalues_sigma, advertiser_bids, top_bids, top_bids_exposed
+            )
         )
 
         self.mean_bid_list.append(np.mean(advertiser_bids))
@@ -139,8 +154,39 @@ class BiddingEnv(gym.Env):
         self.mean_least_winning_cost_list.append(
             np.mean(top_bids_cost[:, 0])
         )  # only the smallest bid cost
+        self.pct_10_least_winning_cost_list.append(
+            np.percentile(top_bids_cost[:, 0], 10)
+        )
+        self.pct_01_least_winning_cost_list.append(
+            np.percentile(top_bids_cost[:, 0], 1)
+        )
         self.mean_conversion_list.append(np.mean(bid_conversion))
         self.mean_bid_success_list.append(np.mean(bid_success))
+        self.mean_successful_bid_position_list.append(
+            safe_mean(bid_position[bid_success])
+        )
+        self.mean_cost_list.append(np.mean(bid_cost))
+        self.mean_cost_slot_1_list.append(
+            safe_mean(bid_cost[np.logical_and(bid_position == 2, bid_exposed)])
+        )
+        self.mean_cost_slot_2_list.append(
+            safe_mean(bid_cost[np.logical_and(bid_position == 1, bid_exposed)])
+        )
+        self.mean_cost_slot_3_list.append(
+            safe_mean(bid_cost[np.logical_and(bid_position == 0, bid_exposed)])
+        )
+        self.mean_bid_over_lwc_list.append(
+            np.mean(advertiser_bids / (top_bids_cost[:, 0] + self.EPS))
+        )
+        self.mean_pv_over_lwc_list.append(
+            np.mean(pvalues / (top_bids_cost[:, 0] + self.EPS))
+        )
+        self.pct_90_pv_over_lwc_list.append(
+            np.percentile(pvalues / (top_bids_cost[:, 0] + self.EPS), 90)
+        )
+        self.pct_99_pv_over_lwc_list.append(
+            np.percentile(pvalues / (top_bids_cost[:, 0] + self.EPS), 99)
+        )
         self.num_pv_list.append(len(pvalues))
         self.time_step += 1
         self.total_conversions += np.sum(bid_conversion)
@@ -155,7 +201,7 @@ class BiddingEnv(gym.Env):
         }
         if terminated:
             cpa = (
-                self.total_cost / self.total_conversions
+                self.total_cost / self.total_conversions + self.EPS
                 if self.total_conversions > 0
                 else 0
             )
@@ -181,13 +227,16 @@ class BiddingEnv(gym.Env):
             info.update(episode_end_info)
             info.update(reward_dict)
             reward = self.compute_reward(reward_dict)
+
+            # There are no new pvalues as the episode is over, just pass the old ones (anyway unused)
+            new_pvalues, new_pvalues_std = pvalues, pvalues_sigma
         else:
             reward_dict = {"sparse": 0, "dense": dense_reward}
             info.update(reward_dict)
             reward = self.compute_reward(reward_dict)
 
-        # Get the new pvalues for the next state
-        new_pvalues, new_pvalues_std = self.get_pvalues_mean_and_std()
+            # Get the new pvalues for the next state
+            new_pvalues, new_pvalues_std = self.get_pvalues_mean_and_std()
         state_dict = self.get_state_dict(new_pvalues)
         state = self.get_state(state_dict)
         return state, reward, terminated, False, info
@@ -212,12 +261,15 @@ class BiddingEnv(gym.Env):
         top_bids: np.ndarray,
         top_bids_exposed: np.ndarray,
     ):
-        bid_success, bid_exposed, bid_cost = self.compute_success_exposition_cost(
-            advertiser_bids, top_bids, top_bids_exposed
+        bid_success, bid_position, bid_exposed, bid_cost = (
+            self.compute_success_exposition_cost(
+                advertiser_bids, top_bids, top_bids_exposed
+            )
         )
 
-        bid_success, bid_exposed, bid_cost = self.handle_overcost(
+        bid_success, bid_position, bid_exposed, bid_cost = self.handle_overcost(
             bid_success,
+            bid_position,
             bid_exposed,
             bid_cost,
             advertiser_bids,
@@ -228,7 +280,7 @@ class BiddingEnv(gym.Env):
         # TODO: check if the conversion depends on the position (AC: small dependence, we ignore it for now)
         pvalues_sampled = np.clip(self.np_random.normal(pvalues, pvalues_sigma), 0, 1)
         bid_conversion = self.np_random.binomial(n=1, p=pvalues_sampled) * bid_exposed
-        return bid_success, bid_cost, bid_conversion
+        return bid_success, bid_position, bid_exposed, bid_cost, bid_conversion
 
     def compute_success_exposition_cost(
         self, advertiser_bids, top_bids, top_bids_exposed
@@ -245,11 +297,12 @@ class BiddingEnv(gym.Env):
 
         # If I am higher than a bid, I pay that bid's price. No payment for not winning or not exposing
         bid_cost = top_bids[np.arange(len(bid_position)), bid_position] * bid_exposed
-        return bid_success, bid_exposed, bid_cost
+        return bid_success, bid_position, bid_exposed, bid_cost
 
     def handle_overcost(
         self,
         bid_success,
+        bid_position,
         bid_exposed,
         bid_cost,
         advertiser_bids,
@@ -267,11 +320,13 @@ class BiddingEnv(gym.Env):
                 replace=False,
             )
             advertiser_bids[dropped_index] = 0
-            bid_success, bid_exposed, bid_cost = self.compute_success_exposition_cost(
-                advertiser_bids, top_bids, top_bids_exposed
+            bid_success, bid_position, bid_exposed, bid_cost = (
+                self.compute_success_exposition_cost(
+                    advertiser_bids, top_bids, top_bids_exposed
+                )
             )
             total_cost = sum(bid_cost)
-        return bid_success, bid_exposed, bid_cost
+        return bid_success, bid_position, bid_exposed, bid_cost
 
     def render(self, mode="human"):
         pass
@@ -303,17 +358,58 @@ class BiddingEnv(gym.Env):
                 "cpa": self.target_cpa,
                 "category": self.advertiser_category_dict[self.advertiser],
                 "historical_bid_mean": 0,
+                "last_bid_mean": 0,
                 "last_three_bid_mean": 0,
                 "least_winning_cost_mean": 0,
+                "last_least_winning_cost_mean": 0,
+                "last_three_least_winning_cost_mean": 0,
+                "least_winning_cost_10_pct": 0,
+                "last_least_winning_cost_10_pct": 0,
+                "last_three_least_winning_cost_10_pct": 0,
+                "least_winning_cost_01_pct": 0,
+                "last_least_winning_cost_01_pct": 0,
+                "last_three_least_winning_cost_01_pct": 0,
                 "pvalues_mean": 0,
                 "conversion_mean": 0,
                 "bid_success_mean": 0,
-                "last_threee_least_winning_cost_mean": 0,
+                "last_pvalues_mean": 0,
                 "last_three_pvalues_mean": 0,
+                "last_conversion_mean": 0,
                 "last_three_conversion_mean": 0,
+                "last_bid_success": 0,
                 "last_three_bid_success_mean": 0,
+                "historical_successful_bid_position_mean": 0,
+                "last_successful_bid_position_mean": 0,
+                "last_three_successful_bid_position_mean": 0,
+                "historical_cost_mean": 0,
+                "last_cost_mean": 0,
+                "last_three_cost_mean": 0,
+                "historical_cost_slot_1_mean": 0,
+                "last_cost_slot_1_mean": 0,
+                "last_three_cost_slot_1_mean": 0,
+                "historical_cost_slot_2_mean": 0,
+                "last_cost_slot_2_mean": 0,
+                "last_three_cost_slot_2_mean": 0,
+                "historical_cost_slot_3_mean": 0,
+                "last_cost_slot_3_mean": 0,
+                "last_three_cost_slot_3_mean": 0,
+                "historical_bid_over_lwc_mean": 0,
+                "last_bid_over_lwc_mean": 0,
+                "last_three_bid_over_lwc_mean": 0,
+                "historical_pv_over_lwc_mean": 0,
+                "last_pv_over_lwc_mean": 0,
+                "last_three_pv_over_lwc_mean": 0,
+                "historical_pv_over_lwc_90_pct": 0,
+                "last_pv_over_lwc_90_pct": 0,
+                "last_three_pv_over_lwc_90_pct": 0,
+                "historical_pv_over_lwc_99_pct": 0,
+                "last_pv_over_lwc_99_pct": 0,
+                "last_three_pv_over_lwc_99_pct": 0,
                 "current_pvalues_mean": np.mean(pvalues),
+                "current_pvalues_90_pct": np.percentile(pvalues, 90),
+                "current_pvalues_99_pct": np.percentile(pvalues, 99),
                 "current_pv_num": len(pvalues),
+                "last_pv_num": 0,
                 "last_three_pv_num": 0,
                 "pv_num_total": 0,
             }
@@ -326,22 +422,88 @@ class BiddingEnv(gym.Env):
                 "cpa": self.target_cpa,
                 "category": self.advertiser_category_dict[self.advertiser],
                 "historical_bid_mean": np.mean(self.mean_bid_list),
+                "last_bid_mean": self.mean_bid_list[-1],
                 "last_three_bid_mean": np.mean(self.mean_bid_list[-3:]),
                 "least_winning_cost_mean": np.mean(self.mean_least_winning_cost_list),
+                "last_least_winning_cost_mean": self.mean_least_winning_cost_list[-1],
+                "last_three_least_winning_cost_mean": np.mean(
+                    self.mean_least_winning_cost_list[-3:]
+                ),
+                "least_winning_cost_10_pct": np.mean(
+                    self.pct_10_least_winning_cost_list
+                ),
+                "last_least_winning_cost_10_pct": self.pct_10_least_winning_cost_list[
+                    -1
+                ],
+                "last_three_least_winning_cost_10_pct": np.mean(
+                    self.pct_10_least_winning_cost_list[-3:]
+                ),
+                "least_winning_cost_01_pct": np.mean(
+                    self.pct_01_least_winning_cost_list
+                ),
+                "last_least_winning_cost_01_pct": self.pct_01_least_winning_cost_list[
+                    -1
+                ],
+                "last_three_least_winning_cost_01_pct": np.mean(
+                    self.pct_01_least_winning_cost_list[-3:]
+                ),
                 "pvalues_mean": np.mean(self.mean_pvalues_list),
                 "conversion_mean": np.mean(self.mean_conversion_list),
                 "bid_success_mean": np.mean(self.mean_bid_success_list),
-                "last_threee_least_winning_cost_mean": np.mean(
-                    self.mean_least_winning_cost_list[-3:]
-                ),
+                "last_pvalues_mean": self.mean_pvalues_list[-1],
                 "last_three_pvalues_mean": np.mean(self.mean_pvalues_list[-3:]),
+                "last_conversion_mean": self.mean_conversion_list[-1],
                 "last_three_conversion_mean": np.mean(self.mean_conversion_list[-3:]),
+                "last_bid_success": self.mean_bid_success_list[-1],
                 "last_three_bid_success_mean": np.mean(self.mean_bid_success_list[-3:]),
+                "historical_successful_bid_position_mean": np.mean(
+                    self.mean_successful_bid_position_list
+                ),
+                "last_successful_bid_position_mean": self.mean_successful_bid_position_list[
+                    -1
+                ],
+                "last_three_successful_bid_position_mean": np.mean(
+                    self.mean_successful_bid_position_list[-3:]
+                ),
+                "historical_cost_mean": np.mean(self.mean_cost_list),
+                "last_cost_mean": self.mean_cost_list[-1],
+                "last_three_cost_mean": np.mean(self.mean_cost_list[-3:]),
+                "historical_cost_slot_1_mean": np.mean(self.mean_cost_slot_1_list),
+                "last_cost_slot_1_mean": self.mean_cost_slot_1_list[-1],
+                "last_three_cost_slot_1_mean": np.mean(self.mean_cost_slot_1_list[-3:]),
+                "historical_cost_slot_2_mean": np.mean(self.mean_cost_slot_2_list),
+                "last_cost_slot_2_mean": self.mean_cost_slot_2_list[-1],
+                "last_three_cost_slot_2_mean": np.mean(self.mean_cost_slot_2_list[-3:]),
+                "historical_cost_slot_3_mean": np.mean(self.mean_cost_slot_3_list),
+                "last_cost_slot_3_mean": self.mean_cost_slot_3_list[-1],
+                "last_three_cost_slot_3_mean": np.mean(self.mean_cost_slot_3_list[-3:]),
+                "historical_bid_over_lwc_mean": np.mean(self.mean_bid_over_lwc_list),
+                "last_bid_over_lwc_mean": self.mean_bid_over_lwc_list[-1],
+                "last_three_bid_over_lwc_mean": np.mean(
+                    self.mean_bid_over_lwc_list[-3:]
+                ),
+                "historical_pv_over_lwc_mean": np.mean(self.mean_pv_over_lwc_list),
+                "last_pv_over_lwc_mean": self.mean_pv_over_lwc_list[-1],
+                "last_three_pv_over_lwc_mean": np.mean(self.mean_pv_over_lwc_list[-3:]),
+                "historical_pv_over_lwc_90_pct": np.mean(self.pct_90_pv_over_lwc_list),
+                "last_pv_over_lwc_90_pct": self.pct_90_pv_over_lwc_list[-1],
+                "last_three_pv_over_lwc_90_pct": np.mean(
+                    self.pct_90_pv_over_lwc_list[-3:]
+                ),
+                "historical_pv_over_lwc_99_pct": np.mean(self.pct_99_pv_over_lwc_list),
+                "last_pv_over_lwc_99_pct": self.pct_99_pv_over_lwc_list[-1],
+                "last_three_pv_over_lwc_99_pct": np.mean(
+                    self.pct_99_pv_over_lwc_list[-3:]
+                ),
                 "current_pvalues_mean": np.mean(pvalues),
+                "current_pvalues_90_pct": np.percentile(pvalues, 90),
+                "current_pvalues_99_pct": np.percentile(pvalues, 99),
                 "current_pv_num": len(pvalues),
+                "last_pv_num": self.num_pv_list[-1],
                 "last_three_pv_num": sum(self.num_pv_list[-3:]),
                 "pv_num_total": sum(self.num_pv_list),
             }
+        # print({key: val for key, val in state_dict.items() if np.isnan(val)})
         return state_dict
 
     def get_state(self, state_dict):
@@ -365,10 +527,11 @@ class BiddingEnv(gym.Env):
                     pvalues**2,
                     pvalues_sigma**2,
                     pvalues * pvalues_sigma,
+                    1e-2 * np.sqrt(pvalues),
                 ]
             )
             bid_coef = np.clip(np.dot(action, pvalue_features), 0, np.inf)
-            alpha = np.sum(bid_coef) / np.sum(pvalues)
+            alpha = np.sum(bid_coef) / np.sum(pvalues) + self.EPS
         return bid_coef, alpha
 
     def get_pvalues_mean_and_std(self):

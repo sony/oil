@@ -1,5 +1,6 @@
 import glob
 import os
+import numpy as np
 from definitions import ROOT_DIR, MODEL_PATTERN
 
 
@@ -70,3 +71,8 @@ def get_model_and_env_path(tensorboard_log, load_path, checkpoint_num):
         model_path = None
         env_path = None
     return model_path, env_path
+
+def safe_mean(arr):
+    if len(arr) == 0:
+        return 0
+    return np.mean(arr)
