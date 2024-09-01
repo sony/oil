@@ -40,6 +40,9 @@ class BiddingEnv(gym.Env):
         rwd_weights=DEFAULT_RWD_WEIGHTS,
         new_action=False,
         multi_action=False,
+        exp_action=False,
+        sample_log_budget=False,
+        simplified_bidding=False,
         seed=0,
     ):
         self.observation_space = gym.spaces.Box(
@@ -57,9 +60,14 @@ class BiddingEnv(gym.Env):
             self.action_space = gym.spaces.Box(
                 low=0, high=10, shape=(self.action_size,), dtype=np.float32
             )
+        if exp_action:
+            assert new_action, "Exponential action requires new action"
         self.obs_keys = obs_keys
         self.rwd_weights = rwd_weights
         self.new_action = new_action
+        self.exp_action = exp_action
+        self.sample_log_budget = sample_log_budget
+        self.simplified_bidding = simplified_bidding
 
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
@@ -140,26 +148,30 @@ class BiddingEnv(gym.Env):
 
         # TODO: we should simulate exposure as a Beroulli
         top_bids_exposed = bid_data.isExposed.item()
+        top_bids_cost = bid_data.cost.item()
+        least_winning_cost = top_bids_cost[:, 0]
 
         bid_success, bid_position, bid_exposed, bid_cost, bid_conversion = (
             self.simulate_ad_bidding(
-                pvalues, pvalues_sigma, advertiser_bids, top_bids, top_bids_exposed
+                pvalues,
+                pvalues_sigma,
+                advertiser_bids,
+                top_bids,
+                top_bids_exposed,
+                least_winning_cost,
             )
         )
 
         self.mean_bid_list.append(np.mean(advertiser_bids))
         self.mean_pvalues_list.append(np.mean(pvalues))
 
-        top_bids_cost = bid_data.cost.item()
         self.mean_least_winning_cost_list.append(
-            np.mean(top_bids_cost[:, 0])
+            np.mean(least_winning_cost)
         )  # only the smallest bid cost
         self.pct_10_least_winning_cost_list.append(
-            np.percentile(top_bids_cost[:, 0], 10)
+            np.percentile(least_winning_cost, 10)
         )
-        self.pct_01_least_winning_cost_list.append(
-            np.percentile(top_bids_cost[:, 0], 1)
-        )
+        self.pct_01_least_winning_cost_list.append(np.percentile(least_winning_cost, 1))
         self.mean_conversion_list.append(np.mean(bid_conversion))
         self.mean_bid_success_list.append(np.mean(bid_success))
         self.mean_successful_bid_position_list.append(
@@ -176,16 +188,16 @@ class BiddingEnv(gym.Env):
             safe_mean(bid_cost[np.logical_and(bid_position == 0, bid_exposed)])
         )
         self.mean_bid_over_lwc_list.append(
-            np.mean(advertiser_bids / (top_bids_cost[:, 0] + self.EPS))
+            np.mean(advertiser_bids / (least_winning_cost + self.EPS))
         )
         self.mean_pv_over_lwc_list.append(
-            np.mean(pvalues / (top_bids_cost[:, 0] + self.EPS))
+            np.mean(pvalues / (least_winning_cost + self.EPS))
         )
         self.pct_90_pv_over_lwc_list.append(
-            np.percentile(pvalues / (top_bids_cost[:, 0] + self.EPS), 90)
+            np.percentile(pvalues / (least_winning_cost + self.EPS), 90)
         )
         self.pct_99_pv_over_lwc_list.append(
-            np.percentile(pvalues / (top_bids_cost[:, 0] + self.EPS), 99)
+            np.percentile(pvalues / (least_winning_cost + self.EPS), 99)
         )
         self.num_pv_list.append(len(pvalues))
         self.time_step += 1
@@ -260,10 +272,11 @@ class BiddingEnv(gym.Env):
         advertiser_bids: np.ndarray,
         top_bids: np.ndarray,
         top_bids_exposed: np.ndarray,
+        least_winning_cost: np.ndarray,
     ):
         bid_success, bid_position, bid_exposed, bid_cost = (
             self.compute_success_exposition_cost(
-                advertiser_bids, top_bids, top_bids_exposed
+                advertiser_bids, top_bids, top_bids_exposed, least_winning_cost
             )
         )
 
@@ -275,6 +288,7 @@ class BiddingEnv(gym.Env):
             advertiser_bids,
             top_bids,
             top_bids_exposed,
+            least_winning_cost,
         )
 
         # TODO: check if the conversion depends on the position (AC: small dependence, we ignore it for now)
@@ -283,20 +297,32 @@ class BiddingEnv(gym.Env):
         return bid_success, bid_position, bid_exposed, bid_cost, bid_conversion
 
     def compute_success_exposition_cost(
-        self, advertiser_bids, top_bids, top_bids_exposed
+        self, advertiser_bids, top_bids, top_bids_exposed, least_winning_cost
     ):
-        advertiser_bid_higher = advertiser_bids[:, None] >= top_bids
-        bid_success = advertiser_bid_higher.any(axis=1)
-        bid_position = np.sum(advertiser_bid_higher, axis=1) - 1
+        if self.simplified_bidding:
+            bid_success = advertiser_bids >= least_winning_cost
+            bid_cost = least_winning_cost * bid_success
+            bid_position = np.zeros_like(
+                bid_cost
+            )  # No bid position in simplified bidding
+            bid_exposed = (
+                bid_success  # Simplified bidding always exposes successful bids
+            )
+        else:
+            advertiser_bid_higher = advertiser_bids[:, None] >= top_bids
+            bid_success = advertiser_bid_higher.any(axis=1)
+            bid_position = np.sum(advertiser_bid_higher, axis=1) - 1
 
-        # Exposed is 0 if the bid is not successful
-        bid_exposed = np.zeros_like(bid_position)
-        bid_exposed[bid_success] = top_bids_exposed[
-            bid_success, bid_position[bid_success]
-        ]
+            # Exposed is 0 if the bid is not successful
+            bid_exposed = np.zeros_like(bid_position)
+            bid_exposed[bid_success] = top_bids_exposed[
+                bid_success, bid_position[bid_success]
+            ]
 
-        # If I am higher than a bid, I pay that bid's price. No payment for not winning or not exposing
-        bid_cost = top_bids[np.arange(len(bid_position)), bid_position] * bid_exposed
+            # If I am higher than a bid, I pay that bid's price. No payment for not winning or not exposing
+            bid_cost = (
+                top_bids[np.arange(len(bid_position)), bid_position] * bid_exposed
+            )
         return bid_success, bid_position, bid_exposed, bid_cost
 
     def handle_overcost(
@@ -308,6 +334,7 @@ class BiddingEnv(gym.Env):
         advertiser_bids,
         top_bids,
         top_bids_exposed,
+        least_winning_cost,
     ):
         total_cost = sum(bid_cost)
         while total_cost > self.remaining_budget:
@@ -322,7 +349,7 @@ class BiddingEnv(gym.Env):
             advertiser_bids[dropped_index] = 0
             bid_success, bid_position, bid_exposed, bid_cost = (
                 self.compute_success_exposition_cost(
-                    advertiser_bids, top_bids, top_bids_exposed
+                    advertiser_bids, top_bids, top_bids_exposed, least_winning_cost
                 )
             )
             total_cost = sum(bid_cost)
@@ -341,7 +368,12 @@ class BiddingEnv(gym.Env):
         return self.np_random.uniform(*self.budget_range)
 
     def sample_cpa(self):
-        return self.np_random.uniform(*self.target_cpa_range)
+        if self.sample_log_budget:
+            l = np.log(self.target_cpa_range[0])
+            h = np.log(self.target_cpa_range[1])
+            return np.exp(self.np_random.uniform(l, h))
+        else:
+            return self.np_random.uniform(*self.target_cpa_range)
 
     def sample_advertiser(self):
         return self.np_random.choice(self.advertiser_list)
@@ -513,20 +545,26 @@ class BiddingEnv(gym.Env):
     def compute_bid_coef(self, action, pvalues, pvalues_sigma):
         if self.action_size == 1:
             if self.new_action:
-                alpha = action + 1
+                if self.exp_action:
+                    alpha = np.exp(action)
+                else:
+                    alpha = action + 1
             else:
                 alpha = action
             bid_coef = np.clip(alpha * pvalues, 0, np.inf)
         else:
             if self.new_action:
-                action[0] = action[0] + 1
+                if self.exp_action:
+                    action[0] = np.exp(action[0])
+                else:
+                    action[0] = action[0] + 1
             pvalue_features = np.stack(
                 [
                     pvalues,
                     pvalues_sigma,
-                    pvalues**2,
-                    pvalues_sigma**2,
-                    pvalues * pvalues_sigma,
+                    1e2 * pvalues**2,
+                    1e2 * pvalues_sigma**2,
+                    1e2 * pvalues * pvalues_sigma,
                     1e-2 * np.sqrt(pvalues),
                 ]
             )

@@ -144,6 +144,11 @@ parser.add_argument(
     help="Use an action vec of 5 elements",
 )
 parser.add_argument(
+    "--exp_action",
+    action="store_true",
+    help="Use the exponential action transformation",
+)
+parser.add_argument(
     "--dense_weight",
     type=float,
     default=1,
@@ -160,6 +165,16 @@ parser.add_argument(
     type=str,
     default="obs_16_keys",
     help="Type of observation",
+)
+parser.add_argument(
+    "--sample_log_budget",
+    action="store_true",
+    help="Sample log budget",
+)
+parser.add_argument(
+    "--simplified_bidding",
+    action="store_true",
+    help="Use simplified bidding",
 )
 args = parser.parse_args()
 
@@ -200,7 +215,10 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "rwd_weights": rwd_weights,
             "new_action": args.new_action,
             "multi_action": args.multi_action,
+            "exp_action": args.exp_action,
             "obs_keys": obs_keys,
+            "sample_log_budget": args.sample_log_budget,
+            "simplified_bidding": args.simplified_bidding,
             "seed": args.seed,
         }
     )
@@ -384,8 +402,49 @@ python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_00
         --new_action --out_suffix=_dense_very_wide_ranges_60_obs \
             --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
             
-python online/main_train.py --num_envs 1 --batch_size 256 --num_steps 20_000_000 --out_prefix test_ \
-    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
-        --new_action --out_suffix=_dense_very_wide_ranges_60_obs \
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 025_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --multi_action --out_suffix=_dense_base_ranges_60_obs \
             --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 026_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_60_obs_exp_single_action \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
+            
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 027_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_19_obs_exp_single_action_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_19_keys --simplified_bidding
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 028_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_16_obs_exp_single_action_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_16_keys --simplified_bidding
+            
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 029_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --simplified_bidding
+            
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 030_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --multi_action --out_suffix=_dense_base_ranges_16_obs_exp_multi_action_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_16_keys --simplified_bidding
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 031_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --multi_action --out_suffix=_dense_base_ranges_19_obs_exp_multi_action_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_19_keys --simplified_bidding
+            
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 032_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --multi_action --out_suffix=_dense_base_ranges_29_obs_exp_multi_action_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --simplified_bidding
+            
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 033_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --multi_action --out_suffix=_dense_base_ranges_29_obs_exp_multi_action \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys
+
 """

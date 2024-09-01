@@ -44,6 +44,7 @@ def main(args):
         env_config["obs_keys"] = train_config["obs_keys"]
         env_config["new_action"] = train_config.get("new_action", False)
         env_config["multi_action"] = train_config.get("multi_action", False)
+        env_config["exp_action"] = train_config.get("exp_action", False)
 
         env = EnvironmentFactory.create(**env_config)
 
@@ -87,7 +88,7 @@ def main(args):
         ep_rew = 0
         baseline_ep_rew = 0
         step = 0
-        obs, _ = env.reset()
+        obs, _ = env.reset(seed=i)
         baseline_env.reset(
             budget=env.unwrapped.total_budget,
             target_cpa=env.unwrapped.target_cpa,
@@ -188,7 +189,26 @@ python online/main_eval.py --experiment_path=output/training/ongoing/017_ppo_see
     --num_episodes=100 --no_save_df --checkpoint=6500000
 
 python online/main_eval.py --experiment_path=output/training/ongoing/016_ppo_seed_0_new_action_test \
-    --num_episodes=100 --no_save_df --checkpoint=10250000
+    --num_episodes=100 --no_save_df --checkpoint=10250000 --deterministic 
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/027_ppo_seed_0_dense_base_ranges_19_obs_exp_single_action_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 13250000
+
+# Best: 0.41
+python online/main_eval.py --experiment_path=output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=10750000
+    
+# Only 0.32 despite very strong offline performance?
+python online/main_eval.py --experiment_path=output/training/ongoing/031_ppo_seed_0_dense_base_ranges_19_obs_exp_multi_action_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=8000000
+    
+# Very good and still improving a little
+python online/main_eval.py --experiment_path=output/training/ongoing/032_ppo_seed_0_dense_base_ranges_29_obs_exp_multi_action_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=4000000
+
+# Trained with realistic bidding, can keep up with the best in the simplified bidding
+python online/main_eval.py --experiment_path=output/training/ongoing/033_ppo_seed_0_dense_base_ranges_29_obs_exp_multi_action \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=3500000
     
 python online/main_eval.py \
     --num_episodes=100 --no_save_df
