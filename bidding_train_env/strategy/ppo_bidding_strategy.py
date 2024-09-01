@@ -13,10 +13,12 @@ from online.envs.environment_factory import EnvironmentFactory
 
 torch.manual_seed(0)
 
+
 class PpoBiddingStrategy(BaseBiddingStrategy):
     """
     Proximal Policy Optimization (PPO) Strategy
     """
+
     DEFAULT_OBS_KEYS = [
         "time_left",
         "budget_left",
@@ -26,7 +28,7 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         "pvalues_mean",
         "conversion_mean",
         "bid_success_mean",
-        "last_threee_least_winning_cost_mean",
+        "last_three_least_winning_cost_mean",
         "last_three_pvalues_mean",
         "last_three_conversion_mean",
         "last_three_bid_success_mean",
@@ -35,36 +37,42 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         "last_three_pv_num",
         "pv_num_total",
     ]
+
     def __init__(
         self,
         budget=6000,
         name="PPO-PlayerStrategy",
         cpa=10,
         category=3,
-        experiment_path=ROOT_DIR / "saved_model" / "PPO" / "016_ppo_seed_0_new_action_test",
-        checkpoint=10250000,
+        experiment_path=ROOT_DIR
+        / "saved_model"
+        / "PPO"
+        / "029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified",
+        checkpoint=10750000,
         device="cpu",
-        deterministic=False
+        deterministic=True,
     ):
         super().__init__(budget, name, cpa, category)
         self.device = device
         self.model = load_model(experiment_path, checkpoint)
-        
+
         train_env_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
         train_env_config["bids_df_path"] = None
         train_env_config["pvalues_df_path"] = None
 
         # Train env to create the observation and turn action into bids
         self.train_env = EnvironmentFactory.create(**train_env_config)
-        
-        self.vecnormalize = load_vecnormalize(experiment_path, checkpoint, self.train_env)
+
+        self.vecnormalize = load_vecnormalize(
+            experiment_path, checkpoint, self.train_env
+        )
         self.vecnormalize.training = False
         self.episode_length = 48
         self.deterministic = deterministic
-    
+
     def reset(self):
         self.remaining_budget = self.budget
-        
+
     def bidding(
         self,
         timeStepIndex,
@@ -92,20 +100,35 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         return:
             Return the bids for all the opportunities in the delivery period.
         """
+        self.EPS = 1e-6
         self.time_step = timeStepIndex
         self.total_budget = self.budget
         self.mean_bid_list = [np.mean(result) for result in historyBid]
-        self.mean_pvalues_list = [np.mean(result[0, :]) for result in historyPValueInfo]
-        self.mean_least_winning_cost_list = [np.mean(result) for result in historyLeastWinningCost]
-        self.mean_conversion_list = [np.mean(result[:, 1]) for result in historyImpressionResult]
-        self.mean_bid_success_list = [np.mean(result[:, 0]) for result in historyAuctionResult]
+        self.mean_pvalues_list = [np.mean(result[:, 0]) for result in historyPValueInfo]
+        self.mean_least_winning_cost_list = [
+            np.mean(result) for result in historyLeastWinningCost
+        ]
+        self.mean_conversion_list = [
+            np.mean(result[:, 1]) for result in historyImpressionResult
+        ]
+        self.mean_bid_success_list = [
+            np.mean(result[:, 0]) for result in historyAuctionResult
+        ]
         self.num_pv_list = [len(result) for result in historyBid]
-        
+        self.mean_bid_over_lwc_list = [
+            np.mean(bid / (lwc + self.EPS))
+            for bid, lwc in zip(historyBid, historyLeastWinningCost)
+        ]
+        self.mean_pv_over_lwc_list = [
+            np.mean(pv[:, 0] / (lwc + self.EPS))
+            for pv, lwc in zip(historyPValueInfo, historyLeastWinningCost)
+        ]
+
         # Currently unused, but may be useful in the future
         self.bid_slot_list = [result[:, 1] for result in historyAuctionResult]
         self.bid_cost_list = [result[:, 2] for result in historyAuctionResult]
         self.exposure_list = [result[:, 0] for result in historyImpressionResult]
-        self.pvalue_sigma_list = [result[0, 1] for result in historyPValueInfo]
+        self.pvalue_sigma_list = [result[:, 1] for result in historyPValueInfo]
 
         state_dict = self.get_state_dict(pValues)
         state = self.train_env.get_state(state_dict)
@@ -114,7 +137,7 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         bid_coef, _ = self.train_env.compute_bid_coef(action, pValues, pValueSigmas)
         bids = bid_coef * self.cpa
         return bids
-    
+
     def get_state_dict(self, pvalues):
         if self.time_step == 0:
             return {
@@ -126,17 +149,27 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
                 "historical_bid_mean": 0,
                 "last_three_bid_mean": 0,
                 "least_winning_cost_mean": 0,
+                "last_least_winning_cost_mean": 0,
+                "last_three_least_winning_cost_mean": 0,
                 "pvalues_mean": 0,
                 "conversion_mean": 0,
                 "bid_success_mean": 0,
-                "last_threee_least_winning_cost_mean": 0,
+                "last_pvalues_mean": 0,
                 "last_three_pvalues_mean": 0,
+                "last_conversion_mean": 0,
                 "last_three_conversion_mean": 0,
+                "last_bid_success": 0,
                 "last_three_bid_success_mean": 0,
-                "current_pvalues_mean": 0,
-                "current_pv_num": 0,
+                "current_pvalues_mean": np.mean(pvalues),
+                "current_pv_num": len(pvalues),
                 "last_three_pv_num": 0,
                 "pv_num_total": 0,
+                "historical_bid_over_lwc_mean": 0,
+                "last_bid_over_lwc_mean": 0,
+                "last_three_bid_over_lwc_mean": 0,
+                "historical_pv_over_lwc_mean": 0,
+                "last_pv_over_lwc_mean": 0,
+                "last_three_pv_over_lwc_mean": 0,
             }
         else:
             state_dict = {
@@ -149,18 +182,30 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
                 "historical_bid_mean": np.mean(self.mean_bid_list),
                 "last_three_bid_mean": np.mean(self.mean_bid_list[-3:]),
                 "least_winning_cost_mean": np.mean(self.mean_least_winning_cost_list),
+                "last_least_winning_cost_mean": self.mean_least_winning_cost_list[-1],
+                "last_three_least_winning_cost_mean": np.mean(
+                    self.mean_least_winning_cost_list[-3:]
+                ),
                 "pvalues_mean": np.mean(self.mean_pvalues_list),
                 "conversion_mean": np.mean(self.mean_conversion_list),
                 "bid_success_mean": np.mean(self.mean_bid_success_list),
-                "last_threee_least_winning_cost_mean": np.mean(
-                    self.mean_least_winning_cost_list[-3:]
-                ),
+                "last_pvalues_mean": self.mean_pvalues_list[-1],
                 "last_three_pvalues_mean": np.mean(self.mean_pvalues_list[-3:]),
+                "last_conversion_mean": self.mean_conversion_list[-1],
                 "last_three_conversion_mean": np.mean(self.mean_conversion_list[-3:]),
+                "last_bid_success": self.mean_bid_success_list[-1],
                 "last_three_bid_success_mean": np.mean(self.mean_bid_success_list[-3:]),
                 "current_pvalues_mean": np.mean(pvalues),
                 "current_pv_num": len(pvalues),
                 "last_three_pv_num": sum(self.num_pv_list[-3:]),
                 "pv_num_total": sum(self.num_pv_list),
+                "historical_bid_over_lwc_mean": np.mean(self.mean_bid_over_lwc_list),
+                "last_bid_over_lwc_mean": self.mean_bid_over_lwc_list[-1],
+                "last_three_bid_over_lwc_mean": np.mean(
+                    self.mean_bid_over_lwc_list[-3:]
+                ),
+                "historical_pv_over_lwc_mean": np.mean(self.mean_pv_over_lwc_list),
+                "last_pv_over_lwc_mean": self.mean_pv_over_lwc_list[-1],
+                "last_three_pv_over_lwc_mean": np.mean(self.mean_pv_over_lwc_list[-3:]),
             }
         return state_dict
