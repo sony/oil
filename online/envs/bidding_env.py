@@ -569,7 +569,7 @@ class BiddingEnv(gym.Env):
                 ]
             )
             bid_coef = np.clip(np.dot(action, pvalue_features), 0, np.inf)
-            alpha = np.sum(bid_coef) / np.sum(pvalues) + self.EPS
+            alpha = np.sum(bid_coef) / (np.sum(pvalues) + self.EPS)
         return bid_coef, alpha
 
     def get_pvalues_mean_and_std(self):
