@@ -18,7 +18,7 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
     """
     Proximal Policy Optimization (PPO) Strategy
     """
-
+    EPS = 1e-6
     DEFAULT_OBS_KEYS = [
         "time_left",
         "budget_left",
@@ -47,8 +47,8 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         experiment_path=ROOT_DIR
         / "saved_model"
         / "PPO"
-        / "029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified",
-        checkpoint=10750000,
+        / "034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action",
+        checkpoint=5000000,
         device="cpu",
         deterministic=True,
     ):
@@ -100,7 +100,6 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         return:
             Return the bids for all the opportunities in the delivery period.
         """
-        self.EPS = 1e-6
         self.time_step = timeStepIndex
         self.total_budget = self.budget
         self.mean_bid_list = [np.mean(result) for result in historyBid]
