@@ -167,6 +167,12 @@ parser.add_argument(
     help="Type of observation",
 )
 parser.add_argument(
+    "--act_type",
+    type=str,
+    default="act_1_key",
+    help="Type of action",
+)
+parser.add_argument(
     "--sample_log_budget",
     action="store_true",
     help="Sample log budget",
@@ -176,6 +182,23 @@ parser.add_argument(
     action="store_true",
     help="Use simplified bidding",
 )
+parser.add_argument(
+    "--stochastic_exposure",
+    action="store_true",
+    help="Stochastic exposure",
+)
+parser.add_argument(
+    "--cost_noise",
+    type=float,
+    default=0.0,
+    help="Cost noise",
+)
+parser.add_argument(
+    "--bid_noise",
+    type=float,
+    default=0.0,
+    help="Bid noise",
+)
 args = parser.parse_args()
 
 run_name = f"{args.out_prefix}ppo_seed_{args.seed}{args.out_suffix}"
@@ -184,6 +207,8 @@ TENSORBOARD_LOG = os.path.join(ROOT_DIR, "output", "training", "ongoing", run_na
 # Reward structure and task parameters:
 with open(ROOT_DIR / "data" / "env_configs" / f"{args.obs_type}.json", "r") as f:
     obs_keys = json.load(f)
+with open(ROOT_DIR / "data" / "env_configs" / f"{args.act_type}.json", "r") as f:
+    act_keys = json.load(f)
 
 config_list = []
 for period in range(7, 7 + args.num_envs):  # one period per env
@@ -217,8 +242,12 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "multi_action": args.multi_action,
             "exp_action": args.exp_action,
             "obs_keys": obs_keys,
+            "act_keys": act_keys,
             "sample_log_budget": args.sample_log_budget,
             "simplified_bidding": args.simplified_bidding,
+            "stochastic_exposure": args.stochastic_exposure,
+            "cost_noise": args.cost_noise,
+            "competitor_bid_noise": args.bid_noise,
             "seed": args.seed,
         }
     )
@@ -446,5 +475,32 @@ python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_00
     --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
         --new_action --exp_action --multi_action --out_suffix=_dense_base_ranges_29_obs_exp_multi_action \
             --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys
+            
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 034_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys
 
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 035_ \
+    --budget_min 100 --budget_max 15000 --target_cpa_min 4 --target_cpa_max 16 \
+        --new_action --exp_action --out_suffix=_dense_larger_ranges_29_obs_exp_single_action_simplified_resume_029 \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --simplified_bidding \
+                --load_path output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified --checkpoint_num 10750000
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 036_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_resume_029 \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
+                --load_path output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified --checkpoint_num 10750000
+                
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 037_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_3_actions \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --act_type act_3_keys 
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 038_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_noisy_env \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
+                --stochastic_exposure --cost_noise 0.01 --bid_noise 0.01
 """

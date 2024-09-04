@@ -24,6 +24,10 @@ class BiddingEnv(gym.Env):
         "pv_num_total",
     ]
 
+    DEFAULT_ACT_KEYS = [
+        "pvalue",
+    ]
+
     DEFAULT_RWD_WEIGHTS = {
         "dense": 0.0,
         "sparse": 1.0,
@@ -38,27 +42,41 @@ class BiddingEnv(gym.Env):
         target_cpa_range=(8, 8),
         obs_keys=DEFAULT_OBS_KEYS,
         rwd_weights=DEFAULT_RWD_WEIGHTS,
+        act_keys=DEFAULT_ACT_KEYS,
         new_action=False,
-        multi_action=False,
+        multi_action=False,  # Deprecated, select the action keys instead
         exp_action=False,
         sample_log_budget=False,
         simplified_bidding=False,
+        competitor_bid_noise=0,
+        cost_noise=0,
+        stochastic_exposure=False,
         seed=0,
     ):
         self.observation_space = gym.spaces.Box(
             low=-np.inf, high=np.inf, shape=(len(obs_keys),), dtype=np.float32
         )
         if multi_action:
-            self.action_size = 6
+            print(
+                "Warning: multi_action is deprecated, use act_keys instead. Ignoring act_keys."
+            )
+            self.act_keys = [
+                "pvalue",
+                "pvalue_sigma",
+                "pvalue_square",
+                "pvalue_sigma_square",
+                "pvalue_sigma_pvalue",
+                "pvalue_sqrt",
+            ]
         else:
-            self.action_size = 1
+            self.act_keys = act_keys
         if new_action:
             self.action_space = gym.spaces.Box(
-                low=-10, high=10, shape=(self.action_size,), dtype=np.float32
+                low=-10, high=10, shape=(len(self.act_keys),), dtype=np.float32
             )
         else:
             self.action_space = gym.spaces.Box(
-                low=0, high=10, shape=(self.action_size,), dtype=np.float32
+                low=0, high=10, shape=(len(self.act_keys),), dtype=np.float32
             )
         if exp_action:
             assert new_action, "Exponential action requires new action"
@@ -68,6 +86,9 @@ class BiddingEnv(gym.Env):
         self.exp_action = exp_action
         self.sample_log_budget = sample_log_budget
         self.simplified_bidding = simplified_bidding
+        self.competitor_bid_noise = competitor_bid_noise
+        self.cost_noise = cost_noise
+        self.stochastic_exposure = stochastic_exposure
 
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
@@ -146,9 +167,28 @@ class BiddingEnv(gym.Env):
         advertiser_bids = bid_coef * self.target_cpa
         top_bids = bid_data.bid.item()
 
-        # TODO: we should simulate exposure as a Beroulli
+        if self.competitor_bid_noise > 0:
+            # Maybe they are not sorted anymore but it's not a big deal
+            top_bids *= self.np_random.normal(
+                1, self.competitor_bid_noise, size=top_bids.shape
+            )
+
         top_bids_exposed = bid_data.isExposed.item()
+        if self.stochastic_exposure:
+            # We simulate exposure as a Bernoulli with the mean exposure probability per slot
+            # It could be unrealistic that one bid is not exposed but a lower one is, should be fine for training
+            exposure_prob_per_slot = np.mean(top_bids_exposed, axis=0)
+            top_bids_exposed = self.np_random.binomial(
+                n=1, p=exposure_prob_per_slot, size=top_bids_exposed.shape
+            )
+
         top_bids_cost = bid_data.cost.item()
+        if self.cost_noise > 0:
+            top_bids_cost *= self.np_random.normal(
+                1, self.cost_noise, size=top_bids_cost.shape
+            )
+
+        # It might not be exactly the min after noise, still close enough
         least_winning_cost = top_bids_cost[:, 0]
 
         bid_success, bid_position, bid_exposed, bid_cost, bid_conversion = (
@@ -542,34 +582,31 @@ class BiddingEnv(gym.Env):
         state = np.array([state_dict[key] for key in self.obs_keys]).astype(np.float32)
         return state
 
+    def get_bid_basis_dict(self, pvalues, pvalues_sigma):
+        return {
+            "pvalue": pvalues,
+            "pvalue_sigma": pvalues_sigma,
+            "pvalue_square": 1e2 * pvalues**2,
+            "pvalue_sigma_square": 1e2 * pvalues_sigma**2,
+            "pvalue_sigma_pvalue": 1e2 * pvalues_sigma * pvalues,
+            "pvalue_sqrt": 1e-2 * np.sqrt(pvalues),
+        }
+
+    def get_bid_basis(self, pvalues, pvalues_sigma):
+        basis_dict = self.get_bid_basis_dict(pvalues, pvalues_sigma)
+        return np.stack([basis_dict[key] for key in self.act_keys], axis=1)
+
     def compute_bid_coef(self, action, pvalues, pvalues_sigma):
-        if self.action_size == 1:
-            if self.new_action:
-                if self.exp_action:
-                    alpha = np.exp(action)
-                else:
-                    alpha = action + 1
+        action = np.atleast_1d(action)
+        if self.new_action:
+            if self.exp_action:
+                action[0] = np.exp(action[0])
             else:
-                alpha = action
-            bid_coef = np.clip(alpha * pvalues, 0, np.inf)
-        else:
-            if self.new_action:
-                if self.exp_action:
-                    action[0] = np.exp(action[0])
-                else:
-                    action[0] = action[0] + 1
-            pvalue_features = np.stack(
-                [
-                    pvalues,
-                    pvalues_sigma,
-                    1e2 * pvalues**2,
-                    1e2 * pvalues_sigma**2,
-                    1e2 * pvalues * pvalues_sigma,
-                    1e-2 * np.sqrt(pvalues),
-                ]
-            )
-            bid_coef = np.clip(np.dot(action, pvalue_features), 0, np.inf)
-            alpha = np.sum(bid_coef) / (np.sum(pvalues) + self.EPS)
+                action[0] = action[0] + 1
+
+        bid_basis = self.get_bid_basis(pvalues, pvalues_sigma)
+        bid_coef = np.clip(np.dot(action, bid_basis.T), 0, np.inf)
+        alpha = np.sum(bid_coef) / (np.sum(pvalues) + self.EPS)
         return bid_coef, alpha
 
     def get_pvalues_mean_and_std(self):

@@ -42,6 +42,8 @@ def main(args):
         # We need to use the observation and action defined in the training config
         train_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
         env_config["obs_keys"] = train_config["obs_keys"]
+        if "act_keys" in train_config:
+            env_config["act_keys"] = train_config["act_keys"]
         env_config["new_action"] = train_config.get("new_action", False)
         env_config["multi_action"] = train_config.get("multi_action", False)
         env_config["exp_action"] = train_config.get("exp_action", False)
@@ -198,18 +200,63 @@ python online/main_eval.py --experiment_path=output/training/ongoing/027_ppo_see
 python online/main_eval.py --experiment_path=output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=10750000
     
-# Only 0.32 despite very strong offline performance?
+# Only 0.35 despite very strong offline performance?
 python online/main_eval.py --experiment_path=output/training/ongoing/031_ppo_seed_0_dense_base_ranges_19_obs_exp_multi_action_simplified \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=8000000
     
 # Very good and still improving a little
 python online/main_eval.py --experiment_path=output/training/ongoing/032_ppo_seed_0_dense_base_ranges_29_obs_exp_multi_action_simplified \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint=4000000
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=8500000
 
 # Trained with realistic bidding, can keep up with the best in the simplified bidding
 python online/main_eval.py --experiment_path=output/training/ongoing/033_ppo_seed_0_dense_base_ranges_29_obs_exp_multi_action \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=3500000
+
+# 0.4164
+python online/main_eval.py --experiment_path=output/training/ongoing/035_ppo_seed_0_dense_larger_ranges_29_obs_exp_single_action_simplified_resume_029 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=12250000
+
+# New best! 0.4199
+python online/main_eval.py --experiment_path=output/training/ongoing/036_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_resume_029 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=12000000
+
+# New best!!! 0.4312, local: 562.65 (so high)
+python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=5000000
+
+
+# Also very good
+python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=5500000
+
+# Also very good
+python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=5250000
+
+# 0.4205
+python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=10000000
     
-python online/main_eval.py \
-    --num_episodes=100 --no_save_df
+python online/main_eval.py --experiment_path=output/training/ongoing/038_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_noisy_env \
+    --num_episodes=100 --no_save_df --deterministic
+
+python online/main_eval.py --experiment_path=output/training/ongoing/038_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_noisy_env \
+    --num_episodes=100 --no_save_df --deterministic --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_stochastic.json
+
+
+python online/main_eval.py --experiment_path=output/training/ongoing/038_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_noisy_env \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4000000 --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_stochastic.json
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=5000000 --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_stochastic.json
+
+python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=5000000 --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_stochastic.json
+
+python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=5000000 --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --experiment_path=output/training/ongoing/037_ppo_seed_0_dense_base_ranges_29_obs_exp_3_actions \
+    --num_episodes=100 --no_save_df --deterministic --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
 """
