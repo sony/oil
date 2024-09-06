@@ -199,6 +199,7 @@ parser.add_argument(
     default=0.0,
     help="Bid noise",
 )
+
 args = parser.parse_args()
 
 run_name = f"{args.out_prefix}ppo_seed_{args.seed}{args.out_suffix}"
@@ -271,6 +272,7 @@ model_config = dict(
         activation_fn=nn.ReLU,
         net_arch=dict(pi=args.net_arch, vf=args.net_arch),
     ),
+    seed=args.seed,
 )
 
 
@@ -503,4 +505,16 @@ python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_00
         --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_noisy_env \
             --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
                 --stochastic_exposure --cost_noise 0.01 --bid_noise 0.01
+
+python online/main_train.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 039_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_stoch_exposure \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --stochastic_exposure
+            
+            
+python online/main_train.py --num_envs 1 --batch_size 16 --num_steps 20_000_000 --out_prefix 000_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_test_seed_2 \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys
+
 """

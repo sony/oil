@@ -693,7 +693,7 @@ class BiddingEnv(gym.Env):
         )
         return df_sorted
 
-    def get_simplified_topline_action(self):
+    def get_oracle_action(self):
         if self.ranked_df is None:
             self.ranked_df = self.compute_ranked_impressions_df()
         df_sorted = self.ranked_df[
@@ -711,10 +711,14 @@ class BiddingEnv(gym.Env):
         # We use total budget because the cost already includes the current total cost
         df_within_budget = df_sorted[df_sorted["cum_cost"] <= self.total_budget]
 
-        # Find the impressions that lead to the max score
-        max_score_row = df_within_budget["score"].idxmax()
-        selected_rows = df_sorted.loc[:max_score_row]
+        if df_within_budget.empty:
+            # We have run out of budget
+            return np.zeros((1,))
+        else:
+            # Find the impressions that lead to the max score
+            max_score_row = df_within_budget["score"].idxmax()
+            selected_rows = df_sorted.loc[:max_score_row]
 
-        # Select the action that buys the best impression opportunities
-        action = 1 / selected_rows.pv_over_cost.min() / self.target_cpa
-        return action
+            # Select the action that buys the best impression opportunities
+            action = 1 / selected_rows.pv_over_cost.min() / self.target_cpa
+            return np.atleast_1d(action)

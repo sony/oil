@@ -4,7 +4,8 @@ import sys
 sys.path.append(str(pathlib.Path(__file__).parent.parent))
 
 import numpy as np
-from typing import Iterable
+import torch
+from typing import Iterable, Union
 from scipy.signal import savgol_filter
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
@@ -107,3 +108,20 @@ def get_experiment_data(tb_dir_path, attributes, tb_config=None):
                 experiment_data[key]["x"].append(x_vals)
                 experiment_data[key]["y"].append(y_vals)
     return experiment_data
+
+
+def my_safe_to_tensor(array: Union[np.ndarray, torch.Tensor], **kwargs) -> torch.Tensor:
+    """Converts a NumPy array to a PyTorch tensor.
+
+    The data is copied in the case where the array is non-writable. Unfortunately if
+    you just use `torch.as_tensor` for this, an ugly warning is logged and there's
+    undefined behavior if you try to write to the tensor.
+
+    Args:
+        array: The array to convert to a PyTorch tensor.
+        kwargs: Additional keyword arguments to pass to `torch.as_tensor`.
+
+    Returns:
+        A PyTorch tensor with the same content as `array`.
+    """
+    return torch.as_tensor(array, **kwargs)
