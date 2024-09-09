@@ -124,4 +124,4 @@ def my_safe_to_tensor(array: Union[np.ndarray, torch.Tensor], **kwargs) -> torch
     Returns:
         A PyTorch tensor with the same content as `array`.
     """
-    return torch.as_tensor(array, **kwargs)
+    return torch.as_tensor(array, dtype=torch.float32, **kwargs)
