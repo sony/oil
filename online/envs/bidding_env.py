@@ -40,6 +40,7 @@ class BiddingEnv(gym.Env):
         bids_df_path=None,
         budget_range=(6000, 6000),
         target_cpa_range=(8, 8),
+        advertiser_id=None,
         obs_keys=DEFAULT_OBS_KEYS,
         rwd_weights=DEFAULT_RWD_WEIGHTS,
         act_keys=DEFAULT_ACT_KEYS,
@@ -98,7 +99,10 @@ class BiddingEnv(gym.Env):
             self.pvalues_df = self.load_pvalues_df(pvalues_df_path)
             self.bids_df = self.load_bids_df(bids_df_path)
             self.episode_length = len(self.bids_df.timeStepIndex.unique())
-            self.advertiser_list = list(self.pvalues_df.advertiserNumber.unique())
+            if advertiser_id is None:
+                self.advertiser_list = list(self.pvalues_df.advertiserNumber.unique())
+            else:
+                self.advertiser_list = [advertiser_id]
             categories_df = self.pvalues_df.groupby(
                 "advertiserNumber"
             ).advertiserCategoryIndex.first()
@@ -297,8 +301,8 @@ class BiddingEnv(gym.Env):
         return state, reward, terminated, False, info
 
     def compute_score(self, cost, conversions):
-        cpa = cost / conversions if conversions > 0 else 0
-        cpa_coeff = min(1, (self.target_cpa / cpa) ** 2) if cpa > 0 else 0
+        cpa = cost / conversions if conversions > 0 else 0.0
+        cpa_coeff = min(1, (self.target_cpa / cpa) ** 2) if cpa > 0 else 0.0
         score = cpa_coeff * conversions
         return score
 
@@ -712,8 +716,8 @@ class BiddingEnv(gym.Env):
         df_within_budget = df_sorted[df_sorted["cum_cost"] <= self.total_budget]
 
         if df_within_budget.empty:
-            # We have run out of budget
-            return np.zeros((1,))
+            # We have run out of budget, it does not matter what we bid
+            oracle_action = np.ones((1,))
         else:
             # Find the impressions that lead to the max score
             max_score_row = df_within_budget["score"].idxmax()
@@ -721,4 +725,11 @@ class BiddingEnv(gym.Env):
 
             # Select the action that buys the best impression opportunities
             action = 1 / selected_rows.pv_over_cost.min() / self.target_cpa
-            return np.atleast_1d(action)
+            oracle_action = np.atleast_1d(action)
+
+        if self.new_action:
+            if self.exp_action:
+                oracle_action[0] = np.log(oracle_action[0])
+            else:
+                oracle_action[0] = oracle_action[0] - 1
+        return oracle_action
