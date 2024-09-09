@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import List
 from stable_baselines3 import SAC, TD3, PPO
 from sb3_contrib import RecurrentPPO
+from train.ppo import BCPPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import VecNormalize
 
@@ -59,6 +60,8 @@ class SingleEnvTrainer:
     def get_algo_class(self):
         if self.algo == "ppo":
             return PPO
+        if self.algo == "bc_ppo":
+            return BCPPO
         if self.algo == "recurrent_ppo":
             return RecurrentPPO
         elif self.algo == "sac":

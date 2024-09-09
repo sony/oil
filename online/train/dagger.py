@@ -15,10 +15,20 @@ from gymnasium import spaces
 
 class OracleDaggerTrainer(DAggerTrainer):
     def __init__(
-        self, venv, scratch_dir, rng, max_stored_trajs=1_000, **dagger_trainer_kwargs
+        self,
+        venv,
+        scratch_dir,
+        rng,
+        max_stored_trajs=1_000,
+        beta_schedule=None,
+        **dagger_trainer_kwargs,
     ):
         super().__init__(
-            venv=venv, scratch_dir=scratch_dir, rng=rng, **dagger_trainer_kwargs
+            venv=venv,
+            scratch_dir=scratch_dir,
+            rng=rng,
+            beta_schedule=beta_schedule,
+            **dagger_trainer_kwargs,
         )
         self.expert_trajs = deque(maxlen=max_stored_trajs)
 
@@ -34,6 +44,7 @@ class OracleDaggerTrainer(DAggerTrainer):
         total_timestep_count = 0
         round_num = 0
         while total_timestep_count < total_timesteps:
+            beta = self.beta_schedule(self.round_num)
             round_episode_count = 0
             round_timestep_count = 0
 
@@ -42,13 +53,17 @@ class OracleDaggerTrainer(DAggerTrainer):
                 min_episodes=rollout_round_min_episodes,
             )
 
-            trajectories = self.generate_oracle_trajectories(sample_until=sample_until)
+            trajectories = self.generate_oracle_trajectories(
+                sample_until=sample_until, beta=beta
+            )
 
             for traj in trajectories:
-                self._logger.record_mean(
-                    "dagger/mean_episode_reward",
+                self._logger.record(
+                    "dagger/episode_reward",
                     np.sum(traj.rews),
                 )
+                self._logger.record("dagger/mean_action", np.mean(traj.acts))
+
                 round_timestep_count += len(traj)
                 total_timestep_count += len(traj)
 
@@ -58,6 +73,30 @@ class OracleDaggerTrainer(DAggerTrainer):
             self._logger.record("dagger/round_num", round_num)
             self._logger.record("dagger/round_episode_count", round_episode_count)
             self._logger.record("dagger/round_timestep_count", round_timestep_count)
+            for traj in trajectories:
+                info = traj.infos[-1]  # Info of the last step
+                self._logger.record("dagger/conversions", info.get("conversions", 0))
+                self._logger.record("dagger/cost", info.get("cost", 0))
+                self._logger.record("dagger/cpa", info.get("cpa", 0))
+                self._logger.record("dagger/target_cpa", info.get("target_cpa", 0))
+                self._logger.record("dagger/budget", info.get("budget", 0))
+                self._logger.record(
+                    "dagger/score_over_pvalue", info.get("score_over_pvalue", 0)
+                )
+                self._logger.record(
+                    "dagger/score_over_budget", info.get("score_over_budget", 0)
+                )
+                self._logger.record(
+                    "dagger/score_over_cpa", info.get("score_over_cpa", 0)
+                )
+                self._logger.record(
+                    "dagger/cost_over_budget", info.get("cost_over_budget", 0)
+                )
+                self._logger.record(
+                    "dagger/target_cpa_over_cpa", info.get("target_cpa_over_cpa", 0)
+                )
+                self._logger.record("dagger/score", info.get("score", 0))
+                self._logger.record("dagger/beta", beta)
 
             self.extend_and_update(trajectories, bc_train_kwargs)
             round_num += 1
@@ -72,6 +111,7 @@ class OracleDaggerTrainer(DAggerTrainer):
     def generate_oracle_trajectories(
         self,
         sample_until: GenTrajTerminationFn,
+        beta: float = 0.0,
     ) -> Sequence[types.TrajectoryWithRew]:
 
         # Collect rollout tuples.
@@ -79,10 +119,6 @@ class OracleDaggerTrainer(DAggerTrainer):
         # accumulator for incomplete trajectories
         trajectories_accum = TrajectoryAccumulator()
         obs = self.venv.reset()
-        assert isinstance(
-            obs,
-            (np.ndarray, dict),
-        ), "Tuple observations are not supported."
         wrapped_obs = types.maybe_wrap_in_dictobs(obs)
 
         # we use dictobs to iterate over the envs in a vecenv
@@ -104,12 +140,15 @@ class OracleDaggerTrainer(DAggerTrainer):
         active = np.ones(self.venv.num_envs, dtype=bool)
         state = None
         dones = np.ones(self.venv.num_envs, dtype=bool)
+
         while np.any(active):
             # policy gets unwrapped observations (eg as dict, not dictobs)
             dagger_acts, state = self.bc_trainer.policy.predict(
                 obs, state=state, episode_start=dones
             )
-            oracle_acts = self.venv.env_method("get_oracle_action")
+            oracle_acts = np.stack(self.venv.env_method("get_oracle_action"))
+            mask = self.rng.uniform(0, 1, size=(self.venv.num_envs,)) < beta
+            dagger_acts[mask] = oracle_acts[mask]
             obs, rews, dones, infos = self.venv.step(dagger_acts)
             wrapped_obs = types.maybe_wrap_in_dictobs(obs)
 
@@ -192,7 +231,6 @@ class OracleDaggerTrainer(DAggerTrainer):
         logging.info(f"Training at round {self.round_num} complete")
         self.round_num += 1
         return self.round_num
-
 
     # def save_trainer(self):
     #     super().save_trainer()
