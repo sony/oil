@@ -294,7 +294,7 @@ python online/main_eval.py --experiment_path=output/training/ongoing/037_ppo_see
 
 
 python online/main_eval.py --experiment_path=output/training/ongoing/039_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_stoch_exposure \
-    --num_episodes=100 --no_save_df --deterministic \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5000000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config.json
 
 python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \

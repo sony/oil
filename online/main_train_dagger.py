@@ -21,8 +21,11 @@ from envs.environment_factory import EnvironmentFactory
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import VecNormalize
 from stable_baselines3.common.vec_env.subproc_vec_env import SubprocVecEnv
+from imitation.algorithms.dagger import LinearBetaSchedule
 from envs.helpers import get_model_and_env_path
 from helpers import my_safe_to_tensor
+from train.bc import BCLossCalculatorWithMSE
+
 
 
 imitation.util.util.safe_to_tensor = (
@@ -93,7 +96,7 @@ parser.add_argument(
 parser.add_argument(
     "--budget_min",
     type=float,
-    default=200,
+    default=400,
     help="Minimum budget",
 )
 parser.add_argument(
@@ -113,6 +116,17 @@ parser.add_argument(
     type=float,
     default=12,
     help="Maximum target CPA",
+)
+parser.add_argument(
+    "--advertiser_id",
+    type=int,
+    default=None,
+    help="Advertiser ID - can be fixed for debugging",
+)
+parser.add_argument(
+    "--deterministic_conversion",
+    action="store_true",
+    help="Use deterministic conversion equal to pvalue - for debugging",
 )
 parser.add_argument(
     "--new_action",
@@ -222,6 +236,48 @@ parser.add_argument(
     default=10,
     help="Save the model every n rounds",
 )
+parser.add_argument(
+    "--learning_rate",
+    type=float,
+    default=1e-3,
+    help="Learning rate for the BC training",
+)
+parser.add_argument(
+    "--ent_weight",
+    type=float,
+    default=0.0,
+    help="Entropy weight for the BC training",
+)
+parser.add_argument(
+    "--l2_weight",
+    type=float,
+    default=1e-4,
+    help="Weoght decay for the BC training",
+)
+parser.add_argument(
+    "--neglogp_weight",
+    type=float,
+    default=1.0,
+    help="Negative log prob weight for the BC training",
+)
+parser.add_argument(
+    "--mse_weight",
+    type=float,
+    default=0.0,
+    help="MSE weight for the BC training",
+)
+parser.add_argument(
+    "--log_std_init",
+    type=float,
+    default=-1,
+    help="Initial value for the log std of the policy",
+)
+parser.add_argument(
+    "--beta_rampdown_rounds",
+    type=int,
+    default=50,
+    help="Number of rounds to rampdown the beta param of DAgger",
+)
 # parser.add_argument(
 #     "--log_interval",
 #     type=int,
@@ -273,6 +329,8 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "bids_df_path": bids_df_path,
             "budget_range": (args.budget_min, args.budget_max),
             "target_cpa_range": (args.target_cpa_min, args.target_cpa_max),
+            "advertiser_id": args.advertiser_id,
+            "deterministic_conversion": args.deterministic_conversion,
             "rwd_weights": rwd_weights,
             "new_action": args.new_action,
             "multi_action": args.multi_action,
@@ -340,6 +398,7 @@ if __name__ == "__main__":
         lr_schedule=lambda _: 2e-5,
         net_arch=dict(pi=args.net_arch, vf=args.net_arch),
         activation_fn=torch.nn.ReLU,
+        log_std_init=args.log_std_init,
     )
 
     custom_logger = imitation.util.logger.configure(
@@ -355,11 +414,15 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         minibatch_size=None,
         optimizer_cls=torch.optim.Adam,
-        optimizer_kwargs=dict(lr=1e-3),
-        ent_weight=1e-3,
-        l2_weight=0.0,
+        optimizer_kwargs=dict(lr=args.learning_rate),
         device="auto",
         custom_logger=custom_logger,
+    )
+    bc_trainer.loss_calculator = BCLossCalculatorWithMSE(
+        ent_weight=args.ent_weight,
+        l2_weight=args.l2_weight,
+        neglogp_weight=args.neglogp_weight,
+        mse_weight=args.mse_weight,
     )
 
     dagger_trainer = OracleDaggerTrainer(
@@ -367,6 +430,7 @@ if __name__ == "__main__":
         scratch_dir=TENSORBOARD_LOG,
         rng=rng,
         max_stored_trajs=args.num_buffer_episodes,
+        beta_schedule=LinearBetaSchedule(rampdown_rounds=args.beta_rampdown_rounds),
         bc_trainer=bc_trainer,
         custom_logger=custom_logger,
     )
@@ -391,13 +455,97 @@ if __name__ == "__main__":
     wandb.finish()
 
 """
-python online/main_train_dagger.py --num_envs 20 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 500 \
-    --num_steps 10_000_000  --seed 0 --out_prefix "007_" --out_suffix "_no_vec_norm" --num_buffer_episodes 2000 --rollout_reuse_epoch 5\
-        --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10
-                
 python online/main_train_dagger.py --num_envs 1 --batch_size 32 --min_rollout_episodes 3 --min_rollout_timesteps 100 \
     --num_steps 100_000 --seed 0 --out_prefix "001_" --out_suffix "_test" --num_buffer_episodes 100 \
         --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
             --new_action --exp_action --obs_type obs_29_keys --simplified_bidding
+
+python online/main_train_dagger.py --num_envs 20 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 500 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "009_" --out_suffix "_no_vec_norm" --num_buffer_episodes 2000 --rollout_reuse_epoch 5\
+        --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10
+
+python online/main_train_dagger.py --num_envs 20 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 500 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "010_" --out_suffix "_no_vec_norm" --num_buffer_episodes 2000 --rollout_reuse_epoch 1\
+        --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10
+
+python online/main_train_dagger.py --num_envs 20 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 500 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "011_" --out_suffix "_wd_small_lr" --num_buffer_episodes 2000 --rollout_reuse_epoch 1\
+        --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10
+
+python online/main_train_dagger.py --num_envs 20 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 500 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "012_" --out_suffix "_wd_small_lr_beta_50" --num_buffer_episodes 2000 --rollout_reuse_epoch 1\
+        --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 50
+            
+python online/main_train_dagger.py --num_envs 20 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 500 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "013_" --out_suffix "_wd_small_lr_beta_0" --num_buffer_episodes 2000 --rollout_reuse_epoch 1\
+        --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 0
+            
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 5 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "015_" --out_suffix "_overfit_1_ep" --num_buffer_episodes 2000 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 1
+            
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 5 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "016_" --out_suffix "_overfit_1_ep" --num_buffer_episodes 100 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 1
+            
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 5 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "017_" --out_suffix "_overfit_1_ep" --num_buffer_episodes 100 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 50
+            
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 5 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "018_" --out_suffix "_overfit_1_ep_mse" --num_buffer_episodes 100 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 1 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 0.0 --l2_weight 1e-4
+                
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 5 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "019_" --out_suffix "_overfit_1_ep_mse_beta_50" --num_buffer_episodes 100 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 50 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 0.0 --l2_weight 1e-4
+                
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 5 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "020_" --out_suffix "_overfit_1_ep_mse_beta_50" --num_buffer_episodes 100 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 50 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 0.0 --l2_weight 1e-4
+                
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 5 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "021_" --out_suffix "_overfit_1_ep_mse" --num_buffer_episodes 100 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 1 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 0.0 --l2_weight 1e-4
+
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "022_" --out_suffix "_overfit_1_ep_mse_beta_50" --num_buffer_episodes 1000 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 50 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 0.0 --l2_weight 1e-4
+                
+                
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "023_" --out_suffix "_overfit_1_ep_mse_beta_50_large_buffer" --num_buffer_episodes 10000 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 50 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 0.0 --l2_weight 1e-4
+                
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "023_" --out_suffix "_overfit_1_ep_mse_beta_50_large_buffer" --num_buffer_episodes 10000 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 50 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 0.0 --l2_weight 1e-4
+                
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "024_" --out_suffix "_overfit_1_ep_mse_beta_50_large_buffer" --num_buffer_episodes 10000 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 50 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 0.0 --l2_weight 0
 """
