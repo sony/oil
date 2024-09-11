@@ -659,42 +659,30 @@ class BiddingEnv(gym.Env):
         return 0.8 * remaining_budget_excess
 
     def compute_ranked_impressions_df(self):
+        # Filter once based on advertiser and delivery period
         ad_pvalues_df = self.pvalues_df[
             (self.pvalues_df.advertiserNumber == self.advertiser)
             & (self.pvalues_df.deliveryPeriodIndex == self.period)
-            # & (self.pvalues_df.timeStepIndex >= self.time_step)
         ]
         ad_bids_df = self.bids_df[
             (self.bids_df.deliveryPeriodIndex == self.period)
-            # & (self.bids_df.timeStepIndex >= self.time_step)
         ]
 
-        pvalues_list = ad_pvalues_df.pValue.tolist()
-        min_cost_list = ad_bids_df.cost.apply(lambda x: x[:, 0]).tolist()
+        # Extract pvalues and costs as lists of arrays
+        pvalues_list = np.concatenate(ad_pvalues_df.pValue.values)
+        min_cost_list = np.concatenate(ad_bids_df.cost.apply(lambda x: x[:, 0]).values)
 
-        # Create dataframe of remaining impression opportunities
-        data = []
-        for time_step, (costs, pvalues) in enumerate(zip(min_cost_list, pvalues_list)):
-            for ad_impression_id, (cost, pvalue) in enumerate(zip(costs, pvalues)):
-                data.append(
-                    [
-                        time_step,
-                        ad_impression_id,
-                        cost,
-                        pvalue,
-                        pvalue / (cost + self.EPS),
-                    ]
-                )
+        # Create the DataFrame directly from arrays without looping
+        df = pd.DataFrame({
+            "time_step": np.repeat(np.arange(len(ad_pvalues_df)), ad_pvalues_df.pValue.apply(len)),
+            "ad_impression_id": np.concatenate([np.arange(len(pv)) for pv in ad_pvalues_df.pValue]),
+            "cost": min_cost_list,
+            "pvalue": pvalues_list
+        })
+        df["pv_over_cost"] = df["pvalue"] / (df["cost"] + self.EPS)
 
-        df = pd.DataFrame(
-            data,
-            columns=["time_step", "ad_impression_id", "cost", "pvalue", "pv_over_cost"],
-        )
-
-        # Find the best impression opportunities within the budget
-        df_sorted = df.sort_values(by="pv_over_cost", ascending=False).reset_index(
-            drop=True
-        )
+        # Sort once and store the result for later use
+        df_sorted = df.sort_values(by="pv_over_cost", ascending=False).reset_index(drop=True)
         return df_sorted
 
     def get_oracle_action(self):
