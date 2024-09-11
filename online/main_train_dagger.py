@@ -387,10 +387,10 @@ if __name__ == "__main__":
         TENSORBOARD_LOG, args.load_path, args.checkpoint_num
     )
     envs = make_parallel_envs(config_list)
-    # if env_path is not None:
-    #     envs = VecNormalize.load(env_path, envs)
-    # else:
-    #     envs = VecNormalize(envs)
+    if env_path is not None:
+        envs = VecNormalize.load(env_path, envs)
+    else:
+        envs = VecNormalize(envs)
 
     policy = ActorCriticPolicy(
         observation_space=envs.observation_space,
@@ -548,4 +548,16 @@ python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_e
         --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
             --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 50 \
                 --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 0.0 --l2_weight 0
+                
+python online/main_train_dagger.py --num_envs 1 --batch_size 256 --min_rollout_episodes 20 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "025_" --out_suffix "_overfit_1_ep_mse_beta_1" --num_buffer_episodes 100 --rollout_reuse_epoch 1\
+        --budget_min 8000 --budget_max 8000 --target_cpa_min 8 --target_cpa_max 8 --advertiser_id 0 --deterministic_conversion --learning_rate 1e-4\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 1 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 1e-5 --l2_weight 1e-4 --log_std_init -0.5
+                
+python online/main_train_dagger.py --num_envs 20 --batch_size 256 --min_rollout_episodes 40 --min_rollout_timesteps 50 \
+    --num_steps 10_000_000  --seed 0 --out_prefix "026_" --out_suffix "_mse_beta_1" --num_buffer_episodes 100 --rollout_reuse_epoch 1\
+        --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --learning_rate 1e-3\
+            --new_action --exp_action --obs_type obs_29_keys --simplified_bidding --save_every 10 --beta_rampdown_rounds 1 \
+                --mse_weight 1.0 --neglogp_weight 0.0 --ent_weight 1e-5 --l2_weight 1e-4 --log_std_init -0.5
 """

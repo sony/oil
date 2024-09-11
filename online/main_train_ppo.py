@@ -211,6 +211,12 @@ parser.add_argument(
     default=1.0,
     help="Imitation coefficient",
 )
+parser.add_argument(
+    "--learning_rate",
+    type=float,
+    default=2e-05,
+    help="Learning rate",
+)
 
 args = parser.parse_args()
 
@@ -270,7 +276,7 @@ model_config = dict(
     device=args.device,
     batch_size=args.batch_size,
     n_steps=128,
-    learning_rate=2e-05,
+    learning_rate=args.learning_rate,
     ent_coef=3e-06,
     vf_coef=0.5,
     pg_coef=args.pg_coef,
@@ -550,4 +556,10 @@ python online/main_train_ppo.py --num_envs 1 --batch_size 16 --num_steps 20_000_
             --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
                 --imitation_coef 1.0 --pg_coef 0.0
 
+python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 042_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+            --load_path output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified --checkpoint_num 2750000 \
+                --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --imitation_coef 1.0 --pg_coef 0.0 \
+                    --simplified_bidding --learning_rate 1e-5 --save_every 10000
 """

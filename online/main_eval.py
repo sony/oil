@@ -113,7 +113,7 @@ def main(args):
                 advertiser=env.unwrapped.advertiser,
                 period=env.unwrapped.period,
             )
-            topline_action = topline_env.unwrapped.get_simplified_topline_action()
+            topline_action = topline_env.unwrapped.get_oracle_action()
         episode_starts = np.ones((1,), dtype=bool)
         done = False
         while not done:
@@ -300,7 +300,45 @@ python online/main_eval.py --experiment_path=output/training/ongoing/039_ppo_see
 python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=5000000 --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config.json \
         --compute_topline
+
+# New best!!! 0.4446, local: 573.87
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 1500000
+
+# New best!!! 0.4485, local: 569.95
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 2250000
+
+# 583.44
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 2500000
+
+# New best!!! 0.4543, local: 590.59
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 2750000
+
+local: 579.30
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 3000000
+
+# Submission: 0.4403 local: 588.15
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 3500000
     
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 3750000
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4000000
+
+# Submission: 0.4396, local: 591.46
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2850000
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3160000
 
 
+python online/main_eval.py --experiment_path=output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=6000000
 """
