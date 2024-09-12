@@ -9,7 +9,7 @@ from typing import Iterable, Union
 from scipy.signal import savgol_filter
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
-from definitions import ENV_PATTERN, MODEL_PATTERN
+from definitions import ENV_PATTERN, MODEL_PATTERN, ALGO_CLASS_DICT
 from stable_baselines3 import PPO
 import os
 
@@ -19,6 +19,7 @@ def get_number(filename):
 
 
 def load_model(
+    algo,
     experiment_path,
     checkpoint_number,
 ):
@@ -27,7 +28,7 @@ def load_model(
     else:
         model_file = MODEL_PATTERN.replace("*", str(checkpoint_number))
     model_path = os.path.join(experiment_path, model_file)
-    model = PPO.load(model_path)
+    model = ALGO_CLASS_DICT[algo].load(model_path)
     return model
 
 

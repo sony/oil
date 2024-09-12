@@ -2,12 +2,9 @@ import json
 import os
 from dataclasses import dataclass, field
 from typing import List
-from stable_baselines3 import SAC, TD3, PPO
-from sb3_contrib import RecurrentPPO
-from online.train.ppo import BCPPO
-from online.algos.on_policy_bc import OnPolicyBC
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import VecNormalize
+from definitions import ALGO_CLASS_DICT
 
 
 @dataclass
@@ -23,20 +20,22 @@ class SingleEnvTrainer:
     def __post_init__(self):
         self.dump_configs(path=self.log_dir)
         self.agent = self._init_agent()
-                
+
     def dump_configs(self, path: str) -> None:
         with open(os.path.join(path, "model_config.json"), "w", encoding="utf8") as f:
-            json.dump(self.model_config, f, indent=4, default=lambda _: '<not serializable>')
+            json.dump(
+                self.model_config, f, indent=4, default=lambda _: "<not serializable>"
+            )
 
     def _init_agent(self):
         algo_class = self.get_algo_class()
         if self.load_model_path is not None:
             agent = algo_class.load(
-                    self.load_model_path,
-                    env=self.envs,
-                    tensorboard_log=self.log_dir,
-                    custom_objects=self.model_config,
-                )
+                self.load_model_path,
+                env=self.envs,
+                tensorboard_log=self.log_dir,
+                custom_objects=self.model_config,
+            )
         else:
             print("\nNo model path provided. Initializing new model.\n")
             agent = algo_class(
@@ -59,18 +58,8 @@ class SingleEnvTrainer:
         self.envs.save(os.path.join(self.log_dir, "final_env.pkl"))
 
     def get_algo_class(self):
-        if self.algo == "ppo":
-            return PPO
-        if self.algo == "bc_ppo":
-            return BCPPO
-        if self.algo == "recurrent_ppo":
-            return RecurrentPPO
-        elif self.algo == "sac":
-            return SAC
-        elif self.algo == "td3":
-            return TD3
-        elif self.algo == "onbc":
-            return OnPolicyBC
+        if self.algo in ALGO_CLASS_DICT:
+            return ALGO_CLASS_DICT[self.algo]
         else:
             raise ValueError("Unknown algorithm ", self.algo)
 

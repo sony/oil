@@ -9,7 +9,7 @@ import json
 import numpy as np
 import glob
 import torch
-from definitions import ROOT_DIR, MODEL_PATTERN, ENV_CONFIG_NAME
+from definitions import ROOT_DIR, MODEL_PATTERN, ENV_CONFIG_NAME, ALGO_TB_DIR_NAME_DICT
 from envs.environment_factory import EnvironmentFactory
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
@@ -23,7 +23,6 @@ from helpers import (
 
 torch.manual_seed(0)
 
-TB_DIR_NAME = "PPO_0"  # "RecurrentPPO_1", "SAC_1"
 CKPT_CHOICE_CRITERION = "score"  # "rollout/ep_rew_mean", "rollout/solved"
 
 
@@ -59,7 +58,7 @@ def main(args):
 
         if args.checkpoint is None:
             # First get the training data from the tensorboard log
-            tb_dir_path = os.path.join(experiment_path, TB_DIR_NAME)
+            tb_dir_path = os.path.join(experiment_path, ALGO_TB_DIR_NAME_DICT[args.algo])
             experiment_data = get_experiment_data(tb_dir_path, CKPT_CHOICE_CRITERION)
             steps = experiment_data[CKPT_CHOICE_CRITERION]["x"][0]
             rewards = experiment_data[CKPT_CHOICE_CRITERION]["y"][0]
@@ -83,6 +82,7 @@ def main(args):
             checkpoint = args.checkpoint
 
         model = load_model(
+            args.algo,
             experiment_path,
             checkpoint,
         )
@@ -158,6 +158,12 @@ if __name__ == "__main__":
         description="Main script to create a dataset of episodes with a trained agent"
     )
 
+    parser.add_argument(
+        "--algo",
+        type=str,
+        default="ppo",
+        help="Algorithm used to train the agent.",
+    )
     parser.add_argument(
         "--experiment_path",
         type=str,
@@ -329,16 +335,28 @@ python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_see
     --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 3750000
     
 python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 4000000
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4500000
 
 # Submission: 0.4396, local: 591.46
 python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 2850000
     
 python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 3160000
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4220000
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4730000
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5000000
 
+# local: 494.65
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4190000
 
 python online/main_eval.py --experiment_path=output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=6000000
+    
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic
 """
