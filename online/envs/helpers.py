@@ -39,15 +39,14 @@ def get_model_and_env_path(tensorboard_log, load_path, checkpoint_num):
         c_n = get_last_checkpoint(tensorboard_log)
         if c_n is None:
             print(
-                f"WARNING: A training at {tensorboard_log} already exists, but no checkpoint was found."
-                f"Searching for a checkpoint at {load_path}."
+                f"No previous checkpoint found at {tensorboard_log}."
             )
         else:
             load_path = tensorboard_log
             checkpoint_num = c_n
             if load_path is not None:
                 print(
-                    f"WARNING: A checkpoint was found at {tensorboard_log}, so we are resuming from there."
+                    f"A checkpoint was found at {tensorboard_log}, so we are resuming from there."
                     f"Ignoring any checkpoint at {load_path}."
                 )
 
@@ -56,7 +55,7 @@ def get_model_and_env_path(tensorboard_log, load_path, checkpoint_num):
             checkpoint_num = get_last_checkpoint(load_path)
         if checkpoint_num is None:
             print(
-                f"WARNING: No checkpoints at the given path {load_path}, starting a new training"
+                f"No checkpoints at the given path {load_path}, starting a new training"
             )
             model_path = None
             env_path = None
@@ -67,6 +66,8 @@ def get_model_and_env_path(tensorboard_log, load_path, checkpoint_num):
             env_path = os.path.join(
                 load_path, f"rl_model_vecnormalize_{checkpoint_num}_steps.pkl"
             )
+            print(
+                f"Resuming training from checkpoint {checkpoint_num} of {load_path}")
     else:
         model_path = None
         env_path = None
