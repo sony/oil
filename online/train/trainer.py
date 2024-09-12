@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from typing import List
 from stable_baselines3 import SAC, TD3, PPO
 from sb3_contrib import RecurrentPPO
-from train.ppo import BCPPO
+from online.train.ppo import BCPPO
+from online.algos.on_policy_bc import OnPolicyBC
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import VecNormalize
 
@@ -68,6 +69,8 @@ class SingleEnvTrainer:
             return SAC
         elif self.algo == "td3":
             return TD3
+        elif self.algo == "onbc":
+            return OnPolicyBC
         else:
             raise ValueError("Unknown algorithm ", self.algo)
 
