@@ -1,0 +1,22 @@
+{
+    "env_name": "BiddingEnv",
+    "pvalues_df_path": "data/online_rl_data/period-27_pvalues.parquet",
+    "bids_df_path": "data/online_rl_data/period-27_bids.parquet",
+    "budget_range": [
+        400,
+        12000
+    ],
+    "target_cpa_range": [
+        6,
+        12
+    ],
+    "rwd_weights": {
+        "dense": 0,
+        "sparse": 1
+    },
+    "simplified_bidding": true,
+    "seed": 0,
+    "stochastic_exposure": true,
+    "cost_noise": 0.01,
+    "competitor_bid_noise": 0.01
+}

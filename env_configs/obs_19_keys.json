@@ -1,0 +1,21 @@
+[
+    "time_left",
+    "budget_left",
+    "budget",
+    "cpa",
+    "category",
+    "historical_bid_mean",
+    "last_three_bid_mean",
+    "least_winning_cost_mean",
+    "pvalues_mean",
+    "conversion_mean",
+    "bid_success_mean",
+    "last_three_least_winning_cost_mean",
+    "last_three_pvalues_mean",
+    "last_three_conversion_mean",
+    "last_three_bid_success_mean",
+    "current_pvalues_mean",
+    "current_pv_num",
+    "last_three_pv_num",
+    "pv_num_total"
+]
