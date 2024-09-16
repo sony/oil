@@ -19,13 +19,20 @@ from envs.environment_factory import EnvironmentFactory
 from metrics.custom_callbacks import TensorboardCallback
 from train.trainer import SingleEnvTrainer
 from envs.helpers import get_model_and_env_path
-from online.policies.actor import ActorPolicy
+from online.policies.actor import ActorPolicy, TransformerActorPolicy
+from algos.buffers import OracleRolloutBuffer, OracleEpisodeRolloutBuffer
 
 torch.manual_seed(0)
 
 
 parser = argparse.ArgumentParser(description="Main script to train an agent")
 
+parser.add_argument(
+    "--algo",
+    type=str,
+    default="onbc",
+    help="Algorithm to use",
+)
 parser.add_argument(
     "--seed",
     type=int,
@@ -92,11 +99,45 @@ parser.add_argument(
     help="Suffix to append to the training run name",
 )
 parser.add_argument(
-    "--net_arch",
+    "--use_transformer",
+    action="store_true",
+    help="Use transformer policy",
+)
+parser.add_argument(
+    "--embed_size",
     type=int,
-    nargs="*",
-    default=[256, 256],
-    help="Layer sizes for the policy and value networks",
+    default=64,
+    help="Embedding size for transformer",
+)
+parser.add_argument(
+    "--num_heads",
+    type=int,
+    default=4,
+    help="Number of heads for transformer",
+)
+parser.add_argument(
+    "--num_layers",
+    type=int,
+    default=2,
+    help="Number of layers for mlp or transformer",
+)
+parser.add_argument(
+    "--dim_feedforward",
+    type=int,
+    default=256,
+    help="Feedforward dimension for mlp or transformer",
+)
+parser.add_argument(
+    "--dropout",
+    type=float,
+    default=0.1,
+    help="Dropout for transformer",
+)
+parser.add_argument(
+    "--layer_norm_eps",
+    type=float,
+    default=1e-5,
+    help="Layer norm epsilon for transformer",
 )
 parser.add_argument(
     "--project_name",
@@ -206,6 +247,18 @@ parser.add_argument(
     default=2e-05,
     help="Learning rate",
 )
+parser.add_argument(
+    "--n_rollout_steps",
+    type=int,
+    default=128,
+    help="Number of steps to run for each environment",
+)
+parser.add_argument(
+    "--episode_len",
+    type=int,
+    default=48,
+    help="Length of each episode",
+)
 
 args = parser.parse_args()
 
@@ -213,9 +266,9 @@ run_name = f"{args.out_prefix}onbc_seed_{args.seed}{args.out_suffix}"
 TENSORBOARD_LOG = os.path.join(ROOT_DIR, "output", "training", "ongoing", run_name)
 
 # Reward structure and task parameters:
-with open(ROOT_DIR / "data" / "env_configs" / f"{args.obs_type}.json", "r") as f:
+with open(ROOT_DIR / "env_configs" / f"{args.obs_type}.json", "r") as f:
     obs_keys = json.load(f)
-with open(ROOT_DIR / "data" / "env_configs" / f"{args.act_type}.json", "r") as f:
+with open(ROOT_DIR / "env_configs" / f"{args.act_type}.json", "r") as f:
     act_keys = json.load(f)
 
 config_list = []
@@ -260,11 +313,32 @@ for period in range(7, 7 + args.num_envs):  # one period per env
         }
     )
 
+if args.use_transformer:
+    policy = TransformerActorPolicy
+    net_arch = {
+        "embed_size": args.embed_size,
+        "num_heads": args.num_heads,
+        "num_layers": args.num_layers,
+        "dim_feedforward": args.dim_feedforward,
+        "dropout": args.dropout,
+        "layer_norm_eps": args.layer_norm_eps,
+    }
+    # n_steps in transformer is actually number of episodes
+    n_steps = args.n_rollout_steps // args.episode_len
+    rollout_buffer_class = OracleEpisodeRolloutBuffer
+    rollout_buffer_kwargs = {"ep_len": args.episode_len}
+else:
+    policy = ActorPolicy
+    net_arch = [args.dim_feedforward for _ in range(args.num_layers)]
+    n_steps = args.n_rollout_steps
+    rollout_buffer_class = OracleRolloutBuffer
+    rollout_buffer_kwargs = {}
+
 model_config = dict(
-    policy=ActorPolicy,
+    policy=policy,
     device=args.device,
     batch_size=args.batch_size,
-    n_steps=128,
+    n_steps=n_steps,
     learning_rate=args.learning_rate,
     ent_coef=3e-06,
     max_grad_norm=0.7,
@@ -273,8 +347,10 @@ model_config = dict(
     policy_kwargs=dict(
         log_std_init=args.log_std_init,
         activation_fn=nn.ReLU,
-        net_arch=args.net_arch,
+        net_arch=net_arch,
     ),
+    rollout_buffer_class=rollout_buffer_class,
+    rollout_buffer_kwargs=rollout_buffer_kwargs,
     seed=args.seed,
 )
 
@@ -357,7 +433,7 @@ if __name__ == "__main__":
 
     # Define trainer
     trainer = SingleEnvTrainer(
-        algo="onbc",
+        algo=args.algo,
         envs=envs,
         load_model_path=model_path,
         log_dir=TENSORBOARD_LOG,
@@ -382,4 +458,36 @@ python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_0
         --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
             --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
                 --simplified_bidding --learning_rate 1e-3 --save_every 50000
+                
+python online/main_train_onbc.py --algo onbc_transformer --num_envs 2 --batch_size=2 --num_steps=10_000_000 \
+    --n_rollout_steps 192 --budget_min=400 --budget_max=12000 --target_cpa_min=6 --target_cpa_max=12 \
+        --new_action --exp_action --out_prefix=003_ --out_suffix=_transformer \
+            --obs_type obs_19_keys_transformer --use_transformer --embed_size 64 --num_heads 4 --num_layers 4 \
+                --dim_feedforward 256 --dropout 0.1 --layer_norm_eps 1e-5 --learning_rate 1e-3 --save_every 50000 \
+                    --simplified_bidding
+
+
+python online/main_train_onbc.py --algo onbc_transformer --num_envs 20 --batch_size=20 --num_steps=10_000_000 \
+    --n_rollout_steps 192 --budget_min=400 --budget_max=12000 --target_cpa_min=6 --target_cpa_max=12 \
+        --new_action --exp_action --out_prefix=004_ --out_suffix=_transformer \
+            --obs_type obs_19_keys_transformer --use_transformer --embed_size 64 --num_heads 4 --num_layers 4 \
+                --dim_feedforward 256 --dropout 0.1 --layer_norm_eps 1e-5 --learning_rate 1e-4 --save_every 50000 \
+                    --simplified_bidding
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 005_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_002 \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
+                --simplified_bidding --learning_rate 1e-5 --save_every 50000 \
+                    --load_path output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+                        --checkpoint_num 3150000
+                        
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 006_ \
+    --budget_min 1e-6 --budget_max 24000 --target_cpa_min 1e-6 --target_cpa_max 24 \
+        --new_action --exp_action --out_suffix=_wide_ranges_simplified_resume_002 \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
+                --simplified_bidding --learning_rate 1e-3 --save_every 50000 \
+                    --load_path output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+                        --checkpoint_num 3150000
+
 """

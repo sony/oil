@@ -224,9 +224,9 @@ run_name = f"{args.out_prefix}ppo_seed_{args.seed}{args.out_suffix}"
 TENSORBOARD_LOG = os.path.join(ROOT_DIR, "output", "training", "ongoing", run_name)
 
 # Reward structure and task parameters:
-with open(ROOT_DIR / "data" / "env_configs" / f"{args.obs_type}.json", "r") as f:
+with open(ROOT_DIR / "env_configs" / f"{args.obs_type}.json", "r") as f:
     obs_keys = json.load(f)
-with open(ROOT_DIR / "data" / "env_configs" / f"{args.act_type}.json", "r") as f:
+with open(ROOT_DIR / "env_configs" / f"{args.act_type}.json", "r") as f:
     act_keys = json.load(f)
 
 config_list = []
@@ -562,4 +562,5 @@ python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_00
             --load_path output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified --checkpoint_num 2750000 \
                 --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --imitation_coef 1.0 --pg_coef 0.0 \
                     --simplified_bidding --learning_rate 1e-5 --save_every 10000
+                    
 """
