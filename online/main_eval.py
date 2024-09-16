@@ -9,7 +9,7 @@ import json
 import numpy as np
 import glob
 import torch
-from definitions import ROOT_DIR, MODEL_PATTERN, ENV_CONFIG_NAME
+from definitions import ROOT_DIR, MODEL_PATTERN, ENV_CONFIG_NAME, ALGO_TB_DIR_NAME_DICT
 from envs.environment_factory import EnvironmentFactory
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
@@ -23,7 +23,6 @@ from helpers import (
 
 torch.manual_seed(0)
 
-TB_DIR_NAME = "PPO_0"  # "RecurrentPPO_1", "SAC_1"
 CKPT_CHOICE_CRITERION = "score"  # "rollout/ep_rew_mean", "rollout/solved"
 
 
@@ -38,6 +37,13 @@ def main(args):
         experiment_path = ROOT_DIR / args.experiment_path
         env_config = json.load(open(args.eval_config_path, "r"))
         baseline_env = EnvironmentFactory.create(**env_config)
+        if args.compute_topline:
+            assert env_config["simplified_bidding"]
+            topline_config = env_config.copy()
+            topline_config["new_action"] = False
+            topline_config["multi_action"] = False
+            topline_config["exp_action"] = False
+            topline_env = EnvironmentFactory.create(**topline_config)
 
         # We need to use the observation and action defined in the training config
         train_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
@@ -47,12 +53,15 @@ def main(args):
         env_config["new_action"] = train_config.get("new_action", False)
         env_config["multi_action"] = train_config.get("multi_action", False)
         env_config["exp_action"] = train_config.get("exp_action", False)
+        # env_config["deterministic_conversion"] = True
 
         env = EnvironmentFactory.create(**env_config)
 
         if args.checkpoint is None:
             # First get the training data from the tensorboard log
-            tb_dir_path = os.path.join(experiment_path, TB_DIR_NAME)
+            tb_dir_path = os.path.join(
+                experiment_path, ALGO_TB_DIR_NAME_DICT[args.algo]
+            )
             experiment_data = get_experiment_data(tb_dir_path, CKPT_CHOICE_CRITERION)
             steps = experiment_data[CKPT_CHOICE_CRITERION]["x"][0]
             rewards = experiment_data[CKPT_CHOICE_CRITERION]["y"][0]
@@ -76,6 +85,7 @@ def main(args):
             checkpoint = args.checkpoint
 
         model = load_model(
+            args.algo,
             experiment_path,
             checkpoint,
         )
@@ -85,49 +95,77 @@ def main(args):
     vecnormalize.training = False
     mean_ep_rew = 0
     mean_baseline_ep_rew = 0
+    mean_topline_ep_rew = 0
     for i in range(args.num_episodes):
         lstm_states = None
         ep_rew = 0
         baseline_ep_rew = 0
+        topline_ep_rew = 0
         step = 0
-        obs, _ = env.reset(seed=i)
+        obs, _ = env.reset(seed=i)  # , advertiser=0)
         baseline_env.reset(
             budget=env.unwrapped.total_budget,
             target_cpa=env.unwrapped.target_cpa,
             advertiser=env.unwrapped.advertiser,
             period=env.unwrapped.period,
         )
+        if args.compute_topline:
+            topline_env.reset(
+                budget=env.unwrapped.total_budget,
+                target_cpa=env.unwrapped.target_cpa,
+                advertiser=env.unwrapped.advertiser,
+                period=env.unwrapped.period,
+            )
+            topline_action = topline_env.unwrapped.get_oracle_action()
         episode_starts = np.ones((1,), dtype=bool)
         done = False
+        if args.algo == "onbc_transformer":
+            obs_list = []
         while not done:
-            action, _ = model.predict(
-                vecnormalize.normalize_obs(obs),
-                state=lstm_states,
-                episode_start=episode_starts,
-                deterministic=args.deterministic,
-            )
+            norm_obs = vecnormalize.normalize_obs(obs)
+            if args.algo == "onbc_transformer":
+                obs_list.append(norm_obs)
+                norm_obs = np.stack(obs_list)
+                action, _ = model.predict(
+                    norm_obs,
+                    state=lstm_states,
+                    episode_start=episode_starts,
+                    deterministic=args.deterministic,
+                    single_action=True,
+                )
+            else:
+                action, _ = model.predict(
+                    norm_obs,
+                    state=lstm_states,
+                    episode_start=episode_starts,
+                    deterministic=args.deterministic,
+                )
             obs, rewards, terminated, truncated, _ = env.step(action)
 
             baseline_action = baseline_env.unwrapped.get_baseline_action()
             _, baseline_rewards, _, _, _ = baseline_env.step(baseline_action)
+            baseline_ep_rew += baseline_rewards
+
+            if args.compute_topline:
+                _, topline_rewards, _, _, _ = topline_env.step(topline_action)
+                topline_ep_rew += topline_rewards
 
             done = terminated or truncated
             episode_starts = done
             ep_rew += rewards
-            baseline_ep_rew += baseline_rewards
             step += 1
         mean_ep_rew = (mean_ep_rew * i + ep_rew) / (i + 1)
         mean_baseline_ep_rew = (mean_baseline_ep_rew * i + baseline_ep_rew) / (i + 1)
-        print(
-            "Ep:",
-            i,
-            "ep rew:",
-            "%.2f" % round(ep_rew, 2),
-            "avg score:",
-            "%.2f" % round(mean_ep_rew, 2),
-            "avg_baseline_score:",
-            "%.2f" % round(mean_baseline_ep_rew, 2),
+        if args.compute_topline:
+            mean_topline_ep_rew = (mean_topline_ep_rew * i + topline_ep_rew) / (i + 1)
+        str_out = (
+            "Ep: {} ep rew: {:.2f} avg score: {:.2f} avg_baseline_score: {:.2f}".format(
+                i, ep_rew, mean_ep_rew, mean_baseline_ep_rew
+            )
         )
+        if args.compute_topline:
+            str_out += " avg_topline_score: {:.2f}".format(mean_topline_ep_rew)
+        print(str_out)
 
     env.close()
 
@@ -137,6 +175,12 @@ if __name__ == "__main__":
         description="Main script to create a dataset of episodes with a trained agent"
     )
 
+    parser.add_argument(
+        "--algo",
+        type=str,
+        default="ppo",
+        help="Algorithm used to train the agent.",
+    )
     parser.add_argument(
         "--experiment_path",
         type=str,
@@ -152,7 +196,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--eval_config_path",
         type=str,
-        default=ROOT_DIR / "data" / "env_configs" / "eval_config.json",
+        default=ROOT_DIR / "env_configs" / "eval_config.json",
         help="Path to the eval config",
     )
     parser.add_argument(
@@ -176,6 +220,12 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Flag to not save the dataframe",
+    )
+    parser.add_argument(
+        "--compute_topline",
+        action="store_true",
+        default=False,
+        help="Flag to compute the topline",
     )
     args = parser.parse_args()
     main(args)
@@ -224,7 +274,6 @@ python online/main_eval.py --experiment_path=output/training/ongoing/036_ppo_see
 python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=5000000
 
-
 # Also very good
 python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=5500000
@@ -256,7 +305,101 @@ python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_see
 python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=5000000 --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
 
+# Only 0.3539
 python online/main_eval.py --experiment_path=output/training/ongoing/037_ppo_seed_0_dense_base_ranges_29_obs_exp_3_actions \
-    --num_episodes=100 --no_save_df --deterministic --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=7750000 \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config.json
 
+python online/main_eval.py --experiment_path=output/training/ongoing/037_ppo_seed_0_dense_base_ranges_29_obs_exp_3_actions \
+    --num_episodes=100 --no_save_df --deterministic \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config.json
+
+
+python online/main_eval.py --experiment_path=output/training/ongoing/039_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_stoch_exposure \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5000000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config.json
+
+python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=5000000 --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config.json \
+        --compute_topline
+
+# New best!!! 0.4446, local: 573.87
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 1500000
+
+# New best!!! 0.4485, local: 569.95
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 2250000
+
+# 583.44
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 2500000
+
+# New best!!! 0.4543, local: 590.59
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 2750000
+
+local: 579.30
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 3000000
+
+# Submission: 0.4403 local: 588.15
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 3500000
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 3750000
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4500000
+
+# Submission: 0.4396, local: 591.46
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2850000
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4220000
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4730000
+    
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5000000
+
+# Local: 588.33
+python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4190000
+
+python online/main_eval.py --experiment_path=output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint=6000000
+
+# Submission: 0.4531, local: 591.95
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3150000
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3200000
+    
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2600000
+
+# local:  586.67
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/004_onbc_seed_0_transformer \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2400000
+
+# local:  590.52
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/004_onbc_seed_0_transformer \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2500000
+        
+# local: 587.09
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/004_onbc_seed_0_transformer \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2850000
+
+# local: 594.21
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/004_onbc_seed_0_transformer \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3750000
+
+# local: 592.57
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/005_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_002 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3350000
 """

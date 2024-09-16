@@ -40,6 +40,7 @@ class BiddingEnv(gym.Env):
         bids_df_path=None,
         budget_range=(6000, 6000),
         target_cpa_range=(8, 8),
+        advertiser_id=None,
         obs_keys=DEFAULT_OBS_KEYS,
         rwd_weights=DEFAULT_RWD_WEIGHTS,
         act_keys=DEFAULT_ACT_KEYS,
@@ -51,6 +52,7 @@ class BiddingEnv(gym.Env):
         competitor_bid_noise=0,
         cost_noise=0,
         stochastic_exposure=False,
+        deterministic_conversion=False,
         seed=0,
     ):
         self.observation_space = gym.spaces.Box(
@@ -89,6 +91,7 @@ class BiddingEnv(gym.Env):
         self.competitor_bid_noise = competitor_bid_noise
         self.cost_noise = cost_noise
         self.stochastic_exposure = stochastic_exposure
+        self.deterministic_conversion = deterministic_conversion
 
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
@@ -96,7 +99,10 @@ class BiddingEnv(gym.Env):
             self.pvalues_df = self.load_pvalues_df(pvalues_df_path)
             self.bids_df = self.load_bids_df(bids_df_path)
             self.episode_length = len(self.bids_df.timeStepIndex.unique())
-            self.advertiser_list = list(self.pvalues_df.advertiserNumber.unique())
+            if advertiser_id is None:
+                self.advertiser_list = list(self.pvalues_df.advertiserNumber.unique())
+            else:
+                self.advertiser_list = [advertiser_id]
             categories_df = self.pvalues_df.groupby(
                 "advertiserNumber"
             ).advertiserCategoryIndex.first()
@@ -139,6 +145,7 @@ class BiddingEnv(gym.Env):
         self.num_pv_list = []
         self.total_conversions = 0
         self.total_cost = 0
+        self.ranked_df = None
 
     def reset(
         self,
@@ -294,8 +301,8 @@ class BiddingEnv(gym.Env):
         return state, reward, terminated, False, info
 
     def compute_score(self, cost, conversions):
-        cpa = cost / conversions if conversions > 0 else 0
-        cpa_coeff = min(1, (self.target_cpa / cpa) ** 2) if cpa > 0 else 0
+        cpa = cost / conversions if conversions > 0 else 0.0
+        cpa_coeff = min(1, (self.target_cpa / cpa) ** 2) if cpa > 0 else 0.0
         score = cpa_coeff * conversions
         return score
 
@@ -332,8 +339,15 @@ class BiddingEnv(gym.Env):
         )
 
         # TODO: check if the conversion depends on the position (AC: small dependence, we ignore it for now)
-        pvalues_sampled = np.clip(self.np_random.normal(pvalues, pvalues_sigma), 0, 1)
-        bid_conversion = self.np_random.binomial(n=1, p=pvalues_sampled) * bid_exposed
+        if self.deterministic_conversion:
+            bid_conversion = pvalues * bid_exposed
+        else:
+            pvalues_sampled = np.clip(
+                self.np_random.normal(pvalues, pvalues_sigma), 0, 1
+            )
+            bid_conversion = (
+                self.np_random.binomial(n=1, p=pvalues_sampled) * bid_exposed
+            )
         return bid_success, bid_position, bid_exposed, bid_cost, bid_conversion
 
     def compute_success_exposition_cost(
@@ -596,7 +610,7 @@ class BiddingEnv(gym.Env):
         return np.stack([basis_dict[key] for key in self.act_keys], axis=1)
 
     def compute_bid_coef(self, action, pvalues, pvalues_sigma):
-        action = np.atleast_1d(action)
+        action = np.atleast_1d(action).copy()
         if self.new_action:
             if self.exp_action:
                 action[0] = np.exp(action[0])
@@ -645,3 +659,67 @@ class BiddingEnv(gym.Env):
             / (self.total_budget * (self.episode_length - self.time_step + 1))
         )
         return 0.8 * remaining_budget_excess
+
+    def compute_ranked_impressions_df(self):
+        # Filter once based on advertiser and delivery period
+        ad_pvalues_df = self.pvalues_df[
+            (self.pvalues_df.advertiserNumber == self.advertiser)
+            & (self.pvalues_df.deliveryPeriodIndex == self.period)
+        ]
+        ad_bids_df = self.bids_df[
+            (self.bids_df.deliveryPeriodIndex == self.period)
+        ]
+
+        # Extract pvalues and costs as lists of arrays
+        pvalues_list = np.concatenate(ad_pvalues_df.pValue.values)
+        min_cost_list = np.concatenate(ad_bids_df.cost.apply(lambda x: x[:, 0]).values)
+
+        # Create the DataFrame directly from arrays without looping
+        df = pd.DataFrame({
+            "time_step": np.repeat(np.arange(len(ad_pvalues_df)), ad_pvalues_df.pValue.apply(len)),
+            "ad_impression_id": np.concatenate([np.arange(len(pv)) for pv in ad_pvalues_df.pValue]),
+            "cost": min_cost_list,
+            "pvalue": pvalues_list
+        })
+        df["pv_over_cost"] = df["pvalue"] / (df["cost"] + self.EPS)
+
+        # Sort once and store the result for later use
+        df_sorted = df.sort_values(by="pv_over_cost", ascending=False).reset_index(drop=True)
+        return df_sorted
+
+    def get_oracle_action(self):
+        if self.ranked_df is None:
+            self.ranked_df = self.compute_ranked_impressions_df()
+        df_sorted = self.ranked_df[
+            self.ranked_df.time_step >= self.time_step
+        ].reset_index(drop=True)
+        df_sorted["cum_conversions"] = (
+            df_sorted["pvalue"].cumsum() + self.total_conversions
+        )
+        df_sorted["cum_cost"] = df_sorted["cost"].cumsum() + self.total_cost
+        df_sorted["cum_cpa"] = df_sorted["cum_cost"] / df_sorted["cum_conversions"]
+        df_sorted["score"] = (
+            df_sorted["cum_conversions"]
+            * np.minimum(1, self.target_cpa / df_sorted["cum_cpa"]) ** 2
+        )
+        # We use total budget because the cost already includes the current total cost
+        df_within_budget = df_sorted[df_sorted["cum_cost"] <= self.total_budget]
+
+        if df_within_budget.empty:
+            # We have run out of budget, it does not matter what we bid
+            oracle_action = np.ones((1,))
+        else:
+            # Find the impressions that lead to the max score
+            max_score_row = df_within_budget["score"].idxmax()
+            selected_rows = df_sorted.loc[:max_score_row]
+
+            # Select the action that buys the best impression opportunities
+            action = 1 / selected_rows.pv_over_cost.min() / self.target_cpa
+            oracle_action = np.atleast_1d(action)
+
+        if self.new_action:
+            if self.exp_action:
+                oracle_action[0] = np.log(oracle_action[0])
+            else:
+                oracle_action[0] = oracle_action[0] - 1
+        return oracle_action

@@ -51,10 +51,11 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         checkpoint=5000000,
         device="cpu",
         deterministic=True,
+        algo="ppo",
     ):
         super().__init__(budget, name, cpa, category)
         self.device = device
-        self.model = load_model(experiment_path, checkpoint)
+        self.model = load_model(algo, experiment_path, checkpoint)
 
         train_env_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
         train_env_config["bids_df_path"] = None
