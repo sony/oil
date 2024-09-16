@@ -2,7 +2,7 @@ import pathlib
 from stable_baselines3 import SAC, TD3, PPO
 from sb3_contrib import RecurrentPPO
 from online.train.ppo import BCPPO
-from online.algos.on_policy_bc import OnPolicyBC
+from online.algos.on_policy_bc import OnPolicyBC, OnPolicyTransformerBC
 
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parent
@@ -17,9 +17,11 @@ ALGO_CLASS_DICT = {
     "sac": SAC,
     "td3": TD3,
     "onbc": OnPolicyBC,
+    "onbc_transformer": OnPolicyTransformerBC
 }
 
 ALGO_TB_DIR_NAME_DICT = {
     "ppo": "PPO_0",
     "onbc": "OnPolicyAlgorithm_0",
+    "onbc_transformer": "OnPolicyAlgorithm_0",
 }
