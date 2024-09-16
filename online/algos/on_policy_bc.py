@@ -10,17 +10,17 @@ from stable_baselines3.common.buffers import RolloutBuffer
 from stable_baselines3.common.type_aliases import GymEnv, Schedule
 from stable_baselines3.common.utils import obs_as_tensor
 from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
-from stable_baselines3.common.policies import BasePolicy
 from stable_baselines3.common.type_aliases import GymEnv, Schedule
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Optional, Type, Union, Tuple
 from torch.nn import functional as F
-from online.algos.buffers import OracleRolloutBuffer
+from online.algos.buffers import OracleRolloutBuffer, OracleEpisodeRolloutBuffer
+from online.policies.actor import ActorPolicy
 
 
 class OnPolicyBC(OnPolicyAlgorithm):
     def __init__(
         self,
-        policy: Union[str, Type[BasePolicy]],
+        policy: Union[str, Type[ActorPolicy]],
         env: Union[GymEnv, str],
         learning_rate: Union[float, Schedule] = 3e-4,
         n_steps: int = 2048,
@@ -260,3 +260,143 @@ class OnPolicyBC(OnPolicyAlgorithm):
             )
 
         self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
+
+
+class OnPolicyTransformerBC(OnPolicyBC):
+    def collect_rollouts(
+        self,
+        env,
+        callback,
+        rollout_buffer: OracleEpisodeRolloutBuffer,
+        n_rollout_steps: int,  # In the transformer version, this is the number of episodes
+    ) -> bool:
+
+        assert self._last_obs is not None, "No previous observation was provided"
+        self.policy.set_training_mode(False)
+
+        rollout_buffer.reset()
+
+        if self.use_sde:
+            self.policy.reset_noise(env.num_envs)
+
+        callback.on_rollout_start()
+
+        n_steps = 0
+        for _ in range(n_rollout_steps):
+            episode_obs = []
+            episode_actions = []
+            episode_rewards = []
+            episode_dones = []
+            episode_log_probs = []
+            episode_oracle_actions = []
+
+            done = False
+            while not done:
+                if (
+                    self.use_sde
+                    and self.sde_sample_freq > 0
+                    and n_steps % self.sde_sample_freq == 0
+                ):
+                    self.policy.reset_noise(env.num_envs)
+
+                episode_obs.append(self._last_obs)
+                with torch.no_grad():
+                    obs_tensor = torch.tensor(
+                        np.stack(episode_obs, axis=0), device=self.device
+                    ).permute(1, 0, 2)
+                    actions, log_probs = self.policy(obs_tensor, single_action=True)
+                actions = actions.cpu().numpy()
+                clipped_actions = actions
+
+                if isinstance(self.action_space, spaces.Box):
+                    if self.policy.squash_output:
+                        clipped_actions = self.policy.unscale_action(clipped_actions)
+                    else:
+                        clipped_actions = np.clip(
+                            actions, self.action_space.low, self.action_space.high
+                        )
+                new_obs, rewards, dones, infos = env.step(clipped_actions)
+                oracle_actions = np.stack(env.env_method("get_oracle_action"))
+                self.num_timesteps += env.num_envs
+
+                callback.update_locals(locals())
+                if not callback.on_step():
+                    return False
+
+                self._update_info_buffer(infos, dones)
+
+                if isinstance(self.action_space, spaces.Discrete):
+                    actions = actions.reshape(-1, 1)
+
+                episode_actions.append(actions)
+                episode_rewards.append(rewards)
+                episode_dones.append(self._last_episode_starts)
+                episode_log_probs.append(log_probs)
+                episode_oracle_actions.append(oracle_actions)
+
+                self._last_obs = new_obs
+                self._last_episode_starts = dones
+                done = any(dones)
+                n_steps += 1
+
+                if done:
+                    assert all(
+                        dones
+                    ), "Assuming all the environments have the same duration"
+
+            # Convert to tensor
+            episode_obs = torch.tensor(
+                np.stack(episode_obs, axis=0), device=self.device
+            ).permute(1, 0, 2)
+            episode_actions = torch.tensor(
+                np.stack(episode_actions, axis=0), device=self.device
+            ).permute(1, 0, 2)
+            episode_rewards = torch.tensor(
+                np.stack(episode_rewards, axis=0), device=self.device
+            ).permute(1, 0)
+            episode_dones = torch.tensor(
+                np.stack(episode_dones, axis=0), device=self.device
+            ).permute(1, 0)
+            episode_log_probs = (
+                torch.stack(episode_log_probs, axis=0).to(self.device).permute(1, 0)
+            )
+            episode_oracle_actions = torch.tensor(
+                np.stack(episode_oracle_actions, axis=0), device=self.device
+            ).permute(1, 0, 2)
+            rollout_buffer.add(
+                episode_obs,
+                episode_actions,
+                episode_rewards,
+                episode_dones,
+                torch.zeros(1),
+                episode_log_probs,
+                episode_oracle_actions,
+            )
+        callback.update_locals(locals())
+        callback.on_rollout_end()
+        return True
+
+    def predict(
+        self,
+        observation: Union[np.ndarray, Dict[str, np.ndarray]],
+        state: Optional[Tuple[np.ndarray, ...]] = None,
+        episode_start: Optional[np.ndarray] = None,
+        deterministic: bool = False,
+        single_action: bool = False,
+    ) -> Tuple[np.ndarray, Optional[Tuple[np.ndarray, ...]]]:
+        """
+        Get the policy action from an observation (and optional hidden state).
+        Includes sugar-coating to handle different observations (e.g. normalizing images).
+
+        :param observation: the input observation
+        :param state: The last hidden states (can be None, used in recurrent policies)
+        :param episode_start: The last masks (can be None, used in recurrent policies)
+            this correspond to beginning of episodes,
+            where the hidden states of the RNN must be reset.
+        :param deterministic: Whether or not to return deterministic actions.
+        :return: the model's action and the next hidden state
+            (used in recurrent policies)
+        """
+        return self.policy.predict(
+            observation, state, episode_start, deterministic, single_action
+        )
