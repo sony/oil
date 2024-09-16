@@ -53,12 +53,15 @@ def main(args):
         env_config["new_action"] = train_config.get("new_action", False)
         env_config["multi_action"] = train_config.get("multi_action", False)
         env_config["exp_action"] = train_config.get("exp_action", False)
+        # env_config["deterministic_conversion"] = True
 
         env = EnvironmentFactory.create(**env_config)
 
         if args.checkpoint is None:
             # First get the training data from the tensorboard log
-            tb_dir_path = os.path.join(experiment_path, ALGO_TB_DIR_NAME_DICT[args.algo])
+            tb_dir_path = os.path.join(
+                experiment_path, ALGO_TB_DIR_NAME_DICT[args.algo]
+            )
             experiment_data = get_experiment_data(tb_dir_path, CKPT_CHOICE_CRITERION)
             steps = experiment_data[CKPT_CHOICE_CRITERION]["x"][0]
             rewards = experiment_data[CKPT_CHOICE_CRITERION]["y"][0]
@@ -99,7 +102,7 @@ def main(args):
         baseline_ep_rew = 0
         topline_ep_rew = 0
         step = 0
-        obs, _ = env.reset(seed=i)
+        obs, _ = env.reset(seed=i)  # , advertiser=0)
         baseline_env.reset(
             budget=env.unwrapped.total_budget,
             target_cpa=env.unwrapped.target_cpa,
@@ -116,13 +119,27 @@ def main(args):
             topline_action = topline_env.unwrapped.get_oracle_action()
         episode_starts = np.ones((1,), dtype=bool)
         done = False
+        if args.algo == "onbc_transformer":
+            obs_list = []
         while not done:
-            action, _ = model.predict(
-                vecnormalize.normalize_obs(obs),
-                state=lstm_states,
-                episode_start=episode_starts,
-                deterministic=args.deterministic,
-            )
+            norm_obs = vecnormalize.normalize_obs(obs)
+            if args.algo == "onbc_transformer":
+                obs_list.append(norm_obs)
+                norm_obs = np.stack(obs_list)
+                action, _ = model.predict(
+                    norm_obs,
+                    state=lstm_states,
+                    episode_start=episode_starts,
+                    deterministic=args.deterministic,
+                    single_action=True,
+                )
+            else:
+                action, _ = model.predict(
+                    norm_obs,
+                    state=lstm_states,
+                    episode_start=episode_starts,
+                    deterministic=args.deterministic,
+                )
             obs, rewards, terminated, truncated, _ = env.step(action)
 
             baseline_action = baseline_env.unwrapped.get_baseline_action()
@@ -179,7 +196,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--eval_config_path",
         type=str,
-        default=ROOT_DIR / "data" / "env_configs" / "eval_config.json",
+        default=ROOT_DIR / "env_configs" / "eval_config.json",
         help="Path to the eval config",
     )
     parser.add_argument(
@@ -256,7 +273,6 @@ python online/main_eval.py --experiment_path=output/training/ongoing/036_ppo_see
 # New best!!! 0.4312, local: 562.65 (so high)
 python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=5000000
-
 
 # Also very good
 python online/main_eval.py --experiment_path=output/training/ongoing/034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action \
@@ -350,13 +366,40 @@ python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_see
 python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 5000000
 
-# local: 494.65
+# Local: 588.33
 python online/main_eval.py --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 4190000
 
 python online/main_eval.py --experiment_path=output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified \
     --num_episodes=100 --no_save_df --deterministic --checkpoint=6000000
+
+# Submission: 0.4531, local: 591.95
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3150000
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3200000
     
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
-    --num_episodes=100 --no_save_df --deterministic
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2600000
+
+# local:  586.67
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/004_onbc_seed_0_transformer \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2400000
+
+# local:  590.52
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/004_onbc_seed_0_transformer \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2500000
+        
+# local: 587.09
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/004_onbc_seed_0_transformer \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2850000
+
+# local: 594.21
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/004_onbc_seed_0_transformer \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3750000
+
+# local: 592.57
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/005_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_002 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3350000
 """
