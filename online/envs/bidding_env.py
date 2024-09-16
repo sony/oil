@@ -575,7 +575,6 @@ class BiddingEnv(gym.Env):
                 "last_three_pv_num": sum(self.num_pv_list[-3:]),
                 "pv_num_total": sum(self.num_pv_list),
             }
-        # print({key: val for key, val in state_dict.items() if np.isnan(val)})
         return state_dict
 
     def get_state(self, state_dict):
@@ -626,7 +625,10 @@ class BiddingEnv(gym.Env):
 
     def load_pvalues_df(self, pvalues_df_path):
         print(f"Loading pvalues from {pvalues_df_path}")
-        return pd.read_parquet(pvalues_df_path)
+        pvalues_df = pd.read_parquet(pvalues_df_path)
+        pvalues_df["pValue"] = pvalues_df["pValue"].apply(np.array)
+        pvalues_df["pValueSigma"] = pvalues_df["pValueSigma"].apply(np.array)
+        return pvalues_df
 
     def load_bids_df(self, bids_df_path):
         print(f"Loading bids from {bids_df_path}")
