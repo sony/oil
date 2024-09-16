@@ -3,6 +3,7 @@ from bidding_train_env.strategy.bc_bidding_strategy import BcBiddingStrategy
 from bidding_train_env.strategy.onlinelp_bidding_strategy import OnlineLpBiddingStrategy
 from bidding_train_env.strategy.iql_bidding_strategy import IqlBiddingStrategy
 from bidding_train_env.strategy.ppo_bidding_strategy import PpoBiddingStrategy
+from bidding_train_env.strategy.onbc_transformer_bidding_strategy import ONBCTransformerBiddingStrategy
 
 
 class BiddingStrategyFactory:
@@ -12,6 +13,7 @@ class BiddingStrategyFactory:
         "onlineLp": OnlineLpBiddingStrategy,
         "iql": IqlBiddingStrategy,
         "ppo": PpoBiddingStrategy,
+        "onbc_transformer": ONBCTransformerBiddingStrategy,
     }
 
     @classmethod
