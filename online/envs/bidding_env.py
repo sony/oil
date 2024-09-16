@@ -611,7 +611,7 @@ class BiddingEnv(gym.Env):
         return np.stack([basis_dict[key] for key in self.act_keys], axis=1)
 
     def compute_bid_coef(self, action, pvalues, pvalues_sigma):
-        action = np.atleast_1d(action)
+        action = np.atleast_1d(action).copy()
         if self.new_action:
             if self.exp_action:
                 action[0] = np.exp(action[0])
