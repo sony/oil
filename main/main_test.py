@@ -68,4 +68,12 @@ python main/main_test.py --data_path data/traffic/all_periods.parquet --budget 5
 python main/main_test.py --data_path data/traffic/all_periods.parquet --budget 500 3000 7000 11000 \
     --target_cpa 4 8 12 --category 0 \
     --experiment IQL/train_full_dataset_001/checkpoint_50000 --strategy_name iql --device cpu
+    
+python main/main_test.py --data_path data/traffic/all_periods.parquet --budget 500 3000 7000 11000 \
+    --target_cpa 4 8 12 --category 0 \
+    --experiment IQL/train_full_dataset_001/checkpoint_50000 --strategy_name iql --device cpu
+
+python main/main_test.py --data_path ./data/traffic/period-12.csv --budget 500 3000 7000 11000 \
+    --target_cpa 4 8 12 --category 0 \
+    --experiment BC/train_top_regression_16_025/checkpoint_19000 --strategy_name bc --device cpu
 """

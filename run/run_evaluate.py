@@ -3,7 +3,6 @@ import math
 import logging
 import json
 import shutil
-import pathlib
 from bidding_train_env.dataloader.test_dataloader import TestDataLoader
 from bidding_train_env.environment.offline_env import OfflineEnv
 from bidding_train_env.strategy.bidding_strategy_factory import BiddingStrategyFactory
@@ -28,23 +27,23 @@ def getScore_nips(reward, cpa, cpa_constraint):
 
 
 def run_test(
-    data_path_or_dataloader=ROOT_DIR / "data/traffic/period-13.csv",
-    budget_list=[3000],
-    target_cpa_list=[8],
+    data_path_or_dataloader=ROOT_DIR / "data/raw_traffic/period-7.csv",
+    budget_list=[500, 3000, 7000, 11000],
+    target_cpa_list=[4, 8, 12],
     category_list=[0],
-    saved_model_name="BC/train_whole_dataset_009/checkpoint_8000",
-    strategy_name="bc",
+    experiment_path="ONBC/009_onbc_seed_0_small_pvals_auction_noise_simplified",  # "BC/train_whole_dataset_009/checkpoint_8000",
+    checkpoint=350000,
+    strategy_name="ppo",
     device="cpu",
+    algo="onbc",
 ):
     """
     offline evaluation
     """
-    experiment_path = ROOT_DIR / "saved_model" / saved_model_name
-    if not experiment_path.exists():
+    full_experiment_path = ROOT_DIR / "saved_model" / experiment_path
+    if not full_experiment_path.exists():
         # Check if there is the same file in the output directory instead of the saved_model directory
-        output_path = (
-            ROOT_DIR / "output" / experiment_path.relative_to(ROOT_DIR / "saved_model")
-        )
+        output_path = ROOT_DIR / "output" / experiment_path
 
         # Copy the file from output_path to experiment_path
         if output_path.exists():
@@ -73,8 +72,10 @@ def run_test(
             budget=budget,
             cpa=target_cpa,
             category=category,
-            experiment_path=experiment_path,
+            experiment_path=full_experiment_path,
+            checkpoint=checkpoint,
             device=device,
+            algo=algo,
         )
 
         keys = data_loader.keys
@@ -169,13 +170,13 @@ def run_test(
             cpa_constraint = agent.cpa
             score = getScore_nips(all_reward, cpa_real, cpa_constraint)
 
-        # logger.info(f"Category: {category}")
-        # logger.info(f"CPA-constraint: {cpa_constraint}")
-        # logger.info(f"Budget: {budget}")
-        # logger.info(f"Total Reward: {all_reward}")
-        # logger.info(f"Total Cost: {all_cost}")
-        # logger.info(f"CPA-real: {cpa_real}")
-        # logger.info(f"Score: {score}")
+        logger.info(f"Category: {category}")
+        logger.info(f"CPA-constraint: {cpa_constraint}")
+        logger.info(f"Budget: {budget}")
+        logger.info(f"Total Reward: {all_reward}")
+        logger.info(f"Total Cost: {all_cost}")
+        logger.info(f"CPA-real: {cpa_real}")
+        logger.info(f"Score: {score}")
         result_dict_list.append(
             {
                 "category": category,
@@ -187,19 +188,30 @@ def run_test(
                 "score": score,
             }
         )
-    cost_budget_ratio = np.mean([d["total_cost"] / d["budget"] for d in result_dict_list])
+    cost_budget_ratio = np.mean(
+        [d["total_cost"] / d["budget"] for d in result_dict_list]
+    )
     target_real_cpa_ratio = np.mean(
         [d["cpa_constraint"] / d["cpa_real"] for d in result_dict_list]
     )
     score = np.mean([d["score"] for d in result_dict_list])
     reward = np.mean([d["total_reward"] for d in result_dict_list])
+
+    logger.info("Overall average results:")
     logger.info(f"Cost/Budget Ratio: {cost_budget_ratio}")
     logger.info(f"Target/Real CPA Ratio: {target_real_cpa_ratio}")
     logger.info(f"Score: {score}")
     logger.info(f"Reward: {reward}")
 
     # Turn the path after saved_model into a string and use it as the experiment name
-    out_path = ROOT_DIR / "output" / "offline_evaluation" / f"{saved_model_name}.json"
+    out_path = (
+        ROOT_DIR
+        / "output"
+        / "offline_evaluation"
+        / experiment_path
+        / f"checkpoint_{checkpoint}.json"
+    )
+    logger.info(f"Saving results to {out_path}")
     if not out_path.parent.exists():
         out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w") as f:
