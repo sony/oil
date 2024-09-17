@@ -17,6 +17,14 @@
     "simplified_bidding": true,
     "seed": 0,
     "stochastic_exposure": true,
-    "cost_noise": 0.01,
-    "competitor_bid_noise": 0.01
+    "auction_noise": 0.1,
+    "pvalues_rescale_range": [
+        0.01,
+        0.2
+    ],
+    "simplified_exposure_prob_range": [
+        1,
+        1
+    ],
+    "deterministic_conversion": false
 }
