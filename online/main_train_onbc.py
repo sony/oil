@@ -489,5 +489,17 @@ python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_0
                 --simplified_bidding --learning_rate 1e-3 --save_every 50000 \
                     --load_path output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
                         --checkpoint_num 3150000
+                        
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 007_ \
+    --budget_min 1e-6 --budget_max 24000 --target_cpa_min 1e-6 --target_cpa_max 24 \
+        --new_action --exp_action --out_suffix=_wide_ranges_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
+                --simplified_bidding --learning_rate 1e-3 --save_every 50000
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 008_ \
+    --budget_min 1e-6 --budget_max 24000 --target_cpa_min 1e-6 --target_cpa_max 24 \
+        --new_action --exp_action --out_suffix=_wide_ranges_simplified_3_layers --num_layers 3\
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
+                --simplified_bidding --learning_rate 1e-3 --save_every 50000
 
 """
