@@ -188,16 +188,10 @@ parser.add_argument(
     help="Stochastic exposure",
 )
 parser.add_argument(
-    "--cost_noise",
+    "--auction_noise",
     type=float,
     default=0.0,
-    help="Cost noise",
-)
-parser.add_argument(
-    "--bid_noise",
-    type=float,
-    default=0.0,
-    help="Bid noise",
+    help="Bid and cost noise",
 )
 parser.add_argument(
     "--pg_coef",
@@ -265,8 +259,7 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "sample_log_budget": args.sample_log_budget,
             "simplified_bidding": args.simplified_bidding,
             "stochastic_exposure": args.stochastic_exposure,
-            "cost_noise": args.cost_noise,
-            "competitor_bid_noise": args.bid_noise,
+            "auction_noise": args.auction_noise,
             "seed": args.seed,
         }
     )

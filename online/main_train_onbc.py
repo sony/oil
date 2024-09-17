@@ -230,16 +230,22 @@ parser.add_argument(
     help="Stochastic exposure",
 )
 parser.add_argument(
-    "--cost_noise",
+    "--auction_noise",
     type=float,
     default=0.0,
-    help="Cost noise",
+    help="Cost and bid noise",
 )
 parser.add_argument(
-    "--bid_noise",
+    "--pvalues_rescale_min",
     type=float,
-    default=0.0,
-    help="Bid noise",
+    default=1.,
+    help="Minimum pvalues rescale",
+)
+parser.add_argument(
+    "--pvalues_rescale_max",
+    type=float,
+    default=1.,
+    help="Maximum pvalues rescale",
 )
 parser.add_argument(
     "--learning_rate",
@@ -307,8 +313,11 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "sample_log_budget": args.sample_log_budget,
             "simplified_bidding": args.simplified_bidding,
             "stochastic_exposure": args.stochastic_exposure,
-            "cost_noise": args.cost_noise,
-            "competitor_bid_noise": args.bid_noise,
+            "auction_noise": args.auction_noise,
+            "pvalues_rescale_range": (
+                args.pvalues_rescale_min,
+                args.pvalues_rescale_max,
+            ),
             "seed": args.seed,
         }
     )
@@ -490,4 +499,22 @@ python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_0
                     --load_path output/training/ongoing/002_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
                         --checkpoint_num 3150000
 
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 009_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_small_pvals_auction_noise_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --auction_noise 0.1 --pvalues_rescale_min 0.01 --pvalues_rescale_max 0.2 \
+                --simplified_bidding --learning_rate 1e-3 --save_every 50000
+                
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 010_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_all_pvals_auction_noise_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --auction_noise 0.1 --pvalues_rescale_min 0.01 --pvalues_rescale_max 1 \
+                --simplified_bidding --learning_rate 1e-3 --save_every 50000
+
+TODO: run this (add args for exposure prob)    
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 010_ \
+    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
+        --new_action --exp_action --out_suffix=_small_pvals_auction_noise_stoch_exposure_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --auction_noise 0.1 --pvalues_rescale_min 0.01 --pvalues_rescale_max 0.2 \
+                --exposure_prob_min 0.5 --exposure_prob_max 1 --simplified_bidding --learning_rate 1e-3 --save_every 50000
 """
