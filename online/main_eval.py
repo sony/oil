@@ -109,6 +109,9 @@ def main(args):
             advertiser=env.unwrapped.advertiser,
             period=env.unwrapped.period,
         )
+        baseline_env.unwrapped.episode_pvalues_df = env.unwrapped.episode_pvalues_df
+        baseline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
+
         if args.compute_topline:
             topline_env.reset(
                 budget=env.unwrapped.total_budget,
@@ -116,7 +119,10 @@ def main(args):
                 advertiser=env.unwrapped.advertiser,
                 period=env.unwrapped.period,
             )
+            topline_env.unwrapped.episode_pvalues_df = env.unwrapped.episode_pvalues_df
+            topline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
             topline_action = topline_env.unwrapped.get_oracle_action()
+            print("Topline action:", topline_action)
         episode_starts = np.ones((1,), dtype=bool)
         done = False
         if args.algo == "onbc_transformer":
@@ -147,6 +153,7 @@ def main(args):
             baseline_ep_rew += baseline_rewards
 
             if args.compute_topline:
+                topline_action = topline_env.unwrapped.get_oracle_action()
                 _, topline_rewards, _, _, _ = topline_env.step(topline_action)
                 topline_ep_rew += topline_rewards
 
@@ -399,7 +406,19 @@ python online/main_eval.py --algo onbc_transformer --experiment_path=output/trai
 python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/004_onbc_seed_0_transformer \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 3750000
 
-# local: 592.57
+# New best: 0.4572 local: 592.57
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/005_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_002 \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 3350000
+    
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/005_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_002 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3350000 --compute_topline \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_stochastic.json
+        
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/005_onbc_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_002 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3350000 --compute_topline \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_stochastic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/009_onbc_seed_0_small_pvals_auction_noise_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_stochastic.json
 """
