@@ -49,8 +49,9 @@ class BiddingEnv(gym.Env):
         exp_action=False,
         sample_log_budget=False,
         simplified_bidding=False,
-        competitor_bid_noise=0,
-        cost_noise=0,
+        auction_noise=0,
+        pvalues_rescale_range=(1, 1),
+        simplified_exposure_prob_range=(1, 1),
         stochastic_exposure=False,
         deterministic_conversion=False,
         seed=0,
@@ -88,8 +89,11 @@ class BiddingEnv(gym.Env):
         self.exp_action = exp_action
         self.sample_log_budget = sample_log_budget
         self.simplified_bidding = simplified_bidding
-        self.competitor_bid_noise = competitor_bid_noise
-        self.cost_noise = cost_noise
+        self.auction_noise = auction_noise
+        self.pvalues_rescale_min, self.pvalues_rescale_max = pvalues_rescale_range
+        self.simplified_exposure_prob_min, self.simplified_exposure_prob_max = (
+            simplified_exposure_prob_range
+        )
         self.stochastic_exposure = stochastic_exposure
         self.deterministic_conversion = deterministic_conversion
 
@@ -145,6 +149,14 @@ class BiddingEnv(gym.Env):
         self.num_pv_list = []
         self.total_conversions = 0
         self.total_cost = 0
+        self.pvalues_rescale_coef = self.np_random.uniform(
+            self.pvalues_rescale_min, self.pvalues_rescale_max
+        )
+        self.simplified_exposure_prob = self.np_random.uniform(
+            self.simplified_exposure_prob_min, self.simplified_exposure_prob_max
+        )
+        self.episode_bids_df = self.get_episode_bids_df()
+        self.episode_pvalues_df = self.get_episode_pvalues_df()
         self.ranked_df = None
 
     def reset(
@@ -174,12 +186,6 @@ class BiddingEnv(gym.Env):
         advertiser_bids = bid_coef * self.target_cpa
         top_bids = bid_data.bid.item()
 
-        if self.competitor_bid_noise > 0:
-            # Maybe they are not sorted anymore but it's not a big deal
-            top_bids *= self.np_random.normal(
-                1, self.competitor_bid_noise, size=top_bids.shape
-            )
-
         top_bids_exposed = bid_data.isExposed.item()
         if self.stochastic_exposure:
             # We simulate exposure as a Bernoulli with the mean exposure probability per slot
@@ -190,12 +196,6 @@ class BiddingEnv(gym.Env):
             )
 
         top_bids_cost = bid_data.cost.item()
-        if self.cost_noise > 0:
-            top_bids_cost *= self.np_random.normal(
-                1, self.cost_noise, size=top_bids_cost.shape
-            )
-
-        # It might not be exactly the min after noise, still close enough
         least_winning_cost = top_bids_cost[:, 0]
 
         bid_success, bid_position, bid_exposed, bid_cost, bid_conversion = (
@@ -359,9 +359,13 @@ class BiddingEnv(gym.Env):
             bid_position = np.zeros_like(
                 bid_cost
             )  # No bid position in simplified bidding
-            bid_exposed = (
-                bid_success  # Simplified bidding always exposes successful bids
-            )
+            # bid_exposed = (
+            #     bid_success  # Simplified bidding always exposes successful bids
+            # )
+            bid_exposed = self.np_random.binomial(
+                n=1, p=self.simplified_exposure_prob, size=bid_success.shape
+            ) * bid_success
+
         else:
             advertiser_bid_higher = advertiser_bids[:, None] >= top_bids
             bid_success = advertiser_bid_higher.any(axis=1)
@@ -623,17 +627,14 @@ class BiddingEnv(gym.Env):
         return bid_coef, alpha
 
     def get_pvalues_mean_and_std(self):
-        p_row = self.pvalues_df[
-            (self.pvalues_df.advertiserNumber == self.advertiser)
-            & (self.pvalues_df.deliveryPeriodIndex == self.period)
-            & (self.pvalues_df.timeStepIndex == self.time_step)
+        p_row = self.episode_pvalues_df[
+            self.episode_pvalues_df.timeStepIndex == self.time_step
         ]
         return p_row.pValue.item(), p_row.pValueSigma.item()
 
     def get_bid_data(self):
-        bid_data = self.bids_df[
-            (self.bids_df.deliveryPeriodIndex == self.period)
-            & (self.bids_df.timeStepIndex == self.time_step)
+        bid_data = self.episode_bids_df[
+            (self.episode_bids_df.timeStepIndex == self.time_step)
         ]
         return bid_data
 
@@ -660,31 +661,68 @@ class BiddingEnv(gym.Env):
         )
         return 0.8 * remaining_budget_excess
 
-    def compute_ranked_impressions_df(self):
-        # Filter once based on advertiser and delivery period
-        ad_pvalues_df = self.pvalues_df[
+    def noisy_bid_and_cost(self, row, noise):
+        bid = row["bid"]
+        cost = row["cost"]
+        second_price_ratio = cost[:, 0] / bid[:, 0]
+
+        # Add noise to bids
+        noisy_bid = bid * (1 + self.np_random.uniform(-noise, noise, bid.shape))
+        noisy_bid = np.sort(noisy_bid, axis=1)
+        noisy_cost = np.zeros_like(noisy_bid)
+        noisy_cost[:, 0] = noisy_bid[:, 0] * second_price_ratio
+        noisy_cost[:, 1:] = noisy_bid[:, :-1]
+
+        # Return the modified noisy_bid and noisy_cost
+        return pd.Series([noisy_bid, noisy_cost])
+
+    def get_episode_bids_df(self):
+        ep_bids_df = self.bids_df[
+            self.bids_df.deliveryPeriodIndex == self.period
+        ].copy()
+        if self.auction_noise > 0:
+            ep_bids_df[["bid", "cost"]] = ep_bids_df.apply(
+                lambda x: self.noisy_bid_and_cost(x, self.auction_noise), axis=1
+            )
+        ep_bids_df["bid"] = ep_bids_df["bid"] * self.pvalues_rescale_coef
+        ep_bids_df["cost"] = ep_bids_df["cost"] * self.pvalues_rescale_coef
+        return ep_bids_df
+
+    def get_episode_pvalues_df(self):
+        ep_pv_df = self.pvalues_df[
             (self.pvalues_df.advertiserNumber == self.advertiser)
             & (self.pvalues_df.deliveryPeriodIndex == self.period)
-        ]
-        ad_bids_df = self.bids_df[
-            (self.bids_df.deliveryPeriodIndex == self.period)
-        ]
+        ].copy()
+        ep_pv_df["pValue"] = ep_pv_df["pValue"] * self.pvalues_rescale_coef
+        return ep_pv_df
 
+    def compute_ranked_impressions_df(self):
         # Extract pvalues and costs as lists of arrays
-        pvalues_list = np.concatenate(ad_pvalues_df.pValue.values)
-        min_cost_list = np.concatenate(ad_bids_df.cost.apply(lambda x: x[:, 0]).values)
+        pvalues_list = np.concatenate(self.episode_pvalues_df.pValue.values)
+        min_cost_list = np.concatenate(
+            self.episode_bids_df.cost.apply(lambda x: x[:, 0]).values
+        )
 
         # Create the DataFrame directly from arrays without looping
-        df = pd.DataFrame({
-            "time_step": np.repeat(np.arange(len(ad_pvalues_df)), ad_pvalues_df.pValue.apply(len)),
-            "ad_impression_id": np.concatenate([np.arange(len(pv)) for pv in ad_pvalues_df.pValue]),
-            "cost": min_cost_list,
-            "pvalue": pvalues_list
-        })
+        df = pd.DataFrame(
+            {
+                "time_step": np.repeat(
+                    np.arange(len(self.episode_pvalues_df)),
+                    self.episode_pvalues_df.pValue.apply(len),
+                ),
+                "ad_impression_id": np.concatenate(
+                    [np.arange(len(pv)) for pv in self.episode_pvalues_df.pValue]
+                ),
+                "cost": min_cost_list,
+                "pvalue": pvalues_list,
+            }
+        )
         df["pv_over_cost"] = df["pvalue"] / (df["cost"] + self.EPS)
 
         # Sort once and store the result for later use
-        df_sorted = df.sort_values(by="pv_over_cost", ascending=False).reset_index(drop=True)
+        df_sorted = df.sort_values(by="pv_over_cost", ascending=False).reset_index(
+            drop=True
+        )
         return df_sorted
 
     def get_oracle_action(self):
@@ -694,9 +732,12 @@ class BiddingEnv(gym.Env):
             self.ranked_df.time_step >= self.time_step
         ].reset_index(drop=True)
         df_sorted["cum_conversions"] = (
-            df_sorted["pvalue"].cumsum() + self.total_conversions
-        )
-        df_sorted["cum_cost"] = df_sorted["cost"].cumsum() + self.total_cost
+            df_sorted["pvalue"].cumsum() * self.simplified_exposure_prob
+            + self.total_conversions
+        )  # If not exposed, no conversion
+        df_sorted["cum_cost"] = (
+            df_sorted["cost"].cumsum() * self.simplified_exposure_prob + self.total_cost
+        )  # If not exposed, no cost
         df_sorted["cum_cpa"] = df_sorted["cum_cost"] / df_sorted["cum_conversions"]
         df_sorted["score"] = (
             df_sorted["cum_conversions"]
