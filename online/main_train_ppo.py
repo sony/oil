@@ -226,16 +226,16 @@ with open(ROOT_DIR / "env_configs" / f"{args.act_type}.json", "r") as f:
 config_list = []
 for period in range(7, 7 + args.num_envs):  # one period per env
     assert os.path.exists(
-        ROOT_DIR / "data" / "online_rl_data" / f"period-{period}_bids.parquet"
+        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_bids.parquet"
     )
     assert os.path.exists(
-        ROOT_DIR / "data" / "online_rl_data" / f"period-{period}_pvalues.parquet"
+        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_pvalues.parquet"
     )
     pvalues_df_path = (
-        ROOT_DIR / "data" / "online_rl_data" / f"period-{period}_pvalues.parquet"
+        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_pvalues.parquet"
     )
     bids_df_path = (
-        ROOT_DIR / "data" / "online_rl_data" / f"period-{period}_bids.parquet"
+        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_bids.parquet"
     )
 
     rwd_weights = {
