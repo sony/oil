@@ -50,8 +50,8 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
         experiment_path=ROOT_DIR
         / "saved_model"
         / "ONBC"
-        / "004_onbc_seed_0_transformer",
-        checkpoint=3750000,
+        / "014_onbc_seed_0_transformer_new_data",
+        checkpoint=2700000,
         device="cpu",
         deterministic=True,
         algo="onbc_transformer",

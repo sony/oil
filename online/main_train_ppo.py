@@ -562,4 +562,10 @@ python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_00
             --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --save_every 50_000 \
                 --pg_coef 1 --imitation_coef 0 
                     
+
+python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 043_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --stochastic_exposure\
+        --new_action --exp_action --out_suffix=_dense_29_obs_exp_single_action_simplified_auction_new_data \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --save_every 50_000 \
+                --pg_coef 1 --imitation_coef 0 --simplified_bidding
 """

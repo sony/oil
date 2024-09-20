@@ -1,58 +1,93 @@
-# Auto-Bidding in Uncertain Environment - Team dsat2
+# Overview
+This is an auto-bidding training framework to help participants implement and evaluate their bidding strategies. This framework includes three modules: data processing, strategy training, and offline evaluation. Several industry-proven baseline strategies, such as reinforcement learning-based bidding and online linear programming-based bidding, are included in the framework. Participants can utilize this framework to develop a well-trained auto-bidding strategy based on the training dataset. Since the auction system cannot be used for evaluation during offline training, participants can rely on the provided framework for a basic offline assessment to ensure the code implementation meets the competition requirements.
 
-Here we present our solution to the final round of the General Track of the NeurIPS 2024 challenge *Auto-Bidding in Uncertain Environment*. The solution is based on an algorithm that we call Oil (Oracle Imitation Learning). The idea of the algorithm is similar to Dagger, as it collects online trajectories with a student policy and labels the trajectories with expert actions. However, it differs from Dagger in three important ways:
+. 
 
-* We do not start from any expert dataset. A completely random policy begins exploring the environment and collecting experience. This helps the policy exhaustively exploring the environment, making it learn how to take optimal actions in situations that would not be encountered if the experience was collected with an expert policy.
-* The supervision signal is provided by an Oracle policy with access to privileged information, namely, the future bids of the competitors. The Oracle policy implements a heuristic greedy algorithm, which outputs near-optimal bids for the current time step. The (difficult) task of the student network is to regress the near-optimal actions being only provided information about the past.
-* The algorithm utilizes experience in an on-policy fashion, akin to on-policy RL algorithms such as A2C and PPO. This means that new trajectories are stored in a rollout buffer and used for a few epochs, before being discarded. Surprisingly, we found this training setup to lead to more stable training and to higher final performance, compared to aggregating data in an ever-increasing dataset like in Dagger. An intermediate solution with a replay buffer might be optimal, but we could not reach the same final performance as with on-policy updates. NB: on-policy updates are not a requirement for this method, as there is no need for the policy being updated to be identical to the one which collected the experience.
 
 ## Dependencies
-
-To run the code, you can either create conda environment or a docker container. To create a conda environment, simply run:
-
-```bash
-conda create -n dsat2 python=3.9.12 pip=23.0.1
-conda activate dsat2
+```
+conda create -n nips-bidding-env python=3.9.12 pip=23.0.1
+conda activate nips-bidding-env
 pip install -r requirements.txt
 ```
 
-If you prefer running the code in a Docker container, you can create an image using the provided dockerfile:
+# Usage
+## Dataset Link
+Due to the large size of the data file, it has been split into multiple parts for download.
 
-```bash
-docker build -t registry-intl.cn-beijing.aliyuncs.com/alberto-sony/alberto-sony-env:onbc_017_3_70m -f ./Dockerfile .
+https://alimama-bidding-competition.oss-cn-beijing.aliyuncs.com/share/general_track_data_period_7-8.zip
+
+https://alimama-bidding-competition.oss-cn-beijing.aliyuncs.com/share/general_track_data_period_9-10.zip
+
+https://alimama-bidding-competition.oss-cn-beijing.aliyuncs.com/share/general_track_data_period_11-12.zip
+
+https://alimama-bidding-competition.oss-cn-beijing.aliyuncs.com/share/general_track_data_period_13.zip
+
+
+
+
+## Data Processing
+Download the traffic granularity data and place it in the biddingTrainENv/data/ folder.
+The directory structure under data should be:
+```
+NeurIPS_Auto_Bidding_General_Track_Baseline
+|── data
+    |── traffic
+        |── period-7.csv
+        |── period-8.csv
+        |── period-9.csv
+        |── period-10.csv
+        |── period-11.csv
+        |── period-12.csv
+        |── period-13.csv
 ```
 
-## Download the dataset
-
-The script download.sh downloads and unzips the traffic data for all the 21 periods of the final round. Simply run
-
-```bash
-sh download.sh
+Run this script to convert the traffic granularity data into trajectory data required for RL training, facilitating subsequent RL policy training.
+```
+python  bidding_train_env/dataloader/rl_data_generator.py
 ```
 
-The csv files containing the traffic data are organized in subfolders of data/raw_traffic_final. Please move all of them to data/raw_traffic_final. You can delete the zip files and the rest of the content.
-The csv format makes the read and write operations on the dataset relatively slow. Therefore, we have prepared a simple script to save the files in parquet format.
-You can run:
+## strategy training
+### reinforcement learning-based bidding
 
-```bash
-python csv_to_parquet.py
+#### IQL(Implicit Q-learning) Model
+Load the training data and train the IQL bidding strategy.
+```
+python main/main_iql.py 
+```
+Use the IqlBiddingStrategy as the PlayerBiddingStrategy for evaluation.
+```
+bidding_train_env/strategy/__init__.py
+from .iql_bidding_strategy import IqlBiddingStrategy as PlayerBiddingStrategy
+```
+#### BC(behavior cloning) Model
+Load the training data and train the BC bidding strategy.
+```
+python main/main_bc.py 
+```
+Use the BcBiddingStrategy as the PlayerBiddingStrategy for evaluation.
+```
+bidding_train_env/strategy/__init__.py
+from .bc_bidding_strategy import BcBiddingStrategy as PlayerBiddingStrategy
 ```
 
-This script will create a new folder data/raw_traffic_final_parquet, with the converted traffic data.
-
-## Creation of the training dataset
-
-Only part of the dataset is required to simulate a second-price auction. In particular, we need two smaller datasets for each period, which we name pvalues_df and bids_df. The pvalues_df includes the following information: "deliveryPeriodIndex", "timeStepIndex", "advertiserNumber", "advertiserCategoryIndex", "pValue" and "pValueSigma". These data are necessary to simulate the impression opportunities received by an advertiser at a given period and time step. The second dataset, bids_df, includes the following information: "deliveryPeriodIndex", "timeStepIndex", "pvIndex", "bid", "isExposed", "cost". In this dataset, we store the information about the top bids of each peirod, time step and impression opportunity. Importantly, we can store the information about just the top 3 bids, as the others are irrelevant for the second-price auction (for every impression opportunity, exactly 3 slots are available). This allows us to save a large amount of memory when loading these datasets for training. Please note that we are not storing any information about the individual advertiser's bids or about their target CPA or campaign budget. In fact, we will not train our student network to imitate the advertisers' bids from the dataset, but the ones from the Oracle policy. Furthermore, we want to use the dataset just to simulate realistic patterns of conversion probabilities and advertisement cost during a campaign, and we want the student network to learn the optimal action for a wide range of budgets and target CPAs. For this reason, we will generate the target CPA and the budget for a campaign programmatically and we do not need either to be part of the dataset.
-
-To create the bids and pvalues datasets, you can run the command:
-
-```bash
-python bidding_train_env/dataloader/online_rl_data_generator.py
+### online linear programming-based bidding
+#### OnlineLp Model
+Load the training data and train the OnlineLp bidding strategy.
+```
+python main/main_onlineLp.py 
+```
+Use the OnlineLpBiddingStrategy as the PlayerBiddingStrategy for evaluation.
+```
+bidding_train_env/strategy/__init__.py
+# from .onlinelp_bidding_strategy import OnlineLpBiddingStrategy as PlayerBiddingStrategy
 ```
 
-
-## Training with Oil
-
+## offline evaluation
+Load the training data to construct an offline evaluation environment for assessing the bidding strategy offline.
+```
+python main/main_test.py
+```
 
 # Appendix
 
