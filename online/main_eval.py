@@ -38,7 +38,6 @@ def main(args):
         env_config = json.load(open(args.eval_config_path, "r"))
         baseline_env = EnvironmentFactory.create(**env_config)
         if args.compute_topline:
-            assert env_config["simplified_bidding"]
             topline_config = env_config.copy()
             topline_config["new_action"] = False
             topline_config["multi_action"] = False
@@ -421,4 +420,26 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/009_onbc_seed_0_small_pvals_auction_noise_simplified \
     --num_episodes=100 --no_save_df --deterministic --compute_topline \
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_stochastic.json
+        
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/010_onbc_seed_0_all_pvals_auction_noise_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_stochastic.json
+
+# avg score: 36.63 avg_baseline_score: 30.65 avg_topline_score: 42.78
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/014_onbc_seed_0_transformer_new_data \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2400000
+    
+avg score: 38.41, test: 72.42 (baseline 39.05)
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/014_onbc_seed_0_transformer_new_data \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2700000
+        
+avg score: 36.74
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/017_onbc_seed_0_stoch_exposure_simplified_new_data \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3700000
+        
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/017_onbc_seed_0_stoch_exposure_simplified_new_data \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3700000 --compute_topline\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+27.54
 """

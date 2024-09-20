@@ -158,6 +158,12 @@ class BiddingEnv(gym.Env):
         self.episode_bids_df = self.get_episode_bids_df()
         self.episode_pvalues_df = self.get_episode_pvalues_df()
         self.ranked_df = None
+        self.impression_ids = None
+        self.slots = None
+        self.pv_costs = None
+        self.time_steps_arr = None
+        self.eff_pv_table = None
+        self.eff_cost_table = None
 
     def reset(
         self,
@@ -362,9 +368,12 @@ class BiddingEnv(gym.Env):
             # bid_exposed = (
             #     bid_success  # Simplified bidding always exposes successful bids
             # )
-            bid_exposed = self.np_random.binomial(
-                n=1, p=self.simplified_exposure_prob, size=bid_success.shape
-            ) * bid_success
+            bid_exposed = (
+                self.np_random.binomial(
+                    n=1, p=self.simplified_exposure_prob, size=bid_success.shape
+                )
+                * bid_success
+            )
 
         else:
             advertiser_bid_higher = advertiser_bids[:, None] >= top_bids
@@ -726,6 +735,12 @@ class BiddingEnv(gym.Env):
         return df_sorted
 
     def get_oracle_action(self):
+        if self.simplified_bidding:
+            return self.get_simplified_oracle_action()
+        else:
+            return self.get_realistic_oracle_action()
+
+    def get_simplified_oracle_action(self):
         if self.ranked_df is None:
             self.ranked_df = self.compute_ranked_impressions_df()
         df_sorted = self.ranked_df[
@@ -757,6 +772,118 @@ class BiddingEnv(gym.Env):
             # Select the action that buys the best impression opportunities
             action = 1 / selected_rows.pv_over_cost.min() / self.target_cpa
             oracle_action = np.atleast_1d(action)
+
+        if self.new_action:
+            if self.exp_action:
+                oracle_action[0] = np.log(oracle_action[0])
+            else:
+                oracle_action[0] = oracle_action[0] - 1
+        return oracle_action
+
+    def get_realistic_oracle_action(self):
+        if self.impression_ids is None:
+            # Sort the impression opportunities for all slots
+            cost_table = np.vstack(self.episode_bids_df.bid)
+            exposed_table = np.vstack(self.episode_bids_df.isExposed)
+            pvalues_arr = np.concatenate(self.episode_pvalues_df.pValue.to_list())
+            time_arr = np.repeat(
+                np.arange(len(self.episode_pvalues_df)),
+                self.episode_pvalues_df.pValue.apply(len),
+            )
+            exposed_prob = np.mean(exposed_table, axis=0)
+            self.eff_cost_table = cost_table * exposed_prob
+            self.eff_pv_table = np.outer(pvalues_arr, exposed_prob)
+            pv_cost_table = self.eff_pv_table / self.eff_cost_table
+
+            n_impressions, n_slots = pv_cost_table.shape
+
+            # Step 1: List all impression opportunities
+            # np array of shape (n_impressions * n_slots, 3) with columns: id, slot, pv_cost
+            self.impression_ids = np.zeros(n_impressions * n_slots, dtype=int)
+            self.slots = np.zeros(n_impressions * n_slots, dtype=int)
+            self.pv_costs = np.zeros(n_impressions * n_slots, dtype=np.float32)
+            self.time_steps_arr = np.zeros(n_impressions * n_slots, dtype=int)
+
+            for i in range(n_impressions):
+                for slot in range(n_slots):
+                    self.impression_ids[i * n_slots + slot] = i
+                    self.slots[i * n_slots + slot] = slot
+                    self.pv_costs[i * n_slots + slot] = pv_cost_table[i, slot]
+                    self.time_steps_arr[i * n_slots + slot] = time_arr[i]
+
+            # Step 2: Sort by pv/cost (descending)
+            sort_indices = np.argsort(self.pv_costs)[::-1]
+            self.impression_ids = self.impression_ids[sort_indices]
+            self.slots = self.slots[sort_indices]
+            self.pv_costs = self.pv_costs[sort_indices]
+            self.time_steps_arr = self.time_steps_arr[sort_indices]
+        else:
+            n_impressions, n_slots = self.eff_pv_table.shape
+            self.impression_ids = self.impression_ids[
+                self.time_steps_arr >= self.time_step
+            ]
+            self.slots = self.slots[self.time_steps_arr >= self.time_step]
+            self.pv_costs = self.pv_costs[self.time_steps_arr >= self.time_step]
+            self.time_steps_arr = self.time_steps_arr[
+                self.time_steps_arr >= self.time_step
+            ]
+
+        if self.impression_ids.size == 0:
+            oracle_action = 1
+        else:
+            # Variables to track total cost, total pv, best score, and corresponding alpha
+            cum_cost = self.total_cost
+            cum_pv = self.total_conversions
+            best_score = -np.inf
+
+            # Store current slot selection per impression
+            current_slot = [
+                -1
+            ] * n_impressions  # -1 means no slot is currently selected
+
+            # # Store values of cost, pv, cpa, and score at each step
+            # stored_data = []
+
+            # Step 3: Iterate through the sorted impressions
+            for imp_id, new_slot, pv_cost in zip(
+                self.impression_ids, self.slots, self.pv_costs
+            ):
+
+                # Remove the old contribution from the previous slot if it was set
+                if current_slot[imp_id] != -1:
+                    prev_slot = current_slot[imp_id]
+                    cum_cost -= self.eff_cost_table[imp_id, prev_slot]
+                    cum_pv -= self.eff_pv_table[imp_id, prev_slot]
+
+                # Add the new contribution for the current slot
+                cum_cost += self.eff_cost_table[imp_id, new_slot]
+                cum_pv += self.eff_pv_table[imp_id, new_slot]
+
+                # Update the current slot for this impression
+                current_slot[imp_id] = new_slot
+
+                # Early termination if cost exceeds the budget
+                if cum_cost > self.total_budget:
+                    break
+
+                # Compute CPA and score
+                cpa = cum_cost / cum_pv if cum_pv > 0 else np.inf
+                score = cum_pv * min((self.target_cpa / cpa) ** 2, 1)
+
+                # # Store current total cost, total pv, cpa, and score
+                # stored_data.append((cum_cost, cum_pv, cpa, score))
+
+                # Step 4: Find the maximum score within the budget constraint
+                if score > best_score:
+                    best_score = score
+                    best_pv_cost = pv_cost  # Set alpha as cost / pv of max score
+
+            # Transform the best pv over cost into the action
+            if best_score < 0:
+                # We cannot improve the score, just output 1
+                oracle_action = np.ones((1,))
+            else:
+                oracle_action = np.atleast_1d(1 / best_pv_cost / self.target_cpa)
 
         if self.new_action:
             if self.exp_action:

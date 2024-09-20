@@ -550,4 +550,17 @@ python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_0
         --new_action --exp_action --out_suffix=_all_pvals_auction_noise_stoch_exposure_simplified \
             --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --auction_noise 0.1 --pvalues_rescale_min 0.01 --pvalues_rescale_max 1 \
                 --exposure_prob_min 0.5 --exposure_prob_max 1 --simplified_bidding --learning_rate 1e-3 --save_every 50000
+                
+python online/main_train_onbc.py --algo onbc_transformer --num_envs 20 --batch_size=20 --num_steps=10_000_000 \
+    --n_rollout_steps 192 --budget_min=1000 --budget_max=6000 --target_cpa_min=50 --target_cpa_max=150 \
+        --new_action --exp_action --out_prefix=014_ --out_suffix=_transformer_new_data \
+            --obs_type obs_19_keys_transformer --use_transformer --embed_size 64 --num_heads 4 --num_layers 4 \
+                --dim_feedforward 256 --dropout 0.1 --layer_norm_eps 1e-5 --learning_rate 1e-4 --save_every 50000 \
+                    --simplified_bidding
+                    
+python online/main_train_onbc.py --algo onbc --num_envs 20 --batch_size=512 --num_steps=10_000_000 \
+    --budget_min=1000 --budget_max=6000 --target_cpa_min=50 --target_cpa_max=150 \
+        --new_action --exp_action --out_prefix=017_ --out_suffix=_stoch_exposure_simplified_new_data \
+            --obs_type obs_29_keys --exposure_prob_min 0.5 --exposure_prob_max 1 \
+                --learning_rate 1e-3 --save_every 50000 --simplified_bidding
 """
