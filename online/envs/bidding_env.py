@@ -797,21 +797,17 @@ class BiddingEnv(gym.Env):
 
             n_impressions, n_slots = pv_cost_table.shape
 
-            # Step 1: List all impression opportunities
-            # np array of shape (n_impressions * n_slots, 3) with columns: id, slot, pv_cost
-            self.impression_ids = np.zeros(n_impressions * n_slots, dtype=int)
-            self.slots = np.zeros(n_impressions * n_slots, dtype=int)
-            self.pv_costs = np.zeros(n_impressions * n_slots, dtype=np.float32)
-            self.time_steps_arr = np.zeros(n_impressions * n_slots, dtype=int)
+            # Generate impression ids and slots using vectorization
+            self.impression_ids = np.repeat(np.arange(n_impressions), n_slots)
+            self.slots = np.tile(np.arange(n_slots), n_impressions)
 
-            for i in range(n_impressions):
-                for slot in range(n_slots):
-                    self.impression_ids[i * n_slots + slot] = i
-                    self.slots[i * n_slots + slot] = slot
-                    self.pv_costs[i * n_slots + slot] = pv_cost_table[i, slot]
-                    self.time_steps_arr[i * n_slots + slot] = time_arr[i]
+            # Assign pv_costs directly by flattening the pv_cost_table
+            self.pv_costs = pv_cost_table.flatten()
 
-            # Step 2: Sort by pv/cost (descending)
+            # Repeat time_arr for all slots
+            self.time_steps_arr = np.repeat(time_arr, n_slots)
+
+            # Sort by pv/cost (descending)
             sort_indices = np.argsort(self.pv_costs)[::-1]
             self.impression_ids = self.impression_ids[sort_indices]
             self.slots = self.slots[sort_indices]
@@ -819,14 +815,11 @@ class BiddingEnv(gym.Env):
             self.time_steps_arr = self.time_steps_arr[sort_indices]
         else:
             n_impressions, n_slots = self.eff_pv_table.shape
-            self.impression_ids = self.impression_ids[
-                self.time_steps_arr >= self.time_step
-            ]
-            self.slots = self.slots[self.time_steps_arr >= self.time_step]
-            self.pv_costs = self.pv_costs[self.time_steps_arr >= self.time_step]
-            self.time_steps_arr = self.time_steps_arr[
-                self.time_steps_arr >= self.time_step
-            ]
+            valid_indices = self.time_steps_arr >= self.time_step
+            self.impression_ids = self.impression_ids[valid_indices]
+            self.slots = self.slots[valid_indices]
+            self.pv_costs = self.pv_costs[valid_indices]
+            self.time_steps_arr = self.time_steps_arr[valid_indices]
 
         if self.impression_ids.size == 0:
             oracle_action = 1
@@ -840,9 +833,6 @@ class BiddingEnv(gym.Env):
             current_slot = [
                 -1
             ] * n_impressions  # -1 means no slot is currently selected
-
-            # # Store values of cost, pv, cpa, and score at each step
-            # stored_data = []
 
             # Step 3: Iterate through the sorted impressions
             for imp_id, new_slot, pv_cost in zip(
@@ -869,9 +859,6 @@ class BiddingEnv(gym.Env):
                 # Compute CPA and score
                 cpa = cum_cost / cum_pv if cum_pv > 0 else np.inf
                 score = cum_pv * min((self.target_cpa / cpa) ** 2, 1)
-
-                # # Store current total cost, total pv, cpa, and score
-                # stored_data.append((cum_cost, cum_pv, cpa, score))
 
                 # Step 4: Find the maximum score within the budget constraint
                 if score > best_score:
