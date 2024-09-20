@@ -1,14 +1,14 @@
 {
     "env_name": "BiddingEnv",
-    "pvalues_df_path": "data/online_rl_data/period-27_pvalues.parquet",
-    "bids_df_path": "data/online_rl_data/period-27_bids.parquet",
+    "pvalues_df_path": "data/online_rl_data_final/period-27_pvalues.parquet",
+    "bids_df_path": "data/online_rl_data_final/period-27_bids.parquet",
     "budget_range": [
-        400,
-        12000
+        2000,
+        4850
     ],
     "target_cpa_range": [
-        6,
-        12
+        60,
+        130
     ],
     "rwd_weights": {
         "dense": 0,
