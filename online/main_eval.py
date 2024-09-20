@@ -9,6 +9,7 @@ import json
 import numpy as np
 import glob
 import torch
+import logging
 from definitions import ROOT_DIR, MODEL_PATTERN, ENV_CONFIG_NAME, ALGO_TB_DIR_NAME_DICT
 from envs.environment_factory import EnvironmentFactory
 from stable_baselines3 import PPO
@@ -38,7 +39,10 @@ def main(args):
         env_config = json.load(open(args.eval_config_path, "r"))
         baseline_env = EnvironmentFactory.create(**env_config)
         if args.compute_topline:
-            assert env_config["simplified_bidding"]
+            if env_config["simplified_bidding"]:
+                logging.warning(
+                    "Using the oracle action computed for simplified auction for relistic auction"
+                )
             topline_config = env_config.copy()
             topline_config["new_action"] = False
             topline_config["multi_action"] = False
@@ -421,4 +425,34 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/009_onbc_seed_0_small_pvals_auction_noise_simplified \
     --num_episodes=100 --no_save_df --deterministic --compute_topline \
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_stochastic.json
+
+# avg score: 36.95 avg_baseline_score: 30.65 avg_topline_score: 42.78
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/013_onbc_seed_0_new_data_simplified \
+    --num_episodes=100 --no_save_df --deterministic --compute_topline --checkpoint 420000
+
+# Best!!! 0.4598, avg score: 37.42, Score: 71.42
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/013_onbc_seed_0_new_data_simplified \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3650000
+
+# Best!!! 0.4712, avg score: 38.29, score: 72.67
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/016_onbc_seed_0_new_data_simplified_small_lr_resume_013 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3710000
+
+avg score: 27.45 avg_baseline_score: 21.24 avg_topline_score: 29.48
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/016_onbc_seed_0_new_data_simplified_small_lr_resume_013 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3710000 --compute_topline \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+25.86
+python online/main_eval.py --algo ppo --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_29_obs_exp_single_action_realistic_auction_new_data \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4350000 \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo ppo --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_29_obs_exp_single_action_realistic_auction_new_data \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5950000 \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+python online/main_eval.py --algo ppo --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_29_obs_exp_single_action_realistic_auction_new_data \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 7000000 \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 """

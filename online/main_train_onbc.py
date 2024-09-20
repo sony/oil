@@ -238,25 +238,25 @@ parser.add_argument(
 parser.add_argument(
     "--pvalues_rescale_min",
     type=float,
-    default=1.,
+    default=1.0,
     help="Minimum pvalues rescale",
 )
 parser.add_argument(
     "--pvalues_rescale_max",
     type=float,
-    default=1.,
+    default=1.0,
     help="Maximum pvalues rescale",
 )
 parser.add_argument(
     "--exposure_prob_min",
     type=float,
-    default=1.,
+    default=1.0,
     help="Minimum exposure probability",
 )
 parser.add_argument(
     "--exposure_prob_max",
     type=float,
-    default=1.,
+    default=1.0,
     help="Maximum exposure probability",
 )
 parser.add_argument(
@@ -550,4 +550,25 @@ python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_0
         --new_action --exp_action --out_suffix=_all_pvals_auction_noise_stoch_exposure_simplified \
             --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --auction_noise 0.1 --pvalues_rescale_min 0.01 --pvalues_rescale_max 1 \
                 --exposure_prob_min 0.5 --exposure_prob_max 1 --simplified_bidding --learning_rate 1e-3 --save_every 50000
+                    
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 013_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_simplified \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
+                --simplified_bidding --learning_rate 1e-3 --save_every 50000
+                
+                
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 015_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_simplified_resume_013 \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
+                --simplified_bidding --learning_rate 1e-3 --save_every 10000 \
+                    --load_path output/training/ongoing/013_onbc_seed_0_new_data_simplified --checkpoint 3650000
+                    
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 016_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_simplified_small_lr_resume_013 \
+            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
+                --simplified_bidding --learning_rate 1e-5 --save_every 10000 \
+                    --load_path output/training/ongoing/013_onbc_seed_0_new_data_simplified --checkpoint 3650000
 """
