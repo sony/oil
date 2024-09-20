@@ -46,9 +46,9 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         category=3,
         experiment_path=ROOT_DIR
         / "saved_model"
-        / "PPO"
-        / "034_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action",
-        checkpoint=5000000,
+        / "ONBC"
+        / "017_onbc_seed_0_stoch_exposure_simplified_new_data",
+        checkpoint=3700000,
         device="cpu",
         deterministic=True,
         algo="ppo",

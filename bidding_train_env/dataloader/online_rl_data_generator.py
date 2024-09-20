@@ -91,9 +91,11 @@ def generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=False):
     else:
         pvalues_df_list = []
         bids_df_list = []
+
+        pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
         for traffic_data_path in traffic_data_paths:
             print("Reading data from", traffic_data_path)
-            data = pd.read_csv(traffic_data_path, dtype=np.float32)
+            data = pd.read_parquet(traffic_data_path)
             file_name = traffic_data_path.stem
 
             print("Generating online rl data for", file_name)
@@ -106,17 +108,15 @@ def generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=False):
             bids_file_name = f"{file_name}_bids.parquet"
             bids_df_list.append(bids_df)
             bids_df.to_parquet(out_dir / bids_file_name)
-        pvalues_df = pd.concat(pvalues_df_list)
-        bids_df = pd.concat(bids_df_list)
-        pvalues_df.to_parquet(out_dir / "pvalues.parquet")
-        bids_df.to_parquet(out_dir / "bids.parquet")
 
 
 if __name__ == "__main__":
     periods = list(range(7, 28))
-    data_dir = ROOT_DIR / "data" / "raw_traffic"
-    out_dir = ROOT_DIR / "data" / "online_rl_data"
+    data_dir = ROOT_DIR / "data" / "raw_traffic_final_parquet"
+    out_dir = ROOT_DIR / "data" / "online_rl_data_final"
 
-    traffic_data_paths = [data_dir / f"period-{period}.csv" for period in periods]
-    use_precomputed = True
-    generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=False)
+    traffic_data_paths = [data_dir / f"period-{period}.parquet" for period in periods]
+    use_precomputed = False
+    generate_online_rl_data(
+        traffic_data_paths, out_dir, use_precomputed=use_precomputed
+    )
