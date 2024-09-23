@@ -860,7 +860,7 @@ class BiddingEnv(gym.Env):
                 cpa = cum_cost / cum_pv if cum_pv > 0 else np.inf
                 score = cum_pv * min((self.target_cpa / cpa) ** 2, 1)
 
-                # Step 4: Find the maximum score within the budget constraint
+                # Find the maximum score within the budget constraint
                 if score > best_score:
                     best_score = score
                     best_pv_cost = pv_cost  # Set alpha as cost / pv of max score

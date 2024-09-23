@@ -584,4 +584,21 @@ python online/main_train_onbc.py --algo onbc --num_envs 20 --batch_size=512 --nu
         --new_action --exp_action --out_prefix=017_ --out_suffix=_stoch_exposure_simplified_new_data \
             --obs_type obs_29_keys --exposure_prob_min 0.5 --exposure_prob_max 1 \
                 --learning_rate 1e-3 --save_every 50000 --simplified_bidding
+                
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 018_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic \
+            --obs_type obs_29_keys --learning_rate 1e-3 --save_every 50000
+            
+python online/main_train_onbc.py --algo onbc_transformer --num_envs 20 --batch_size=20 --num_steps=10_000_000 \
+    --n_rollout_steps 192 --budget_min=1000 --budget_max=6000 --target_cpa_min=50 --target_cpa_max=150 \
+        --new_action --exp_action --out_prefix=020_ --out_suffix=_transformer_new_data_realistic \
+            --obs_type obs_19_keys_transformer --use_transformer --embed_size 64 --num_heads 4 --num_layers 4 \
+                --dim_feedforward 256 --dropout 0.1 --layer_norm_eps 1e-5 --learning_rate 1e-4 --save_every 50000
+                
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 021_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_resume_018 \
+            --obs_type obs_29_keys --learning_rate 1e-5 --save_every 10000 \
+                --load_path output/training/ongoing/018_onbc_seed_0_new_data_realistic --checkpoint_num 2000000
 """
