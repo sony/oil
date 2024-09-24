@@ -54,6 +54,7 @@ class BiddingEnv(gym.Env):
         simplified_exposure_prob_range=(1, 1),
         stochastic_exposure=False,
         deterministic_conversion=False,
+        simplified_oracle=False,
         seed=0,
     ):
         self.observation_space = gym.spaces.Box(
@@ -96,6 +97,7 @@ class BiddingEnv(gym.Env):
         )
         self.stochastic_exposure = stochastic_exposure
         self.deterministic_conversion = deterministic_conversion
+        self.simplified_oracle = simplified_oracle
 
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
@@ -735,7 +737,7 @@ class BiddingEnv(gym.Env):
         return df_sorted
 
     def get_oracle_action(self):
-        if self.simplified_bidding:
+        if self.simplified_bidding or self.simplified_oracle:
             return self.get_simplified_oracle_action()
         else:
             return self.get_realistic_oracle_action()
