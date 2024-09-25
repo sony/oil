@@ -5,7 +5,9 @@ import json
 import shutil
 from bidding_train_env.dataloader.test_dataloader import TestDataLoader
 from bidding_train_env.environment.offline_env import OfflineEnv
-from bidding_train_env.strategy.bidding_strategy_factory import BiddingStrategyFactory
+
+# from bidding_train_env.strategy.bidding_strategy_factory import BiddingStrategyFactory
+from bidding_train_env.strategy import PlayerBiddingStrategy
 from definitions import ROOT_DIR
 from itertools import product
 
@@ -27,31 +29,16 @@ def getScore_nips(reward, cpa, cpa_constraint):
 
 
 def run_test(
-    data_path_or_dataloader=ROOT_DIR / "data/raw_traffic/period-7.csv",
-    budget_list=[500, 3000, 7000, 11000],
-    target_cpa_list=[4, 8, 12],
+    data_path_or_dataloader=ROOT_DIR
+    / "data/raw_traffic_final_parquet/period-27.parquet",
+    budget_list=[2000, 3000, 4000, 5000],
+    target_cpa_list=[60, 95, 130],
     category_list=[0],
-    experiment_path="ONBC/009_onbc_seed_0_small_pvals_auction_noise_simplified",  # "BC/train_whole_dataset_009/checkpoint_8000",
-    checkpoint=350000,
-    strategy_name="ppo",
     device="cpu",
-    algo="onbc",
 ):
     """
     offline evaluation
     """
-    full_experiment_path = ROOT_DIR / "saved_model" / experiment_path
-    if not full_experiment_path.exists():
-        # Check if there is the same file in the output directory instead of the saved_model directory
-        output_path = ROOT_DIR / "output" / experiment_path
-
-        # Copy the file from output_path to experiment_path
-        if output_path.exists():
-            shutil.copytree(output_path, experiment_path)
-        else:
-            raise FileNotFoundError(
-                f"Model file not found in {experiment_path} or {output_path}"
-            )
 
     if isinstance(data_path_or_dataloader, TestDataLoader):
         data_loader = data_path_or_dataloader
@@ -63,20 +50,18 @@ def run_test(
     env = OfflineEnv()
 
     result_dict_list = []
+    agent_created = False
     # Test on all combinations of budget, target_cpa, and category
     for budget, target_cpa, category in product(
         budget_list, target_cpa_list, category_list
     ):
-        agent = BiddingStrategyFactory.create(
-            strategy_name=strategy_name,
-            budget=budget,
-            cpa=target_cpa,
-            category=category,
-            experiment_path=full_experiment_path,
-            checkpoint=checkpoint,
-            device=device,
-            algo=algo,
-        )
+        if not agent_created:
+            agent = PlayerBiddingStrategy(device=device)
+            agent_created = True
+        agent.budget = budget
+        agent.cpa = target_cpa
+        agent.category = category
+        agent.reset()
 
         keys = data_loader.keys
         key = keys[0]
@@ -173,10 +158,10 @@ def run_test(
         logger.info(f"Category: {category}")
         logger.info(f"CPA-constraint: {cpa_constraint}")
         logger.info(f"Budget: {budget}")
-        logger.info(f"Total Reward: {all_reward}")
-        logger.info(f"Total Cost: {all_cost}")
-        logger.info(f"CPA-real: {cpa_real}")
-        logger.info(f"Score: {score}")
+        logger.info(f"Total Reward: {all_reward:.2f}")
+        logger.info(f"Total Cost: {all_cost:.2f}")
+        logger.info(f"CPA-real: {cpa_real:.2f}")
+        logger.info(f"Score: {score:.2f}")
         result_dict_list.append(
             {
                 "category": category,
@@ -198,18 +183,18 @@ def run_test(
     reward = np.mean([d["total_reward"] for d in result_dict_list])
 
     logger.info("Overall average results:")
-    logger.info(f"Cost/Budget Ratio: {cost_budget_ratio}")
-    logger.info(f"Target/Real CPA Ratio: {target_real_cpa_ratio}")
-    logger.info(f"Score: {score}")
-    logger.info(f"Reward: {reward}")
+    logger.info(f"Cost/Budget Ratio: {cost_budget_ratio:.2f}")
+    logger.info(f"Target/Real CPA Ratio: {target_real_cpa_ratio:.2f}")
+    logger.info(f"Score: {score:.2f}")
+    logger.info(f"Reward: {reward:.2f}")
 
     # Turn the path after saved_model into a string and use it as the experiment name
     out_path = (
         ROOT_DIR
         / "output"
         / "offline_evaluation"
-        / experiment_path
-        / f"checkpoint_{checkpoint}.json"
+        / agent.experiment_path
+        / f"checkpoint_{agent.checkpoint}.json"
     )
     logger.info(f"Saving results to {out_path}")
     if not out_path.parent.exists():
