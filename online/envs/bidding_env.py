@@ -73,6 +73,7 @@ class BiddingEnv(gym.Env):
             ]
         else:
             self.act_keys = act_keys
+        self.pvalues_key_pos = self.act_keys.index("pvalue")
         if new_action:
             self.action_space = gym.spaces.Box(
                 low=-10, high=10, shape=(len(self.act_keys),), dtype=np.float32
@@ -449,6 +450,7 @@ class BiddingEnv(gym.Env):
         return self.np_random.choice(self.period_list)
 
     def get_state_dict(self, pvalues):
+
         if self.time_step == 0:
             return {
                 "time_left": 1,
@@ -511,6 +513,8 @@ class BiddingEnv(gym.Env):
                 "last_pv_num": 0,
                 "last_three_pv_num": 0,
                 "pv_num_total": 0,
+                "total_conversions": 0,
+                "total_cost": 0,
             }
         else:
             state_dict = {
@@ -601,6 +605,8 @@ class BiddingEnv(gym.Env):
                 "last_pv_num": self.num_pv_list[-1],
                 "last_three_pv_num": sum(self.num_pv_list[-3:]),
                 "pv_num_total": sum(self.num_pv_list),
+                "total_conversions": self.total_conversions,
+                "total_cost": self.total_cost,
             }
         return state_dict
 
@@ -763,7 +769,7 @@ class BiddingEnv(gym.Env):
 
         if df_within_budget.empty:
             # We have run out of budget, it does not matter what we bid
-            oracle_action = np.ones((1,))
+            action = 1
         else:
             # Find the impressions that lead to the max score
             max_score_row = df_within_budget["score"].idxmax()
@@ -771,13 +777,13 @@ class BiddingEnv(gym.Env):
 
             # Select the action that buys the best impression opportunities
             action = 1 / selected_rows.pv_over_cost.min() / self.target_cpa
-            oracle_action = np.atleast_1d(action)
-
         if self.new_action:
             if self.exp_action:
-                oracle_action[0] = np.log(oracle_action[0])
+                action = np.log(action)
             else:
-                oracle_action[0] = oracle_action[0] - 1
+                action = action - 1
+        oracle_action = np.zeros(len(self.act_keys))
+        oracle_action[self.pvalues_key_pos] = action
         return oracle_action
 
     def get_realistic_oracle_action(self):
@@ -868,13 +874,15 @@ class BiddingEnv(gym.Env):
             # Transform the best pv over cost into the action
             if best_score < 0:
                 # We cannot improve the score, just output 1
-                oracle_action = np.ones((1,))
+                action = 1
             else:
-                oracle_action = np.atleast_1d(1 / best_pv_cost / self.target_cpa)
+                action = 1 / best_pv_cost / self.target_cpa
 
         if self.new_action:
             if self.exp_action:
-                oracle_action[0] = np.log(oracle_action[0])
+                action = np.log(action)
             else:
-                oracle_action[0] = oracle_action[0] - 1
+                action = action - 1
+        oracle_action = np.zeros(len(self.act_keys))
+        oracle_action[self.pvalues_key_pos] = action
         return oracle_action
