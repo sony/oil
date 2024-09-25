@@ -57,7 +57,7 @@ def main(args):
         env_config["new_action"] = train_config.get("new_action", False)
         env_config["multi_action"] = train_config.get("multi_action", False)
         env_config["exp_action"] = train_config.get("exp_action", False)
-        # env_config["deterministic_conversion"] = True
+        env_config["deterministic_conversion"] = args.deterministic_conversion
 
         env = EnvironmentFactory.create(**env_config)
 
@@ -106,7 +106,7 @@ def main(args):
         baseline_ep_rew = 0
         topline_ep_rew = 0
         step = 0
-        obs, _ = env.reset(seed=i)  # , advertiser=0)
+        obs, _ = env.reset(seed=i, advertiser=args.advertiser)
         baseline_env.reset(
             budget=env.unwrapped.total_budget,
             target_cpa=env.unwrapped.target_cpa,
@@ -150,7 +150,6 @@ def main(args):
                     deterministic=args.deterministic,
                 )
             obs, rewards, terminated, truncated, _ = env.step(action)
-
             baseline_action = baseline_env.unwrapped.get_baseline_action()
             _, baseline_rewards, _, _, _ = baseline_env.step(baseline_action)
             baseline_ep_rew += baseline_rewards
@@ -237,6 +236,18 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Flag to compute the topline",
+    )
+    parser.add_argument(
+        "--deterministic_conversion",
+        action="store_true",
+        default=False,
+        help="Flag to use the deterministic conversion",
+    )
+    parser.add_argument(
+        "--advertiser",
+        type=int,
+        default=None,
+        help="Advertiser to evaluate",
     )
     args = parser.parse_args()
     main(args)
@@ -595,11 +606,6 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
     --num_episodes=100 --no_save_df --deterministic --checkpoint 6330000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
-29.17, score: 72.25
-python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 6590000\
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
-
 28.73
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 2910000\
@@ -607,6 +613,198 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
 
 28.75, score: 61.33
 python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/020_onbc_seed_0_transformer_new_data_realistic \
-    --num_episodes=100 --no_save_df --deterministic --4050000\
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4050000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+28.94  
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/020_onbc_seed_0_transformer_new_data_realistic \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4100000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+29.31
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/020_onbc_seed_0_transformer_new_data_realistic \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4200000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.37
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/020_onbc_seed_0_transformer_new_data_realistic \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4150000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.60     
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/020_onbc_seed_0_transformer_new_data_realistic \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4450000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.33
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/020_onbc_seed_0_transformer_new_data_realistic \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4500000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+        
+New best!!! Submission: 0.4901, 29.17
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 6590000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+To submit: 29.07
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 6560000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.78
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 6570000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+Submission: 0.4891,  29.10
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 6580000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.57
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 6350000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.71
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 6600000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.83
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 6610000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.40
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 8890000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+28.76    
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 8900000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.57
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 7360000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.88
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 7370000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.55
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 7710000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.45 
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 7720000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+28.38
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 7940000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+28.71   
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 7950000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/020_onbc_seed_0_transformer_new_data_realistic \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4150000 --deterministic_conversion --advertiser 0\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_test.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 6590000 --deterministic_conversion --advertiser 0\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_test.json
+
+29.02
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 9730000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.57
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 9140000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.91
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 9150000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+28.40
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 9720000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.53  
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 9970000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.62
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 10000000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.03
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4030000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.51
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4450000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+29.35
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5070000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.41
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5080000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.11
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5090000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.70
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5100000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.47      
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5180000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.38
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5190000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+28.92
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5870000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+29.59
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5880000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/023_onbc_seed_0_new_data_realistic \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3100000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
 """
