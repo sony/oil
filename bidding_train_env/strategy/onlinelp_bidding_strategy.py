@@ -17,12 +17,14 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
         category=1,
         experiment_path=ROOT_DIR / "saved_model" / "onlineLpTest",
         device="cpu",
+        **unused_kwargs,
     ):
+        print("Unused kwargs: ", unused_kwargs)
         super().__init__(budget, name, cpa, category)
         model_path = experiment_path / "period.csv"
         self.category = category
 
-        self.model = pd.read_csv(model_path)
+        # self.model = pd.read_csv(model_path)
 
     def reset(self):
         self.remaining_budget = self.budget
@@ -54,31 +56,31 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
         return:
             Return the bids for all the opportunities in the delivery period.
         """
-        tem = self.model[
-            (self.model["timeStepIndex"] == timeStepIndex)
-            & (self.model["advertiserCategoryIndex"] == self.category)
-        ]
-        alpha = self.cpa
-        if len(tem) == 0:
-            pass
-        else:
+        # tem = self.model[
+        #     (self.model["timeStepIndex"] == timeStepIndex)
+        #     & (self.model["advertiserCategoryIndex"] == self.category)
+        # ]
+        # alpha = self.cpa
+        # if len(tem) == 0:
+        #     pass
+        # else:
 
-            def find_first_cpa_above_budget(df, budget):
-                filtered_df = df[df["cum_cost"] > budget]
+        #     def find_first_cpa_above_budget(df, budget):
+        #         filtered_df = df[df["cum_cost"] > budget]
 
-                if not filtered_df.empty:
-                    return filtered_df.iloc[0]["realCPA"]
-                else:
-                    return None
+        #         if not filtered_df.empty:
+        #             return filtered_df.iloc[0]["realCPA"]
+        #         else:
+        #             return None
 
-            res = find_first_cpa_above_budget(tem, self.remaining_budget)
-            if res is None:
-                pass
-            else:
-                alpha = res
+        #     res = find_first_cpa_above_budget(tem, self.remaining_budget)
+        #     if res is None:
+        #         pass
+        #     else:
+        #         alpha = res
 
-        alpha = min(self.cpa * 1.5, alpha)
-        bids = alpha * pValues
+        # alpha = min(self.cpa * 1.5, alpha)
+        # bids = alpha * pValues
 
         # bids = 5 * self.cpa * pValues if self.remaining_budget >= 0 else 0
 
@@ -90,7 +92,7 @@ class OnlineLpBiddingStrategy(BaseBiddingStrategy):
         # print(used_budget_defect)
         # bids = 0.8 * self.cpa * remaining_budget_excess * used_budget_defect * pValues if self.remaining_budget >= 0 else 0
         bids = (
-            1 * self.cpa * remaining_budget_excess * pValues
+            0.8 * self.cpa * remaining_budget_excess * pValues
             if self.remaining_budget >= 0
             else 0
         )
