@@ -314,12 +314,13 @@ class BiddingEnv(gym.Env):
             },
         }
         for key, slot_info in slot_info_source.items():
-            history_info_update[key] = slot_info["func"](slot_info["data"])
+            func = slot_info["func"]
+            condition = slot_info["condition"]
+            data = slot_info["data"]
+            history_info_update[key] = func(data)
             for slot in range(3):
-                func = slot_info["func"]
-                condition = slot_info["condition"]
                 history_info_update[f"{key}_slot_{3 - slot}"] = func(
-                    slot_info["data"][np.logical_and(bid_position == slot, condition)]
+                    data[np.logical_and(bid_position == slot, condition)]
                 )
 
         for key, value in history_info_update.items():
@@ -428,7 +429,7 @@ class BiddingEnv(gym.Env):
         if self.simplified_bidding:
             bid_success = advertiser_bids >= least_winning_cost
             bid_cost = least_winning_cost * bid_success
-            bid_position = np.zeros_like(
+            bid_position = 2 + np.zeros_like(
                 bid_cost
             )  # No bid position in simplified bidding
             # bid_exposed = (
