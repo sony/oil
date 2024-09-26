@@ -27,15 +27,15 @@ def getScore_nips(reward, cpa, cpa_constraint):
 
 
 def run_test(
-    data_path_or_dataloader=ROOT_DIR / "data/raw_traffic/period-7.csv",
-    budget_list=[500, 3000, 7000, 11000],
-    target_cpa_list=[4, 8, 12],
+    data_path_or_dataloader=ROOT_DIR / "data/raw_traffic_final_parquet/period-27.parquet",
+    budget_list=[2000, 3000, 4000, 5000],
+    target_cpa_list=[60, 95, 130],
     category_list=[0],
-    experiment_path="ONBC/009_onbc_seed_0_small_pvals_auction_noise_simplified",  # "BC/train_whole_dataset_009/checkpoint_8000",
-    checkpoint=350000,
-    strategy_name="ppo",
+    experiment_path="ONBC/020_onbc_seed_0_transformer_new_data_realistic",  # "BC/train_whole_dataset_009/checkpoint_8000",
+    checkpoint=4500000,
+    strategy_name="onbc_transformer",  # ppo, onbc_transformer, onlineLp
     device="cpu",
-    algo="onbc",
+    algo="onbc_transformer",  # onbc, onbc_transformer
 ):
     """
     offline evaluation
