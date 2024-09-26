@@ -126,7 +126,6 @@ def main(args):
             topline_env.unwrapped.episode_pvalues_df = env.unwrapped.episode_pvalues_df
             topline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
             topline_action = topline_env.unwrapped.get_oracle_action()
-            print("Topline action:", topline_action)
         episode_starts = np.ones((1,), dtype=bool)
         done = False
         if args.algo == "onbc_transformer":
@@ -471,10 +470,23 @@ python online/main_eval.py --algo onbc_transformer --experiment_path=output/trai
 avg score: 36.74
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/017_onbc_seed_0_stoch_exposure_simplified_new_data \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 3700000
-        
+
+avg score: 27.48 avg_baseline_score: 21.24 avg_topline_score: 30.49
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/017_onbc_seed_0_stoch_exposure_simplified_new_data \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 3700000 --compute_topline\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
-        
-27.54
+
+avg score: 27.47        
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/019_onbc_seed_0_new_data_realistic_auction_simplified_oracle \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 8250000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/019_onbc_seed_0_new_data_realistic_auction_simplified_oracle \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2600000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/019_onbc_seed_0_new_data_realistic_auction_simplified_oracle \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3600000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
 """

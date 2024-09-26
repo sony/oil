@@ -225,6 +225,11 @@ parser.add_argument(
     help="Use simplified bidding",
 )
 parser.add_argument(
+    "--simplified_oracle",
+    action="store_true",
+    help="Use simplified oracle",
+)
+parser.add_argument(
     "--stochastic_exposure",
     action="store_true",
     help="Stochastic exposure",
@@ -334,6 +339,7 @@ for period in range(7, 7 + args.num_envs):  # one period per env
                 args.exposure_prob_min,
                 args.exposure_prob_max,
             ),
+            "simplified_oracle": args.simplified_oracle,
             "seed": args.seed,
         }
     )
@@ -584,4 +590,9 @@ python online/main_train_onbc.py --algo onbc --num_envs 20 --batch_size=512 --nu
         --new_action --exp_action --out_prefix=017_ --out_suffix=_stoch_exposure_simplified_new_data \
             --obs_type obs_29_keys --exposure_prob_min 0.5 --exposure_prob_max 1 \
                 --learning_rate 1e-3 --save_every 50000 --simplified_bidding
+                
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 019_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_auction_simplified_oracle \
+            --obs_type obs_29_keys --learning_rate 1e-3 --save_every 50000 --simplified_oracle
 """
