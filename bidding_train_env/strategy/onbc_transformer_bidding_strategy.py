@@ -59,6 +59,8 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
     ):
         super().__init__(budget, name, cpa, category)
         self.device = device
+        self.experiment_path = experiment_path
+        self.checkpoint = checkpoint
         self.model = load_model(algo, experiment_path, checkpoint)
 
         train_env_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
@@ -77,6 +79,7 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
 
     def reset(self):
         self.remaining_budget = self.budget
+        self.prev_obs = None
 
     def bidding(
         self,
@@ -164,6 +167,11 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
 
         state_dict = self.get_state_dict(pValues)
         state = self.train_env.get_state(state_dict)
+
+        if self.prev_obs is not None:
+            assert np.allclose(state[:, :-1], self.prev_obs), (state, self.prev_obs)
+        self.prev_obs = state
+
         obs = self.vecnormalize.normalize_obs(state.T)
         action, _ = self.model.predict(
             obs, deterministic=self.deterministic, single_action=True

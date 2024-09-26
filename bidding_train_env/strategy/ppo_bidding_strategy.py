@@ -47,14 +47,16 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         experiment_path=ROOT_DIR
         / "saved_model"
         / "ONBC"
-        / "017_onbc_seed_0_stoch_exposure_simplified_new_data",
-        checkpoint=3700000,
+        / "021_onbc_seed_0_new_data_realistic_resume_018",
+        checkpoint=6590000,
         device="cpu",
         deterministic=True,
         algo="ppo",
     ):
         super().__init__(budget, name, cpa, category)
         self.device = device
+        self.experiment_path = experiment_path
+        self.checkpoint = checkpoint
         self.model = load_model(algo, experiment_path, checkpoint)
 
         train_env_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
