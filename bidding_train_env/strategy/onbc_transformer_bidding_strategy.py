@@ -18,6 +18,7 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
     """
     Proximal Policy Optimization (PPO) Strategy
     """
+
     EPS = 1e-6
     DEFAULT_OBS_KEYS = [
         "time_left",
@@ -38,20 +39,20 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
         "current_pvalues_mean",
         "current_pvalues_90_pct",
         "current_pvalues_99_pct",
-        "current_pv_num"
+        "current_pv_num",
     ]
 
     def __init__(
         self,
         budget=6000,
         name="ONBC-PlayerStrategy",
-        cpa=10,
+        cpa=100,
         category=3,
         experiment_path=ROOT_DIR
         / "saved_model"
         / "ONBC"
-        / "014_onbc_seed_0_transformer_new_data",
-        checkpoint=2700000,
+        / "020_onbc_seed_0_transformer_new_data_realistic",
+        checkpoint=4500000,
         device="cpu",
         deterministic=True,
         algo="onbc_transformer",
@@ -108,9 +109,13 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
         self.total_budget = self.budget
         self.mean_bid_list = [np.mean(result) for result in historyBid]
         self.mean_pvalues_list = [np.mean(result[:, 0]) for result in historyPValueInfo]
-        self.pct_90_pvalues_list = [np.percentile(result[:, 0], 90) for result in historyPValueInfo]
-        self.pct_99_pvalues_list = [np.percentile(result[:, 0], 99) for result in historyPValueInfo]
-        
+        self.pct_90_pvalues_list = [
+            np.percentile(result[:, 0], 90) for result in historyPValueInfo
+        ]
+        self.pct_99_pvalues_list = [
+            np.percentile(result[:, 0], 99) for result in historyPValueInfo
+        ]
+
         self.mean_least_winning_cost_list = [
             np.mean(result) for result in historyLeastWinningCost
         ]
@@ -140,12 +145,16 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
             np.percentile(pv[:, 0] / (lwc + self.EPS), 99)
             for pv, lwc in zip(historyPValueInfo, historyLeastWinningCost)
         ]
-        
+
         self.mean_cost_list = [np.mean(result[:, 2]) for result in historyAuctionResult]
         self.total_cost_list = [np.sum(result[:, 2]) for result in historyAuctionResult]
         cum_cost = np.cumsum(self.total_cost_list)
-        self.budget_left_list = [(self.total_budget - cost) / self.total_budget for cost in cum_cost]
-        self.time_left_list = list((self.episode_length - np.arange(timeStepIndex + 1)) / self.episode_length)
+        self.budget_left_list = [
+            (self.total_budget - cost) / self.total_budget for cost in cum_cost
+        ]
+        self.time_left_list = list(
+            (self.episode_length - np.arange(timeStepIndex + 1)) / self.episode_length
+        )
 
         # Currently unused, but may be useful in the future
         self.bid_slot_list = [result[:, 1] for result in historyAuctionResult]
@@ -156,7 +165,9 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
         state_dict = self.get_state_dict(pValues)
         state = self.train_env.get_state(state_dict)
         obs = self.vecnormalize.normalize_obs(state.T)
-        action, _ = self.model.predict(obs, deterministic=self.deterministic, single_action=True)
+        action, _ = self.model.predict(
+            obs, deterministic=self.deterministic, single_action=True
+        )
         bid_coef, _ = self.train_env.compute_bid_coef(action, pValues, pValueSigmas)
         bids = bid_coef * self.cpa
         return bids
@@ -179,8 +190,10 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
             "last_pv_over_lwc_90_pct": [0] + self.pct_90_pv_over_lwc_list,
             "last_pv_over_lwc_99_pct": [0] + self.pct_99_pv_over_lwc_list,
             "current_pvalues_mean": self.mean_pvalues_list + [np.mean(pvalues)],
-            "current_pvalues_90_pct": self.pct_90_pvalues_list + [np.percentile(pvalues, 90)],
-            "current_pvalues_99_pct": self.pct_99_pvalues_list + [np.percentile(pvalues, 99)],
+            "current_pvalues_90_pct": self.pct_90_pvalues_list
+            + [np.percentile(pvalues, 90)],
+            "current_pvalues_99_pct": self.pct_99_pvalues_list
+            + [np.percentile(pvalues, 99)],
             "current_pv_num": self.num_pv_list + [len(pvalues)],
         }
         return state_dict
