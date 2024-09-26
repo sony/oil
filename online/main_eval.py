@@ -10,6 +10,7 @@ import numpy as np
 import glob
 import torch
 import logging
+import pandas as pd
 from definitions import ROOT_DIR, MODEL_PATTERN, ENV_CONFIG_NAME, ALGO_TB_DIR_NAME_DICT
 from envs.environment_factory import EnvironmentFactory
 from stable_baselines3 import PPO
@@ -34,10 +35,12 @@ def main(args):
         model = PPO(policy="MlpPolicy", env=env)
         venv = DummyVecEnv([lambda: env])
         vecnormalize = VecNormalize(venv)
+        checkpoint_list = [None]
     else:
         experiment_path = ROOT_DIR / args.experiment_path
         env_config = json.load(open(args.eval_config_path, "r"))
-        baseline_env = EnvironmentFactory.create(**env_config)
+        if args.compute_baseline:
+            baseline_env = EnvironmentFactory.create(**env_config)
         if args.compute_topline:
             if env_config["simplified_bidding"]:
                 logging.warning(
@@ -60,16 +63,7 @@ def main(args):
         env_config["deterministic_conversion"] = args.deterministic_conversion
 
         env = EnvironmentFactory.create(**env_config)
-
         if args.checkpoint is None:
-            # First get the training data from the tensorboard log
-            tb_dir_path = os.path.join(
-                experiment_path, ALGO_TB_DIR_NAME_DICT[args.algo]
-            )
-            experiment_data = get_experiment_data(tb_dir_path, CKPT_CHOICE_CRITERION)
-            steps = experiment_data[CKPT_CHOICE_CRITERION]["x"][0]
-            rewards = experiment_data[CKPT_CHOICE_CRITERION]["y"][0]
-
             # Get the list of checkpoints
             model_list = sorted(
                 glob.glob(os.path.join(experiment_path, MODEL_PATTERN)),
@@ -78,15 +72,34 @@ def main(args):
             checkpoints = [
                 get_number(el)
                 for el in model_list
-                if get_number(el) < args.max_checkpoint
+                if args.min_checkpoint < get_number(el) < args.max_checkpoint
             ]
-            if len(checkpoints):
-                # Select the checkpoint corresponding to the best reward
-                checkpoint = get_best_checkpoint(steps, rewards, checkpoints)
+            if args.all_checkpoints:
+                checkpoint_list = checkpoints
             else:
-                checkpoint = None
+                # First get the training data from the tensorboard log
+                tb_dir_path = os.path.join(
+                    experiment_path, ALGO_TB_DIR_NAME_DICT[args.algo]
+                )
+                experiment_data = get_experiment_data(
+                    tb_dir_path, CKPT_CHOICE_CRITERION
+                )
+                steps = experiment_data[CKPT_CHOICE_CRITERION]["x"][0]
+                rewards = experiment_data[CKPT_CHOICE_CRITERION]["y"][0]
+
+                if len(checkpoints):
+                    # Select the checkpoint corresponding to the best reward
+                    checkpoint = get_best_checkpoint(steps, rewards, checkpoints)
+                    checkpoint_list = [checkpoint]
+                else:
+                    checkpoint_list = [None]
         else:
-            checkpoint = args.checkpoint
+            checkpoint_list = [args.checkpoint]
+
+    best_score = -np.inf
+    best_checkpoint = None
+    score_list = []
+    for checkpoint in checkpoint_list:
 
         model = load_model(
             args.algo,
@@ -95,89 +108,117 @@ def main(args):
         )
         vecnormalize = load_vecnormalize(experiment_path, checkpoint, env)
 
-    # Collect rollouts and store them
-    vecnormalize.training = False
-    mean_ep_rew = 0
-    mean_baseline_ep_rew = 0
-    mean_topline_ep_rew = 0
-    for i in range(args.num_episodes):
-        lstm_states = None
-        ep_rew = 0
-        baseline_ep_rew = 0
-        topline_ep_rew = 0
-        step = 0
-        obs, _ = env.reset(seed=i, advertiser=args.advertiser)
-        baseline_env.reset(
-            budget=env.unwrapped.total_budget,
-            target_cpa=env.unwrapped.target_cpa,
-            advertiser=env.unwrapped.advertiser,
-            period=env.unwrapped.period,
-        )
-        baseline_env.unwrapped.episode_pvalues_df = env.unwrapped.episode_pvalues_df
-        baseline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
-
-        if args.compute_topline:
-            topline_env.reset(
-                budget=env.unwrapped.total_budget,
-                target_cpa=env.unwrapped.target_cpa,
-                advertiser=env.unwrapped.advertiser,
-                period=env.unwrapped.period,
-            )
-            topline_env.unwrapped.episode_pvalues_df = env.unwrapped.episode_pvalues_df
-            topline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
-            topline_action = topline_env.unwrapped.get_oracle_action()
-        episode_starts = np.ones((1,), dtype=bool)
-        done = False
-        if args.algo == "onbc_transformer":
-            obs_list = []
-        while not done:
-            norm_obs = vecnormalize.normalize_obs(obs)
-            if args.algo == "onbc_transformer":
-                obs_list.append(norm_obs)
-                norm_obs = np.stack(obs_list)
-                action, _ = model.predict(
-                    norm_obs,
-                    state=lstm_states,
-                    episode_start=episode_starts,
-                    deterministic=args.deterministic,
-                    single_action=True,
+        # Collect rollouts and store them
+        vecnormalize.training = False
+        mean_ep_rew = 0
+        mean_baseline_ep_rew = 0
+        mean_topline_ep_rew = 0
+        for i in range(args.num_episodes):
+            lstm_states = None
+            ep_rew = 0
+            baseline_ep_rew = 0
+            topline_ep_rew = 0
+            step = 0
+            obs, _ = env.reset(seed=i, advertiser=args.advertiser)
+            if args.compute_baseline:
+                baseline_env.reset(
+                    budget=env.unwrapped.total_budget,
+                    target_cpa=env.unwrapped.target_cpa,
+                    advertiser=env.unwrapped.advertiser,
+                    period=env.unwrapped.period,
                 )
-            else:
-                action, _ = model.predict(
-                    norm_obs,
-                    state=lstm_states,
-                    episode_start=episode_starts,
-                    deterministic=args.deterministic,
+                baseline_env.unwrapped.episode_pvalues_df = (
+                    env.unwrapped.episode_pvalues_df
                 )
-            obs, rewards, terminated, truncated, _ = env.step(action)
-            baseline_action = baseline_env.unwrapped.get_baseline_action()
-            _, baseline_rewards, _, _, _ = baseline_env.step(baseline_action)
-            baseline_ep_rew += baseline_rewards
+                baseline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
 
             if args.compute_topline:
-                # topline_action = topline_env.unwrapped.get_oracle_action()
-                topline_action = topline_env.unwrapped.get_simplified_oracle_action()
-                _, topline_rewards, _, _, _ = topline_env.step(topline_action)
-                topline_ep_rew += topline_rewards
+                topline_env.reset(
+                    budget=env.unwrapped.total_budget,
+                    target_cpa=env.unwrapped.target_cpa,
+                    advertiser=env.unwrapped.advertiser,
+                    period=env.unwrapped.period,
+                )
+                topline_env.unwrapped.episode_pvalues_df = (
+                    env.unwrapped.episode_pvalues_df
+                )
+                topline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
+                topline_action = topline_env.unwrapped.get_oracle_action()
+            episode_starts = np.ones((1,), dtype=bool)
+            done = False
+            if args.algo == "onbc_transformer":
+                obs_list = []
+            while not done:
+                norm_obs = vecnormalize.normalize_obs(obs)
+                if args.algo == "onbc_transformer":
+                    obs_list.append(norm_obs)
+                    norm_obs = np.stack(obs_list)
+                    action, _ = model.predict(
+                        norm_obs,
+                        state=lstm_states,
+                        episode_start=episode_starts,
+                        deterministic=args.deterministic,
+                        single_action=True,
+                    )
+                else:
+                    action, _ = model.predict(
+                        norm_obs,
+                        state=lstm_states,
+                        episode_start=episode_starts,
+                        deterministic=args.deterministic,
+                    )
+                obs, rewards, terminated, truncated, _ = env.step(action)
 
-            done = terminated or truncated
-            episode_starts = done
-            ep_rew += rewards
-            step += 1
-        mean_ep_rew = (mean_ep_rew * i + ep_rew) / (i + 1)
-        mean_baseline_ep_rew = (mean_baseline_ep_rew * i + baseline_ep_rew) / (i + 1)
-        if args.compute_topline:
-            mean_topline_ep_rew = (mean_topline_ep_rew * i + topline_ep_rew) / (i + 1)
-        str_out = (
-            "Ep: {} ep rew: {:.2f} avg score: {:.2f} avg_baseline_score: {:.2f}".format(
-                i, ep_rew, mean_ep_rew, mean_baseline_ep_rew
+                if args.compute_baseline:
+                    baseline_action = baseline_env.unwrapped.get_baseline_action()
+                    _, baseline_rewards, _, _, _ = baseline_env.step(baseline_action)
+                    baseline_ep_rew += baseline_rewards
+
+                if args.compute_topline:
+                    # topline_action = topline_env.unwrapped.get_oracle_action()
+                    topline_action = (
+                        topline_env.unwrapped.get_simplified_oracle_action()
+                    )
+                    _, topline_rewards, _, _, _ = topline_env.step(topline_action)
+                    topline_ep_rew += topline_rewards
+
+                done = terminated or truncated
+                episode_starts = done
+                ep_rew += rewards
+                step += 1
+            mean_ep_rew = (mean_ep_rew * i + ep_rew) / (i + 1)
+            if args.compute_baseline:
+                mean_baseline_ep_rew = (mean_baseline_ep_rew * i + baseline_ep_rew) / (
+                    i + 1
+                )
+            if args.compute_topline:
+                mean_topline_ep_rew = (mean_topline_ep_rew * i + topline_ep_rew) / (
+                    i + 1
+                )
+            str_out = "Ep: {} ep rew: {:.2f} avg score: {:.2f}".format(
+                i, ep_rew, mean_ep_rew
             )
-        )
-        if args.compute_topline:
-            str_out += " avg_topline_score: {:.2f}".format(mean_topline_ep_rew)
-        print(str_out)
-
-    env.close()
+            if args.compute_baseline:
+                str_out += " avg_baseline_score: {:.2f}".format(mean_baseline_ep_rew)
+            if args.compute_topline:
+                str_out += " avg_topline_score: {:.2f}".format(mean_topline_ep_rew)
+            print(str_out)
+        env.close()
+        score_list.append(mean_ep_rew)
+        if mean_ep_rew > best_score:
+            best_score = mean_ep_rew
+            best_checkpoint = checkpoint
+        print("Best score: {:.2f} (checkpoint {})".format(best_score, best_checkpoint))
+        if not args.no_save_df:
+            results_dict = {
+                "score": score_list,
+                "checkpoint": checkpoint_list[: len(score_list)],
+            }
+            df = pd.DataFrame(results_dict)
+            experiment_name = experiment_path.name
+            out_path = ROOT_DIR / "output" / "testing" / experiment_name
+            out_path.mkdir(parents=True, exist_ok=True)
+            df.to_csv(out_path / "results.csv", index=False)
 
 
 if __name__ == "__main__":
@@ -218,7 +259,12 @@ if __name__ == "__main__":
         default=False,
         help="Flag to use the deterministic policy",
     )
-
+    parser.add_argument(
+        "--min_checkpoint",
+        type=float,
+        default=0,
+        help="Do not consider checkpoints before this number (to be fair across trainings)",
+    )
     parser.add_argument(
         "--max_checkpoint",
         type=float,
@@ -249,6 +295,19 @@ if __name__ == "__main__":
         default=None,
         help="Advertiser to evaluate",
     )
+    parser.add_argument(
+        "--compute_baseline",
+        action="store_true",
+        default=False,
+        help="Flag to compute the baseline",
+    )
+    parser.add_argument(
+        "--all_checkpoints",
+        action="store_true",
+        default=False,
+        help="Flag to evaluate all checkpoints",
+    )
+
     args = parser.parse_args()
     main(args)
 
@@ -643,7 +702,7 @@ python online/main_eval.py --algo onbc_transformer --experiment_path=output/trai
         
 New best!!! Submission: 0.4901, 29.17
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 6590000\
+    --num_episodes=100 --deterministic --checkpoint 6590000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
 To submit: 29.07
@@ -805,6 +864,50 @@ python online/main_eval.py --algo onbc_transformer --experiment_path=output/trai
 
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/023_onbc_seed_0_new_data_realistic \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 3100000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4000000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4010000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4020000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4810000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4820000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4830000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4840000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --deterministic --all_checkpoints --min_checkpoint 3310000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
+    --num_episodes=100 --deterministic --all_checkpoints\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
+    --num_episodes=100 --deterministic --all_checkpoints --min_checkpoint 2170000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
 """
