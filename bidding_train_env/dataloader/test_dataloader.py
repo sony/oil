@@ -75,7 +75,7 @@ class TestDataLoader:
         """
         Get training data based on deliveryPeriodIndex and advertiserNumber, and construct the test data.
         """
-        data = self.test_dict[key]
+        data = self.test_dict[key].sort_index()
         pValues = (
             data.groupby("timeStepIndex")["pValue"].apply(list).apply(np.array).tolist()
         )
