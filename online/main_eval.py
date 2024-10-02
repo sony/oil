@@ -42,16 +42,12 @@ def main(args):
         if args.compute_baseline:
             baseline_env = EnvironmentFactory.create(**env_config)
         if args.compute_topline:
-            if env_config["simplified_bidding"]:
-                logging.warning(
-                    "Using the oracle action computed for simplified auction for relistic auction"
-                )
-            topline_config = env_config.copy()
-            topline_config["new_action"] = False
-            topline_config["multi_action"] = False
-            topline_config["exp_action"] = False
-            topline_env = EnvironmentFactory.create(**topline_config)
-
+            topline_env = EnvironmentFactory.create(**env_config)
+        if args.compute_flex_topline:
+            flex_topline_config = env_config.copy()
+            flex_topline_config["flex_oracle"] = True
+            flex_topline_env = EnvironmentFactory.create(**flex_topline_config)
+            
         # We need to use the observation and action defined in the training config
         train_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
         env_config["obs_keys"] = train_config["obs_keys"]
@@ -61,6 +57,7 @@ def main(args):
         env_config["multi_action"] = train_config.get("multi_action", False)
         env_config["exp_action"] = train_config.get("exp_action", False)
         env_config["deterministic_conversion"] = args.deterministic_conversion
+        env_config["cpa_multiplier"] = args.cpa_multiplier
 
         env = EnvironmentFactory.create(**env_config)
         if args.checkpoint is None:
@@ -100,7 +97,6 @@ def main(args):
     best_checkpoint = None
     score_list = []
     for checkpoint in checkpoint_list:
-
         model = load_model(
             args.algo,
             experiment_path,
@@ -113,11 +109,13 @@ def main(args):
         mean_ep_rew = 0
         mean_baseline_ep_rew = 0
         mean_topline_ep_rew = 0
+        mean_flex_topline_ep_rew = 0
         for i in range(args.num_episodes):
             lstm_states = None
             ep_rew = 0
             baseline_ep_rew = 0
             topline_ep_rew = 0
+            flex_topline_ep_rew = 0
             step = 0
             obs, _ = env.reset(seed=i, advertiser=args.advertiser)
             if args.compute_baseline:
@@ -143,7 +141,19 @@ def main(args):
                     env.unwrapped.episode_pvalues_df
                 )
                 topline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
-                topline_action = topline_env.unwrapped.get_oracle_action()
+            
+            if args.compute_flex_topline:
+                flex_topline_env.reset(
+                    budget=env.unwrapped.total_budget,
+                    target_cpa=env.unwrapped.target_cpa,
+                    advertiser=env.unwrapped.advertiser,
+                    period=env.unwrapped.period,
+                )
+                flex_topline_env.unwrapped.episode_pvalues_df = (
+                    env.unwrapped.episode_pvalues_df
+                )
+                flex_topline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
+
             episode_starts = np.ones((1,), dtype=bool)
             done = False
             if args.algo == "onbc_transformer":
@@ -181,7 +191,12 @@ def main(args):
                     )
                     _, topline_rewards, _, _, _ = topline_env.step(topline_action)
                     topline_ep_rew += topline_rewards
-
+                
+                if args.compute_flex_topline:
+                    flex_topline_action = flex_topline_env.unwrapped.get_flex_oracle_action()
+                    _, flex_topline_rewards, _, _, _ = flex_topline_env.step(flex_topline_action)
+                    flex_topline_ep_rew += flex_topline_rewards
+                    
                 done = terminated or truncated
                 episode_starts = done
                 ep_rew += rewards
@@ -195,6 +210,11 @@ def main(args):
                 mean_topline_ep_rew = (mean_topline_ep_rew * i + topline_ep_rew) / (
                     i + 1
                 )
+                
+            if args.compute_flex_topline:
+                mean_flex_topline_ep_rew = (mean_flex_topline_ep_rew * i + flex_topline_ep_rew) / (
+                    i + 1
+                )
             str_out = "Ep: {} ep rew: {:.2f} avg score: {:.2f}".format(
                 i, ep_rew, mean_ep_rew
             )
@@ -202,6 +222,8 @@ def main(args):
                 str_out += " avg_baseline_score: {:.2f}".format(mean_baseline_ep_rew)
             if args.compute_topline:
                 str_out += " avg_topline_score: {:.2f}".format(mean_topline_ep_rew)
+            if args.compute_flex_topline:
+                str_out += " avg_flex_topline_score: {:.2f}".format(mean_flex_topline_ep_rew)
             print(str_out)
         env.close()
         score_list.append(mean_ep_rew)
@@ -284,6 +306,12 @@ if __name__ == "__main__":
         help="Flag to compute the topline",
     )
     parser.add_argument(
+        "--compute_flex_topline",
+        action="store_true",
+        default=False,
+        help="Flag to compute the flex topline",
+    )
+    parser.add_argument(
         "--deterministic_conversion",
         action="store_true",
         default=False,
@@ -306,6 +334,11 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Flag to evaluate all checkpoints",
+    )
+    parser.add_argument(
+        "--cpa_multiplier",
+        type=float,
+        default=1.0,
     )
 
     args = parser.parse_args()
@@ -701,7 +734,7 @@ python online/main_eval.py --algo onbc_transformer --experiment_path=output/trai
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
         
-New best!!! Submission: 0.4901, 29.17
+New best!!! Submission: 0.4901, 29.17, local: 63.06
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
     --num_episodes=100 --deterministic --checkpoint 6590000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
@@ -775,14 +808,6 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
     --num_episodes=100 --no_save_df --deterministic --checkpoint 7950000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
-python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/020_onbc_seed_0_transformer_new_data_realistic \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 4150000 --deterministic_conversion --advertiser 0\
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_test.json
-
-python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 6590000 --deterministic_conversion --advertiser 0\
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_test.json
-
 29.02
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 9730000\
@@ -838,7 +863,7 @@ python online/main_eval.py --algo onbc_transformer --experiment_path=output/trai
     --num_episodes=100 --no_save_df --deterministic --checkpoint 5090000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
-29.70
+29.70, local: 59.22
 python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/022_onbc_seed_0_transformer_new_data_realistic_resume_020 \
     --num_episodes=100 --no_save_df --deterministic --checkpoint 5100000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
@@ -896,7 +921,7 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 4840000\
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
         
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
@@ -910,5 +935,38 @@ python online/main_eval.py --algo onbc_transformer --experiment_path=output/trai
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/021_onbc_seed_0_new_data_realistic_resume_018 \
     --num_episodes=100 --deterministic --all_checkpoints --min_checkpoint 2170000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+python online/main_eval.py --algo onbc_transformer --experiment_path=output/training/ongoing/020_onbc_seed_0_transformer_new_data_realistic \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4150000 --deterministic_conversion --advertiser 0\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_test.json
 
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3850000 --deterministic_conversion --advertiser 0\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_test.json
+
+# Best! Submission: 0.4948, offline: 29.52
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json \
+            --compute_baseline --compute_topline --compute_flex_topline
+        
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 3850000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/031_onbc_seed_0_new_data_realistic_no_self_id \
+    --num_episodes=100 --deterministic --all_checkpoints\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/032_onbc_seed_0_new_data_realistic_no_self_id_resume_031 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 2320000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/032_onbc_seed_0_new_data_realistic_no_self_id_resume_031 \
+    --num_episodes=100 --deterministic --all_checkpoints --min_checkpoint 4120000 --cpa_multiplier 0.95\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --deterministic --all_checkpoints\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 """

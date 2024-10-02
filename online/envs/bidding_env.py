@@ -96,6 +96,9 @@ class BiddingEnv(gym.Env):
         stochastic_exposure=False,
         deterministic_conversion=False,
         simplified_oracle=False,
+        flex_oracle=False,
+        exclude_self_bids=False,
+        cpa_multiplier=1,
         seed=0,
     ):
         self.observation_space = gym.spaces.Box(
@@ -140,6 +143,9 @@ class BiddingEnv(gym.Env):
         self.stochastic_exposure = stochastic_exposure
         self.deterministic_conversion = deterministic_conversion
         self.simplified_oracle = simplified_oracle
+        self.flex_oracle = flex_oracle
+        self.exclude_self_bids = exclude_self_bids
+        self.cpa_multiplier = cpa_multiplier
 
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
@@ -204,6 +210,12 @@ class BiddingEnv(gym.Env):
         self.time_steps_arr = None
         self.eff_pv_table = None
         self.eff_cost_table = None
+        self.costs = None
+        self.eff_costs_with_up = None
+        self.pvs = None
+        self.eff_pvs_with_up = None
+        self.time_steps_arr = None
+        self.imp_idx_arr = None
 
     def reset(
         self,
@@ -229,7 +241,10 @@ class BiddingEnv(gym.Env):
 
         bid_coef, alpha = self.compute_bid_coef(action, pvalues, pvalues_sigma)
         advertiser_bids = bid_coef * self.target_cpa
+
         top_bids = bid_data.bid.item()
+        top_bids_cost = bid_data.cost.item()
+        least_winning_cost = top_bids_cost[:, 0]
 
         top_bids_exposed = bid_data.isExposed.item()
         if self.stochastic_exposure:
@@ -239,9 +254,6 @@ class BiddingEnv(gym.Env):
             top_bids_exposed = self.np_random.binomial(
                 n=1, p=exposure_prob_per_slot, size=top_bids_exposed.shape
             )
-
-        top_bids_cost = bid_data.cost.item()
-        least_winning_cost = top_bids_cost[:, 0]
 
         bid_success, bid_position, bid_exposed, bid_cost, bid_conversion = (
             self.simulate_ad_bidding(
@@ -520,7 +532,7 @@ class BiddingEnv(gym.Env):
             "time_left": (self.episode_length - self.time_step) / self.episode_length,
             "budget_left": max(self.remaining_budget, 0) / self.total_budget,
             "budget": self.total_budget,
-            "cpa": self.target_cpa,
+            "cpa": self.target_cpa * self.cpa_multiplier,
             "category": self.advertiser_category_dict[self.advertiser],
             "total_conversions": self.total_conversions,
             "total_cost": self.total_cost,
@@ -595,15 +607,17 @@ class BiddingEnv(gym.Env):
         return np.stack([basis_dict[key] for key in self.act_keys], axis=1)
 
     def compute_bid_coef(self, action, pvalues, pvalues_sigma):
-        action = np.atleast_1d(action).copy()
+        action = np.atleast_2d(action).copy()
         if self.new_action:
             if self.exp_action:
-                action[0] = np.exp(action[0])
+                action[:, self.pvalues_key_pos] = np.exp(
+                    action[:, self.pvalues_key_pos]
+                )
             else:
-                action[0] = action[0] + 1
+                action[:, self.pvalues_key_pos] = action[:, self.pvalues_key_pos] + 1
 
         bid_basis = self.get_bid_basis(pvalues, pvalues_sigma)
-        bid_coef = np.clip(np.dot(action, bid_basis.T), 0, np.inf)
+        bid_coef = np.clip(np.einsum("nk,nk->n", action, bid_basis), 0, np.inf)
         alpha = np.sum(bid_coef) / (np.sum(pvalues) + self.EPS)
         return bid_coef, alpha
 
@@ -632,6 +646,8 @@ class BiddingEnv(gym.Env):
         bids_df["bid"] = bids_df["bid"].apply(np.stack)
         bids_df["isExposed"] = bids_df["isExposed"].apply(np.stack)
         bids_df["cost"] = bids_df["cost"].apply(np.stack)
+        if self.exclude_self_bids:
+            bids_df["advertiserNumber"] = bids_df["advertiserNumber"].apply(np.stack)
         return bids_df
 
     def get_baseline_action(self):
@@ -657,10 +673,40 @@ class BiddingEnv(gym.Env):
         # Return the modified noisy_bid and noisy_cost
         return pd.Series([noisy_bid, noisy_cost])
 
+    @staticmethod
+    def update_bids_excluding_self(row, advertiser):
+        # Extract the bid, advertiser, and cost arrays from the row
+        top_bids = row["bid"]
+        top_bids_advertiser = row["advertiserNumber"]
+        top_bids_cost = row["cost"]
+
+        # Combine the cost and bids into a full matrix
+        full_top_bids = np.concatenate((top_bids_cost[:, :1], top_bids), axis=1)
+
+        # Create a mask for where the advertiser is equal to self.advertiser
+        ad_id_mask = top_bids_advertiser == advertiser
+        found_mask = np.any(ad_id_mask, axis=1).reshape(-1, 1)
+
+        # Mask for valid (non-matching advertiser) and the advertiser to replace
+        full_mask = np.concatenate((~found_mask, ad_id_mask), axis=1)
+
+        # Update the bids: removing the self.advertiser and keeping the next bid
+        updated_top_bids = full_top_bids[~full_mask].reshape(-1, 3)
+
+        # Return the updated bid array
+        return updated_top_bids
+
     def get_episode_bids_df(self):
         ep_bids_df = self.bids_df[
             self.bids_df.deliveryPeriodIndex == self.period
         ].copy()
+
+        if self.exclude_self_bids:
+            ep_bids_df["bid"] = ep_bids_df.apply(
+                lambda row: self.update_bids_excluding_self(row, self.advertiser),
+                axis=1,
+            )
+
         if self.auction_noise > 0:
             ep_bids_df[["bid", "cost"]] = ep_bids_df.apply(
                 lambda x: self.noisy_bid_and_cost(x, self.auction_noise), axis=1
@@ -709,6 +755,8 @@ class BiddingEnv(gym.Env):
     def get_oracle_action(self):
         if self.simplified_bidding or self.simplified_oracle:
             return self.get_simplified_oracle_action()
+        elif self.flex_oracle:
+            return self.get_flex_oracle_action()
         else:
             return self.get_realistic_oracle_action()
 
@@ -755,7 +803,7 @@ class BiddingEnv(gym.Env):
     def get_realistic_oracle_action(self):
         if self.impression_ids is None:
             # Sort the impression opportunities for all slots
-            cost_table = np.vstack(self.episode_bids_df.bid)
+            self.cost_table = np.vstack(self.episode_bids_df.bid)
             exposed_table = np.vstack(self.episode_bids_df.isExposed)
             pvalues_arr = np.concatenate(self.episode_pvalues_df.pValue.to_list())
             time_arr = np.repeat(
@@ -763,7 +811,7 @@ class BiddingEnv(gym.Env):
                 self.episode_pvalues_df.pValue.apply(len),
             )
             exposed_prob = np.mean(exposed_table, axis=0)
-            self.eff_cost_table = cost_table * exposed_prob
+            self.eff_cost_table = self.cost_table * exposed_prob
             self.eff_pv_table = np.outer(pvalues_arr, exposed_prob)
             pv_cost_table = self.eff_pv_table / self.eff_cost_table
 
@@ -852,3 +900,191 @@ class BiddingEnv(gym.Env):
         oracle_action = np.zeros(len(self.act_keys))
         oracle_action[self.pvalues_key_pos] = action
         return oracle_action
+
+    def get_flex_oracle_action(self):
+        if self.impression_ids is None:
+            # Sort the impression opportunities for all slots
+            self.cost_table = np.vstack(self.episode_bids_df.bid)
+            exposed_table = np.vstack(self.episode_bids_df.isExposed)
+            pvalues_arr = np.concatenate(self.episode_pvalues_df.pValue.to_list())
+            self.pv_table = np.outer(pvalues_arr, np.ones(3))
+            time_arr = np.repeat(
+                np.arange(len(self.episode_pvalues_df)),
+                self.episode_pvalues_df.pValue.apply(len),
+            )
+            impression_indices = np.concatenate(
+                [np.arange(len(pv)) for pv in self.episode_pvalues_df.pValue]
+            )
+            exposed_prob = np.mean(exposed_table, axis=0)
+            self.eff_cost_table = self.cost_table * exposed_prob
+            self.eff_pv_table = np.outer(pvalues_arr, exposed_prob)
+            (
+                self.impression_ids,
+                self.slots,
+                self.pv_costs,
+                self.eff_costs_with_up,
+                self.eff_pvs_with_up,
+                self.costs,
+                self.pvs,
+            ) = self.prepare_impressions()
+            self.time_steps_arr = time_arr[self.impression_ids]
+            self.imp_idx_arr = impression_indices[self.impression_ids]
+
+        else:
+            valid_indices = self.time_steps_arr >= self.time_step
+            self.impression_ids = self.impression_ids[valid_indices]
+            self.slots = self.slots[valid_indices]
+            self.pv_costs = self.pv_costs[valid_indices]
+            self.eff_costs_with_up = self.eff_costs_with_up[valid_indices]
+            self.eff_pvs_with_up = self.eff_pvs_with_up[valid_indices]
+            self.costs = self.costs[valid_indices]
+            self.pvs = self.pvs[valid_indices]
+            self.time_steps_arr = self.time_steps_arr[valid_indices]
+            self.imp_idx_arr = self.imp_idx_arr[valid_indices]
+
+        cum_eff_cost = self.total_cost + np.cumsum(self.eff_costs_with_up)
+        cum_eff_pv = self.total_conversions + np.cumsum(self.eff_pvs_with_up)
+        cum_cpa = cum_eff_cost / (cum_eff_pv + self.EPS)
+        cum_score = (
+            cum_eff_pv
+            * np.minimum(1, self.target_cpa / cum_cpa) ** 2
+            * (cum_eff_cost <= self.total_budget)
+        )
+        max_score_idx = np.argmax(cum_score)
+
+        # max_score = cum_score[max_score_idx]
+        # print("Expected score: ", max_score, "conversions: ", cum_eff_pv[max_score_idx], "cost: ", cum_eff_cost[max_score_idx])
+
+        max_score_mask = np.arange(len(self.impression_ids)) <= max_score_idx
+        this_ts_mask = self.time_steps_arr == self.time_step
+        valid_mask = np.logical_and(this_ts_mask, max_score_mask)
+
+        good_imp_idx = self.imp_idx_arr[valid_mask]
+        num_imp = (
+            self.episode_pvalues_df[
+                self.episode_pvalues_df.timeStepIndex == self.time_step
+            ]
+            .pValue.item()
+            .shape[0]
+        )
+        oracle_action = np.zeros((num_imp, len(self.act_keys)))
+        action = (
+            self.costs[valid_mask] / self.pvs[valid_mask] / self.target_cpa + self.EPS
+        )
+        if self.new_action:
+            if self.exp_action:
+                action = np.log(action)
+            else:
+                action = action - 1
+        oracle_action[good_imp_idx, self.pvalues_key_pos] = action
+        return oracle_action
+
+    def prepare_impressions(self):
+        slot_3_eff_cost = self.eff_cost_table[:, 0]
+        slot_2_eff_cost = self.eff_cost_table[:, 1]
+        slot_1_eff_cost = self.eff_cost_table[:, 2]
+        slot_3_cost = self.cost_table[:, 0]
+        slot_2_cost = self.cost_table[:, 1]
+        slot_1_cost = self.cost_table[:, 2]
+        upgrade_3_2_cost = slot_2_eff_cost - slot_3_eff_cost
+        upgrade_2_1_cost = slot_1_eff_cost - slot_2_eff_cost
+        upgrade_3_1_cost = slot_1_eff_cost - slot_3_eff_cost
+        slot_3_eff_pv = self.eff_pv_table[:, 0]
+        slot_2_eff_pv = self.eff_pv_table[:, 1]
+        slot_1_eff_pv = self.eff_pv_table[:, 2]
+        slot_3_pv = self.pv_table[:, 0]
+        slot_2_pv = self.pv_table[:, 1]
+        slot_1_pv = self.pv_table[:, 2]
+        upgrade_3_2_pv = slot_2_eff_pv - slot_3_eff_pv
+        upgrade_2_1_pv = slot_1_eff_pv - slot_2_eff_pv
+        upgrade_3_1_pv = slot_1_eff_pv - slot_3_eff_pv
+        slot_3_ratio = slot_3_eff_pv / slot_3_eff_cost
+        upgrade_3_2_ratio = upgrade_3_2_pv / upgrade_3_2_cost
+        upgrade_2_1_ratio = upgrade_2_1_pv / upgrade_2_1_cost
+        upgrade_3_1_ratio = upgrade_3_1_pv / upgrade_3_1_cost
+
+        # # Sanity checks
+        # # No 3_2 upgrade should be better than slot 3 (see theory)
+        # assert (upgrade_3_2_ratio > slot_3_ratio).mean() == 0
+        # # No 3_1 upgrade should be better than slot 3 (see theory)
+        # assert (upgrade_3_1_ratio > slot_3_ratio).mean() == 0
+        # # If 2_1 is better than 3_2, then 3_1 should be better than 3_2 (see theory)
+        # assert ((upgrade_2_1_ratio > upgrade_3_2_ratio) == (upgrade_3_1_ratio > upgrade_3_2_ratio)).all()
+
+        mask = upgrade_3_2_ratio > upgrade_2_1_ratio
+
+        flat_ratio = np.concatenate(
+            (
+                slot_3_ratio,
+                upgrade_3_2_ratio[mask],
+                upgrade_2_1_ratio[mask],
+                upgrade_3_1_ratio[~mask],
+            )
+        )
+        flat_cost = np.concatenate(
+            (slot_3_cost, slot_2_cost[mask], slot_1_cost[mask], slot_1_cost[~mask])
+        )
+        flat_eff_cost_with_up = np.concatenate(
+            (
+                slot_3_eff_cost,
+                upgrade_3_2_cost[mask],
+                upgrade_2_1_cost[mask],
+                upgrade_3_1_cost[~mask],
+            )
+        )
+        flat_pv = np.concatenate(
+            (slot_3_pv, slot_2_pv[mask], slot_1_pv[mask], slot_1_pv[~mask])
+        )
+        flat_eff_pv_with_up = np.concatenate(
+            (
+                slot_3_eff_pv,
+                upgrade_3_2_pv[mask],
+                upgrade_2_1_pv[mask],
+                upgrade_3_1_pv[~mask],
+            )
+        )
+        slot_indices = np.concatenate(
+            (
+                np.zeros_like(slot_3_ratio),
+                np.ones_like(upgrade_3_2_ratio[mask]),
+                2 * np.ones_like(upgrade_2_1_ratio[mask]),
+                2 * np.ones_like(upgrade_3_1_ratio[~mask]),
+            )
+        )
+        all_imp = np.arange(self.eff_cost_table.shape[0])
+        impression_indices = np.concatenate(
+            (all_imp, all_imp[mask], all_imp[mask], all_imp[~mask])
+        )
+
+        # Exclude pv equal to 0 - never good and could cause issues in ranking
+        valid_mask = flat_eff_pv_with_up > 0
+        flat_ratio = flat_ratio[valid_mask]
+        flat_cost = flat_cost[valid_mask]
+        flat_eff_cost_with_up = flat_eff_cost_with_up[valid_mask]
+        flat_pv = flat_pv[valid_mask]
+        flat_eff_pv_with_up = flat_eff_pv_with_up[valid_mask]
+        slot_indices = slot_indices[valid_mask]
+        impression_indices = impression_indices[valid_mask]
+
+        # Step 4: Rank all impressions by pv/cost ratio (descending)
+        # Exclude the pvalues equal to 0
+        sorted_indices = np.argsort(-flat_ratio)  # negative sign for descending order
+
+        # Return the sorted indices along with corresponding impression and slot
+        sorted_impression_indices = impression_indices[sorted_indices]
+        sorted_slot_indices = slot_indices[sorted_indices]
+        sorted_flat_ratio = flat_ratio[sorted_indices]
+        sorted_flat_cost = flat_cost[sorted_indices]
+        sorted_flat_eff_cost_with_up = flat_eff_cost_with_up[sorted_indices]
+        sorted_flat_pv = flat_pv[sorted_indices]
+        sorted_flat_eff_pv_with_up = flat_eff_pv_with_up[sorted_indices]
+
+        return (
+            sorted_impression_indices,
+            sorted_slot_indices,
+            sorted_flat_ratio,
+            sorted_flat_eff_cost_with_up,
+            sorted_flat_eff_pv_with_up,
+            sorted_flat_cost,
+            sorted_flat_pv,
+        )
