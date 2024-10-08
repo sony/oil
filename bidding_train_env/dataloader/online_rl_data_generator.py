@@ -43,6 +43,7 @@ def generate_bids_df(data):
                 "bid": lambda x: x.tolist(),
                 "isExposed": lambda x: x.tolist(),
                 "cost": lambda x: x.tolist(),
+                "advertiserNumber": lambda x: x.tolist(),
             }
         )
     )
@@ -52,11 +53,12 @@ def generate_bids_df(data):
             "bid": lambda x: x.tolist(),
             "isExposed": lambda x: x.tolist(),
             "cost": lambda x: x.tolist(),
+            "advertiserNumber": lambda x: x.tolist(),
         }
     )
     bids_df.reset_index(inplace=True)
 
-    # Sort bid, isExposed, and cost according to bid
+    # Sort bid, isExposed, cost, advertiserNumber according to bid
     bids_df["positions"] = bids_df.apply(lambda x: np.argsort(x.bid), axis=1)
     bids_df["bid"] = bids_df.apply(
         lambda x: reorder_list_of_lists(x.bid, x.positions), axis=1
@@ -66,6 +68,9 @@ def generate_bids_df(data):
     )
     bids_df["cost"] = bids_df.apply(
         lambda x: reorder_list_of_lists(x.cost, x.positions), axis=1
+    )
+    bids_df["advertiserNumber"] = bids_df.apply(
+        lambda x: reorder_list_of_lists(x.advertiserNumber, x.positions), axis=1
     )
     bids_df.drop(columns=["positions"], inplace=True)
     return bids_df
@@ -77,7 +82,7 @@ def generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=False):
     """
 
     if use_precomputed:
-        for data_type in ["pvalues", "bids"]:
+        for data_type in ["bids"]:
             print(f"Generating {data_type} data")
             data_list = []
             for traffic_data_path in traffic_data_paths:
@@ -113,7 +118,7 @@ def generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=False):
 if __name__ == "__main__":
     periods = list(range(7, 28))
     data_dir = ROOT_DIR / "data" / "raw_traffic_final_parquet"
-    out_dir = ROOT_DIR / "data" / "online_rl_data_final"
+    out_dir = ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx"
 
     traffic_data_paths = [data_dir / f"period-{period}.parquet" for period in periods]
     use_precomputed = False
