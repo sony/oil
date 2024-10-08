@@ -17,7 +17,7 @@ ALGO_CLASS_DICT = {
     "sac": SAC,
     "td3": TD3,
     "onbc": OnPolicyBC,
-    "onbc_transformer": OnPolicyTransformerBC
+    "onbc_transformer": OnPolicyTransformerBC,
 }
 
 ALGO_TB_DIR_NAME_DICT = {
