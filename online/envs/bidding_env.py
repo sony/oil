@@ -108,6 +108,7 @@ class BiddingEnv(gym.Env):
         deterministic_conversion=False,
         simplified_oracle=False,
         flex_oracle=False,
+        flex_oracle_cost_weight=0.5,  # How to mix lower and upper cost
         exclude_self_bids=False,
         cpa_multiplier=1,
         piecewise_linear_action=False,
@@ -177,6 +178,7 @@ class BiddingEnv(gym.Env):
         self.piecewise_linear_action = piecewise_linear_action
         self.two_slopes_action = two_slopes_action
         self.pv_range_list = pv_range_list
+        self.cost_weight = flex_oracle_cost_weight
 
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
@@ -1065,10 +1067,9 @@ class BiddingEnv(gym.Env):
         # It works because even if some indices are repeated, we want to use the cost and the pv of
         # the last occurrence, which is the highest slot and it always comes last in the good_imp_idx
         action[good_imp_idx] = (
-            (self.costs[valid_mask] + self.costs_next_slot[valid_mask])
+            (self.cost_weight * self.costs[valid_mask] + (1 - self.cost_weight) * self.costs_next_slot[valid_mask])
             / self.pvs[valid_mask]
             / self.target_cpa
-            / 2
         )
 
         # expected_cost = np.sum(self.eff_costs_with_up[valid_mask])
@@ -1109,7 +1110,9 @@ class BiddingEnv(gym.Env):
                     y_0 = np.log(y_0)
                 else:
                     y_0 = y_0 - 1
-            oracle_action = np.array([y_0, x_0 * 1000, slope * 1e-3])
+            x_0 = np.clip(x_0 * 1e3, 0, 10)
+            slope = np.clip(slope * 1e-3, 0, 10)
+            oracle_action = np.array([y_0, x_0, slope])
         else:
             if self.new_action:
                 if self.exp_action:

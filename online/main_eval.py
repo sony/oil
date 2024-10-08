@@ -47,6 +47,7 @@ def main(args):
             flex_topline_config = env_config.copy()
             flex_topline_config["flex_oracle"] = True
             flex_topline_config["two_slopes_action"] = args.two_slopes_action
+            flex_topline_config["flex_oracle_cost_weight"] = args.flex_oracle_cost_weight
             flex_topline_env = EnvironmentFactory.create(**flex_topline_config)
             
         # We need to use the observation and action defined in the training config
@@ -348,7 +349,12 @@ if __name__ == "__main__":
         default=False,
         help="Flag to use the two slopes action",
     )
-
+    parser.add_argument(
+        "--flex_oracle_cost_weight",
+        type=float,
+        default=0.5,
+        help="Weight of the upper and lower cost in the flex oracle action",
+    )
     args = parser.parse_args()
     main(args)
 
@@ -987,4 +993,9 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
     --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json \
             --compute_baseline --compute_topline --compute_flex_topline --two_slopes_action
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json \
+            --compute_flex_topline --two_slopes_action --flex_oracle_cost_weight 0.75
 """
