@@ -58,6 +58,7 @@ def main(args):
         env_config["exp_action"] = train_config.get("exp_action", False)
         env_config["deterministic_conversion"] = args.deterministic_conversion
         env_config["cpa_multiplier"] = args.cpa_multiplier
+        env_config["two_slopes_action"] = train_config.get("two_slopes_action", False)
 
         env = EnvironmentFactory.create(**env_config)
         if args.checkpoint is None:
@@ -969,4 +970,9 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
     --num_episodes=100 --deterministic --all_checkpoints\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/039_onbc_seed_0_flex_two_slopes_oracle_145_keys_4_layers \
+    --num_episodes=100 --deterministic\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
 """
