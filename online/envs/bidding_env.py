@@ -1,7 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import pandas as pd
-from .helpers import safe_mean
+from .helpers import safe_mean, safe_max
 
 
 class BiddingEnv(gym.Env):
@@ -74,6 +74,17 @@ class BiddingEnv(gym.Env):
         "bid_success_count",
         "exposure_mean",
     ]
+    DEFAULT_PV_RANGE_LIST = [
+        0.00011247,
+        0.00019815,
+        0.00026507,
+        0.0003291,
+        0.00039722,
+        0.00047526,
+        0.00057239,
+        0.00070457,
+        0.00092093,
+    ]
 
     def __init__(
         self,
@@ -99,6 +110,9 @@ class BiddingEnv(gym.Env):
         flex_oracle=False,
         exclude_self_bids=False,
         cpa_multiplier=1,
+        piecewise_linear_action=False,
+        pv_range_list=DEFAULT_PV_RANGE_LIST,
+        two_slopes_action=False,
         seed=0,
     ):
         self.observation_space = gym.spaces.Box(
@@ -120,15 +134,29 @@ class BiddingEnv(gym.Env):
             self.act_keys = act_keys
         self.pvalues_key_pos = self.act_keys.index("pvalue")
         if new_action:
+            low_lim = -10
+            high_lim = 10
+        else:
+            low_lim = 0
+            high_lim = 10
+        if exp_action:
+            assert new_action, "Exponential action requires new action"
+
+        if piecewise_linear_action:
             self.action_space = gym.spaces.Box(
-                low=-10, high=10, shape=(len(self.act_keys),), dtype=np.float32
+                low=-10,
+                high=10,
+                shape=(len(self.act_keys) + len(pv_range_list),),
+                dtype=np.float32,
+            )
+        elif two_slopes_action:
+            self.action_space = gym.spaces.Box(
+                low=low_lim, high=high_lim, shape=(3,), dtype=np.float32
             )
         else:
             self.action_space = gym.spaces.Box(
-                low=0, high=10, shape=(len(self.act_keys),), dtype=np.float32
+                low=-10, high=10, shape=(len(self.act_keys),), dtype=np.float32
             )
-        if exp_action:
-            assert new_action, "Exponential action requires new action"
         self.obs_keys = obs_keys
         self.rwd_weights = rwd_weights
         self.new_action = new_action
@@ -146,6 +174,9 @@ class BiddingEnv(gym.Env):
         self.flex_oracle = flex_oracle
         self.exclude_self_bids = exclude_self_bids
         self.cpa_multiplier = cpa_multiplier
+        self.piecewise_linear_action = piecewise_linear_action
+        self.two_slopes_action = two_slopes_action
+        self.pv_range_list = pv_range_list
 
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
@@ -210,11 +241,17 @@ class BiddingEnv(gym.Env):
         self.time_steps_arr = None
         self.eff_pv_table = None
         self.eff_cost_table = None
-        self.costs = None
-        self.eff_costs_with_up = None
+
+        self.impression_ids_f = None
+        self.slots_f = None
+        self.pv_costs_f = None
+        self.time_steps_arr_f = None
+        self.eff_pv_table_f = None
+        self.eff_cost_table_f = None
         self.pvs = None
+        self.costs = None
         self.eff_pvs_with_up = None
-        self.time_steps_arr = None
+        self.eff_costs_with_up = None
         self.imp_idx_arr = None
 
     def reset(
@@ -607,14 +644,47 @@ class BiddingEnv(gym.Env):
         return np.stack([basis_dict[key] for key in self.act_keys], axis=1)
 
     def compute_bid_coef(self, action, pvalues, pvalues_sigma):
-        action = np.atleast_2d(action).copy()
-        if self.new_action:
-            if self.exp_action:
-                action[:, self.pvalues_key_pos] = np.exp(
-                    action[:, self.pvalues_key_pos]
-                )
-            else:
-                action[:, self.pvalues_key_pos] = action[:, self.pvalues_key_pos] + 1
+        if self.two_slopes_action:
+            y_0, x_0, slope = action
+            x_0 = x_0 * 1e-3
+            slope = slope * 1e3
+            if self.new_action:
+                if self.exp_action:
+                    y_0 = np.exp(y_0)
+                else:
+                    y_0 = y_0 + 1
+            y_pred = y_0 * np.ones_like(pvalues)
+            y_pred[pvalues >= x_0] = y_0 + slope * (pvalues[pvalues >= x_0] - x_0)
+
+            action = np.zeros((len(pvalues), len(self.act_keys)))
+            action[:, self.pvalues_key_pos] = 1 / y_pred
+        else:
+            if self.piecewise_linear_action:
+                piecewise_coefs = action[: len(self.pv_range_list) + 1]
+                other_coefs = action[len(self.pv_range_list) + 1 :]
+                piecewise_ranges = np.array([0] + self.pv_range_list + [np.inf])
+                pv_coefs = np.zeros(len(pvalues))
+                for idx, (rl, rr) in enumerate(
+                    zip(piecewise_ranges[:-1], piecewise_ranges[1:])
+                ):
+                    mask = np.logical_and(pvalues >= rl, pvalues < rr)
+                    pv_coefs[mask] = piecewise_coefs[idx]
+                action = np.zeros((len(pvalues), len(self.act_keys)))
+                action[:, self.pvalues_key_pos] = pv_coefs
+                action[
+                    :, np.delete(np.arange(len(self.act_keys)), self.pvalues_key_pos)
+                ] = other_coefs
+
+            action = np.atleast_2d(action).copy()
+            if self.new_action:
+                if self.exp_action:
+                    action[:, self.pvalues_key_pos] = np.exp(
+                        action[:, self.pvalues_key_pos]
+                    )
+                else:
+                    action[:, self.pvalues_key_pos] = (
+                        action[:, self.pvalues_key_pos] + 1
+                    )
 
         bid_basis = self.get_bid_basis(pvalues, pvalues_sigma)
         bid_coef = np.clip(np.einsum("nk,nk->n", action, bid_basis), 0, np.inf)
@@ -796,8 +866,14 @@ class BiddingEnv(gym.Env):
                 action = np.log(action)
             else:
                 action = action - 1
-        oracle_action = np.zeros(len(self.act_keys))
-        oracle_action[self.pvalues_key_pos] = action
+        if self.piecewise_linear_action:
+            oracle_action = np.zeros(len(self.pv_range_list) + len(self.act_keys))
+            oracle_action[: len(self.pv_range_list) + 1] = action
+        elif self.two_slopes_action:
+            oracle_action = np.array([1 / action, 0, 0])
+        else:
+            oracle_action = np.zeros(len(self.act_keys))
+            oracle_action[self.pvalues_key_pos] = action
         return oracle_action
 
     def get_realistic_oracle_action(self):
@@ -897,12 +973,18 @@ class BiddingEnv(gym.Env):
                 action = np.log(action)
             else:
                 action = action - 1
-        oracle_action = np.zeros(len(self.act_keys))
-        oracle_action[self.pvalues_key_pos] = action
+        if self.piecewise_linear_action:
+            oracle_action = np.zeros(len(self.pv_range_list) + len(self.act_keys))
+            oracle_action[: len(self.pv_range_list) + 1] = action
+        elif self.two_slopes_action:
+            oracle_action = np.array([1 / action, 0, 0])
+        else:
+            oracle_action = np.zeros(len(self.act_keys))
+            oracle_action[self.pvalues_key_pos] = action
         return oracle_action
 
     def get_flex_oracle_action(self):
-        if self.impression_ids is None:
+        if self.impression_ids_f is None:
             # Sort the impression opportunities for all slots
             self.cost_table = np.vstack(self.episode_bids_df.bid)
             exposed_table = np.vstack(self.episode_bids_df.isExposed)
@@ -916,30 +998,32 @@ class BiddingEnv(gym.Env):
                 [np.arange(len(pv)) for pv in self.episode_pvalues_df.pValue]
             )
             exposed_prob = np.mean(exposed_table, axis=0)
-            self.eff_cost_table = self.cost_table * exposed_prob
-            self.eff_pv_table = np.outer(pvalues_arr, exposed_prob)
+            self.eff_cost_table_f = self.cost_table * exposed_prob
+            self.eff_pv_table_f = np.outer(pvalues_arr, exposed_prob)
             (
-                self.impression_ids,
-                self.slots,
-                self.pv_costs,
+                self.impression_ids_f,
+                self.slots_f,
+                self.pv_costs_f,
                 self.eff_costs_with_up,
                 self.eff_pvs_with_up,
                 self.costs,
                 self.pvs,
+                self.costs_next_slot,
             ) = self.prepare_impressions()
-            self.time_steps_arr = time_arr[self.impression_ids]
-            self.imp_idx_arr = impression_indices[self.impression_ids]
+            self.time_steps_arr_f = time_arr[self.impression_ids_f]
+            self.imp_idx_arr = impression_indices[self.impression_ids_f]
 
         else:
-            valid_indices = self.time_steps_arr >= self.time_step
-            self.impression_ids = self.impression_ids[valid_indices]
-            self.slots = self.slots[valid_indices]
-            self.pv_costs = self.pv_costs[valid_indices]
+            valid_indices = self.time_steps_arr_f >= self.time_step
+            self.impression_ids_f = self.impression_ids_f[valid_indices]
+            self.slots_f = self.slots_f[valid_indices]
+            self.pv_costs_f = self.pv_costs_f[valid_indices]
             self.eff_costs_with_up = self.eff_costs_with_up[valid_indices]
             self.eff_pvs_with_up = self.eff_pvs_with_up[valid_indices]
             self.costs = self.costs[valid_indices]
+            self.costs_next_slot = self.costs_next_slot[valid_indices]
             self.pvs = self.pvs[valid_indices]
-            self.time_steps_arr = self.time_steps_arr[valid_indices]
+            self.time_steps_arr_f = self.time_steps_arr_f[valid_indices]
             self.imp_idx_arr = self.imp_idx_arr[valid_indices]
 
         cum_eff_cost = self.total_cost + np.cumsum(self.eff_costs_with_up)
@@ -953,45 +1037,102 @@ class BiddingEnv(gym.Env):
         max_score_idx = np.argmax(cum_score)
 
         # max_score = cum_score[max_score_idx]
-        # print("Expected score: ", max_score, "conversions: ", cum_eff_pv[max_score_idx], "cost: ", cum_eff_cost[max_score_idx])
+        # print(
+        #     "Expected score: ",
+        #     max_score,
+        #     "conversions: ",
+        #     cum_eff_pv[max_score_idx],
+        #     "cost: ",
+        #     cum_eff_cost[max_score_idx],
+        # )
 
-        max_score_mask = np.arange(len(self.impression_ids)) <= max_score_idx
-        this_ts_mask = self.time_steps_arr == self.time_step
+        max_score_mask = np.arange(len(self.impression_ids_f)) <= max_score_idx
+        this_ts_mask = self.time_steps_arr_f == self.time_step
         valid_mask = np.logical_and(this_ts_mask, max_score_mask)
 
         good_imp_idx = self.imp_idx_arr[valid_mask]
-        num_imp = (
-            self.episode_pvalues_df[
-                self.episode_pvalues_df.timeStepIndex == self.time_step
-            ]
-            .pValue.item()
-            .shape[0]
+        pvs_t = self.episode_pvalues_df[
+            self.episode_pvalues_df.timeStepIndex == self.time_step
+        ].pValue.item()
+        num_imp = pvs_t.shape[0]
+        good_cost_pv_max = safe_max(
+            self.costs[max_score_mask] / self.pvs[max_score_mask]
+        )  # to provide a ref value
+
+        # Default: slightly below the most "inefficient" good impression
+        action = np.ones(num_imp) * good_cost_pv_max / self.target_cpa - self.EPS
+
+        # It works because even if some indices are repeated, we want to use the cost and the pv of
+        # the last occurrence, which is the highest slot and it always comes last in the good_imp_idx
+        action[good_imp_idx] = (
+            (self.costs[valid_mask] + self.costs_next_slot[valid_mask])
+            / self.pvs[valid_mask]
+            / self.target_cpa
+            / 2
         )
-        oracle_action = np.zeros((num_imp, len(self.act_keys)))
-        action = (
-            self.costs[valid_mask] / self.pvs[valid_mask] / self.target_cpa + self.EPS
-        )
-        if self.new_action:
-            if self.exp_action:
-                action = np.log(action)
+
+        # expected_cost = np.sum(self.eff_costs_with_up[valid_mask])
+        # print(f"Budget left: {self.remaining_budget:.2f}, expected budget left: {(self.remaining_budget - expected_cost):.2f}")
+
+        if self.piecewise_linear_action:
+            piecewise_coefs = np.zeros(len(self.pv_range_list) + 1)
+            pv_ranges = np.array([0] + self.pv_range_list + [np.inf])
+            for idx, (rl, rr) in enumerate(zip(pv_ranges[:-1], pv_ranges[1:])):
+                mask = np.logical_and(pvs_t >= rl, pvs_t < rr)
+                if any(mask):
+                    piecewise_coefs[idx] = np.mean(action[mask])
+                elif idx == 0:
+                    piecewise_coefs[idx] = good_cost_pv_max / self.target_cpa
+                else:
+                    piecewise_coefs[idx] = piecewise_coefs[idx - 1]
+            if self.new_action:
+                if self.exp_action:
+                    piecewise_coefs = np.log(piecewise_coefs)
+                else:
+                    piecewise_coefs = piecewise_coefs
+            oracle_action = np.zeros(len(self.pv_range_list) + len(self.act_keys))
+            oracle_action[: len(self.pv_range_list) + 1] = piecewise_coefs
+        elif self.two_slopes_action:
+            const_val = good_cost_pv_max / self.target_cpa
+            y_0 = 1 / const_val
+            y = 1 / action[good_imp_idx] - 1 / const_val
+            x = pvs_t[good_imp_idx]
+            if len(x) < 2:
+                slope = 0
+                intercept = 0
+                x_0 = 0
             else:
-                action = action - 1
-        oracle_action[good_imp_idx, self.pvalues_key_pos] = action
+                slope, intercept = np.polyfit(x, y, 1)
+                x_0 = -intercept / slope
+            if self.new_action:
+                if self.exp_action:
+                    y_0 = np.log(y_0)
+                else:
+                    y_0 = y_0 - 1
+            oracle_action = np.array([y_0, x_0 * 1000, slope * 1e-3])
+        else:
+            if self.new_action:
+                if self.exp_action:
+                    action = np.log(action)
+                else:
+                    action = action - 1
+            oracle_action = np.zeros((num_imp, len(self.act_keys)))
+            oracle_action[:, self.pvalues_key_pos] = action
         return oracle_action
 
     def prepare_impressions(self):
-        slot_3_eff_cost = self.eff_cost_table[:, 0]
-        slot_2_eff_cost = self.eff_cost_table[:, 1]
-        slot_1_eff_cost = self.eff_cost_table[:, 2]
+        slot_3_eff_cost = self.eff_cost_table_f[:, 0]
+        slot_2_eff_cost = self.eff_cost_table_f[:, 1]
+        slot_1_eff_cost = self.eff_cost_table_f[:, 2]
         slot_3_cost = self.cost_table[:, 0]
         slot_2_cost = self.cost_table[:, 1]
         slot_1_cost = self.cost_table[:, 2]
         upgrade_3_2_cost = slot_2_eff_cost - slot_3_eff_cost
         upgrade_2_1_cost = slot_1_eff_cost - slot_2_eff_cost
         upgrade_3_1_cost = slot_1_eff_cost - slot_3_eff_cost
-        slot_3_eff_pv = self.eff_pv_table[:, 0]
-        slot_2_eff_pv = self.eff_pv_table[:, 1]
-        slot_1_eff_pv = self.eff_pv_table[:, 2]
+        slot_3_eff_pv = self.eff_pv_table_f[:, 0]
+        slot_2_eff_pv = self.eff_pv_table_f[:, 1]
+        slot_1_eff_pv = self.eff_pv_table_f[:, 2]
         slot_3_pv = self.pv_table[:, 0]
         slot_2_pv = self.pv_table[:, 1]
         slot_1_pv = self.pv_table[:, 2]
@@ -1024,6 +1165,14 @@ class BiddingEnv(gym.Env):
         flat_cost = np.concatenate(
             (slot_3_cost, slot_2_cost[mask], slot_1_cost[mask], slot_1_cost[~mask])
         )
+        flat_cost_next_slot = np.concatenate(
+            (
+                slot_2_cost,
+                slot_1_cost[mask],
+                slot_1_cost[mask] * 1.2,
+                slot_1_cost[~mask] * 1.2,
+            )
+        )
         flat_eff_cost_with_up = np.concatenate(
             (
                 slot_3_eff_cost,
@@ -1050,8 +1199,8 @@ class BiddingEnv(gym.Env):
                 2 * np.ones_like(upgrade_2_1_ratio[mask]),
                 2 * np.ones_like(upgrade_3_1_ratio[~mask]),
             )
-        )
-        all_imp = np.arange(self.eff_cost_table.shape[0])
+        ).astype(int)
+        all_imp = np.arange(self.eff_cost_table_f.shape[0])
         impression_indices = np.concatenate(
             (all_imp, all_imp[mask], all_imp[mask], all_imp[~mask])
         )
@@ -1060,6 +1209,7 @@ class BiddingEnv(gym.Env):
         valid_mask = flat_eff_pv_with_up > 0
         flat_ratio = flat_ratio[valid_mask]
         flat_cost = flat_cost[valid_mask]
+        flat_cost_next_slot = flat_cost_next_slot[valid_mask]
         flat_eff_cost_with_up = flat_eff_cost_with_up[valid_mask]
         flat_pv = flat_pv[valid_mask]
         flat_eff_pv_with_up = flat_eff_pv_with_up[valid_mask]
@@ -1075,6 +1225,7 @@ class BiddingEnv(gym.Env):
         sorted_slot_indices = slot_indices[sorted_indices]
         sorted_flat_ratio = flat_ratio[sorted_indices]
         sorted_flat_cost = flat_cost[sorted_indices]
+        sorted_flat_cost_next_slot = flat_cost_next_slot[sorted_indices]
         sorted_flat_eff_cost_with_up = flat_eff_cost_with_up[sorted_indices]
         sorted_flat_pv = flat_pv[sorted_indices]
         sorted_flat_eff_pv_with_up = flat_eff_pv_with_up[sorted_indices]
@@ -1087,4 +1238,5 @@ class BiddingEnv(gym.Env):
             sorted_flat_eff_pv_with_up,
             sorted_flat_cost,
             sorted_flat_pv,
+            sorted_flat_cost_next_slot,
         )
