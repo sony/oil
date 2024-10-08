@@ -1097,7 +1097,7 @@ class BiddingEnv(gym.Env):
             y_0 = 1 / const_val
             y = 1 / action[good_imp_idx] - 1 / const_val
             x = pvs_t[good_imp_idx]
-            if len(x) < 2:
+            if len(x) < 3:
                 slope = 0
                 intercept = 0
                 x_0 = 0
