@@ -46,13 +46,13 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
         self,
         budget=6000,
         name="ONBC-PlayerStrategy",
-        cpa=10,
+        cpa=100,
         category=3,
         experiment_path=ROOT_DIR
         / "saved_model"
         / "ONBC"
-        / "022_onbc_seed_0_transformer_new_data_realistic_resume_020",
-        checkpoint=5100000,
+        / "020_onbc_seed_0_transformer_new_data_realistic",
+        checkpoint=4500000,
         device="cpu",
         deterministic=True,
         algo="onbc_transformer",

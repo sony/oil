@@ -77,3 +77,8 @@ def safe_mean(arr):
     if len(arr) == 0:
         return 0
     return np.mean(arr)
+
+def safe_max(arr):
+    if len(arr) == 0:
+        return 0
+    return np.max(arr)

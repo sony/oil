@@ -7,7 +7,7 @@
     "total_cost",
     "total_conversions",
     "total_cpa",
-    "cpa_exceedence_rate",
+    "last_cpa_exceedence_rate",
     "current_pvalues_mean",
     "current_pv_num",
     "last_bid_mean",

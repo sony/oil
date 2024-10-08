@@ -7,8 +7,8 @@
         2000
     ],
     "target_cpa_range": [
-        130,
-        130
+        60,
+        60
     ],
     "rwd_weights": {
         "dense": 0,

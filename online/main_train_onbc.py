@@ -225,6 +225,11 @@ parser.add_argument(
     help="Use simplified bidding",
 )
 parser.add_argument(
+    "--simplified_oracle",
+    action="store_true",
+    help="Use simplified oracle",
+)
+parser.add_argument(
     "--stochastic_exposure",
     action="store_true",
     help="Stochastic exposure",
@@ -277,6 +282,21 @@ parser.add_argument(
     default=48,
     help="Length of each episode",
 )
+parser.add_argument(
+    "--exclude_self_bids",
+    action="store_true",
+    help="Exclude self bids from the auction",
+)
+parser.add_argument(
+    "--flex_oracle",
+    action="store_true",
+    help="Use flexible oracle",
+)
+parser.add_argument(
+    "--two_slopes_action",
+    action="store_true",
+    help="Use two slopes for the action transformation",
+)
 
 args = parser.parse_args()
 
@@ -292,16 +312,28 @@ with open(ROOT_DIR / "env_configs" / f"{args.act_type}.json", "r") as f:
 config_list = []
 for period in range(7, 7 + args.num_envs):  # one period per env
     assert os.path.exists(
-        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_bids.parquet"
+        ROOT_DIR
+        / "data"
+        / "online_rl_data_final_with_ad_idx"
+        / f"period-{period}_bids.parquet"
     )
     assert os.path.exists(
-        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_pvalues.parquet"
+        ROOT_DIR
+        / "data"
+        / "online_rl_data_final_with_ad_idx"
+        / f"period-{period}_pvalues.parquet"
     )
     pvalues_df_path = (
-        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_pvalues.parquet"
+        ROOT_DIR
+        / "data"
+        / "online_rl_data_final_with_ad_idx"
+        / f"period-{period}_pvalues.parquet"
     )
     bids_df_path = (
-        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_bids.parquet"
+        ROOT_DIR
+        / "data"
+        / "online_rl_data_final_with_ad_idx"
+        / f"period-{period}_bids.parquet"
     )
 
     rwd_weights = {
@@ -334,6 +366,10 @@ for period in range(7, 7 + args.num_envs):  # one period per env
                 args.exposure_prob_min,
                 args.exposure_prob_max,
             ),
+            "simplified_oracle": args.simplified_oracle,
+            "exclude_self_bids": args.exclude_self_bids,
+            "flex_oracle": args.flex_oracle,
+            "two_slopes_action": args.two_slopes_action,
             "seed": args.seed,
         }
     )
@@ -585,6 +621,11 @@ python online/main_train_onbc.py --algo onbc --num_envs 20 --batch_size=512 --nu
             --obs_type obs_29_keys --exposure_prob_min 0.5 --exposure_prob_max 1 \
                 --learning_rate 1e-3 --save_every 50000 --simplified_bidding
                 
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 019_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_auction_simplified_oracle \
+            --obs_type obs_29_keys --learning_rate 1e-3 --save_every 50000 --simplified_oracle
+            
 python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 018_ \
     --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
         --new_action --exp_action --out_suffix=_new_data_realistic \
@@ -626,4 +667,35 @@ python online/main_train_onbc.py --algo onbc_transformer --num_envs 20 --batch_s
             --obs_type obs_35_keys_transformer --use_transformer --embed_size 64 --num_heads 4 --num_layers 4 \
                 --dim_feedforward 256 --dropout 0.1 --layer_norm_eps 1e-5 --learning_rate 1e-3 --save_every 50000
 
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 031_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_no_self_id \
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 50000 --num_layers 3
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 032_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_no_self_id_resume_031 \
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/031_onbc_seed_0_new_data_realistic_no_self_id --checkpoint_num 2300000
+                
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 033_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --new_action --exp_action --out_suffix=_new_data_realistic_no_self_id_fix_cpa_resume_031 \
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/031_onbc_seed_0_new_data_realistic_no_self_id --checkpoint_num 2300000
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 034_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --new_action --exp_action --out_suffix=_new_data_realistic_no_self_id_fix_cpa_resume_031 \
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 035_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --new_action --exp_action --out_suffix=_no_self_id_flex_two_slopes_oracle \
+            --flex_oracle --two_slopes_action --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 036_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_flex_two_slopes_oracle \
+            --flex_oracle --two_slopes_action --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3
 """

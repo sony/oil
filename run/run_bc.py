@@ -25,14 +25,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-STATE_DIM = 29
+STATE_DIM = 16
 ACTION_DIM = 1
-IDX_NORM = [24, 25, 26, 27, 28] # [13, 14, 15] for 16, [16, 17, 18] for 19, [24, 25, 26, 27, 28] for 29
+IDX_NORM = list((13, 14, 15)) # [13, 14, 15] for 16, [16, 17, 18] for 19, [24, 25, 26, 27, 28] for 29
 # train_data_path = ROOT_DIR / "data/traffic/custom_training_data/training_data_all-rlData.csv"
 train_data_path = (
-    ROOT_DIR / "data/traffic_top_regression/training_data_29/training_data_all-rlData.csv"
+    ROOT_DIR / "data/traffic_top_regression/training_data_16/training_data_all-rlData.csv"
 )
-experiment_name = "BC/026_train_regression_29"
+experiment_name = "BC/002_debug"
 bc_params = {}
 step_num = 50_000
 batch_size = 100
