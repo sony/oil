@@ -46,6 +46,7 @@ def main(args):
         if args.compute_flex_topline:
             flex_topline_config = env_config.copy()
             flex_topline_config["flex_oracle"] = True
+            flex_topline_config["two_slopes_action"] = args.two_slopes_action
             flex_topline_env = EnvironmentFactory.create(**flex_topline_config)
             
         # We need to use the observation and action defined in the training config
@@ -185,10 +186,10 @@ def main(args):
                     baseline_ep_rew += baseline_rewards
 
                 if args.compute_topline:
-                    # topline_action = topline_env.unwrapped.get_oracle_action()
-                    topline_action = (
-                        topline_env.unwrapped.get_simplified_oracle_action()
-                    )
+                    topline_action = topline_env.unwrapped.get_oracle_action()
+                    # topline_action = (
+                    #     topline_env.unwrapped.get_simplified_oracle_action()
+                    # )
                     _, topline_rewards, _, _, _ = topline_env.step(topline_action)
                     topline_ep_rew += topline_rewards
                 
@@ -339,6 +340,12 @@ if __name__ == "__main__":
         "--cpa_multiplier",
         type=float,
         default=1.0,
+    )
+    parser.add_argument(
+        "--two_slopes_action",
+        action="store_true",
+        default=False,
+        help="Flag to use the two slopes action",
     )
 
     args = parser.parse_args()
@@ -969,4 +976,10 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
     --num_episodes=100 --deterministic --all_checkpoints\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+# Best! Submission: 0.4948, offline: 29.52
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json \
+            --compute_baseline --compute_topline --compute_flex_topline --two_slopes_action
 """
