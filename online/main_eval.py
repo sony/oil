@@ -99,6 +99,8 @@ def main(args):
     best_score = -np.inf
     best_checkpoint = None
     score_list = []
+    dataset_list = []
+    
     for checkpoint in checkpoint_list:
         model = load_model(
             args.algo,
@@ -180,6 +182,22 @@ def main(args):
                         episode_start=episode_starts,
                         deterministic=args.deterministic,
                     )
+                
+                if args.create_dataset:
+                    oracle_action = env.unwrapped.get_flex_oracle_action()
+                    pvalues, pvalues_sigma = env.unwrapped.get_pvalues_mean_and_std()
+                    dataset_list.append(
+                        {
+                            "episode": i,
+                            "step": step,
+                            "obs": obs,
+                            "norm_obs": norm_obs,
+                            "action": action,
+                            "oracle_action": oracle_action.flatten(),
+                            "pvalues": pvalues,
+                            "pvalues_sigma": pvalues_sigma,
+                        }
+                    )
                 obs, rewards, terminated, truncated, _ = env.step(action)
 
                 if args.compute_baseline:
@@ -245,6 +263,13 @@ def main(args):
             out_path.mkdir(parents=True, exist_ok=True)
             df.to_csv(out_path / "results.csv", index=False)
 
+        if args.create_dataset:
+            experiment_name = experiment_path.name
+            out_path = ROOT_DIR / "output" / "testing" / experiment_name
+            out_path.mkdir(parents=True, exist_ok=True)
+            dataset_df = pd.DataFrame(dataset_list)
+            dataset_df.to_parquet(out_path / "dataset.parquet", index=False)
+            print("Dataset saved at", out_path / "dataset.parquet")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -354,6 +379,12 @@ if __name__ == "__main__":
         type=float,
         default=0.5,
         help="Weight of the upper and lower cost in the flex oracle action",
+    )
+    parser.add_argument(
+        "--create_dataset",
+        action="store_true",
+        default=False,
+        help="Flag to create a dataset of episodes",
     )
     args = parser.parse_args()
     main(args)
@@ -994,8 +1025,8 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json \
             --compute_baseline --compute_topline --compute_flex_topline --two_slopes_action
 
+# Create dataset
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000\
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json \
-            --compute_flex_topline --two_slopes_action --flex_oracle_cost_weight 0.75
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000 --create_dataset \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 """
