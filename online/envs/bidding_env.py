@@ -101,7 +101,7 @@ class BiddingEnv(gym.Env):
         exp_action=False,
         sample_log_budget=False,
         simplified_bidding=False,
-        auction_noise=0,
+        auction_noise=(0, 0),
         pvalues_rescale_range=(1, 1),
         simplified_exposure_prob_range=(1, 1),
         stochastic_exposure=False,
@@ -164,7 +164,10 @@ class BiddingEnv(gym.Env):
         self.exp_action = exp_action
         self.sample_log_budget = sample_log_budget
         self.simplified_bidding = simplified_bidding
-        self.auction_noise = auction_noise
+        if isinstance(auction_noise, (int, float)):
+            self.auction_noise_min = self.auction_noise_max = auction_noise
+        else:
+            self.auction_noise_min, self.auction_noise_max = auction_noise
         self.pvalues_rescale_min, self.pvalues_rescale_max = pvalues_rescale_range
         self.simplified_exposure_prob_min, self.simplified_exposure_prob_max = (
             simplified_exposure_prob_range
@@ -730,13 +733,13 @@ class BiddingEnv(gym.Env):
         )
         return 0.8 * remaining_budget_excess
 
-    def noisy_bid_and_cost(self, row, noise):
+    def noisy_bid_and_cost(self, row):
         bid = row["bid"]
         cost = row["cost"]
         second_price_ratio = cost[:, 0] / bid[:, 0]
 
         # Add noise to bids
-        noisy_bid = bid * (1 + self.np_random.uniform(-noise, noise, bid.shape))
+        noisy_bid = bid * (1 + self.np_random.uniform(-self.auction_noise_min, self.auction_noise_max, bid.shape))
         noisy_bid = np.sort(noisy_bid, axis=1)
         noisy_cost = np.zeros_like(noisy_bid)
         noisy_cost[:, 0] = noisy_bid[:, 0] * second_price_ratio
@@ -779,9 +782,9 @@ class BiddingEnv(gym.Env):
                 axis=1,
             )
 
-        if self.auction_noise > 0:
+        if self.auction_noise_min != 0 or self.auction_noise_max != 0:
             ep_bids_df[["bid", "cost"]] = ep_bids_df.apply(
-                lambda x: self.noisy_bid_and_cost(x, self.auction_noise), axis=1
+                lambda x: self.noisy_bid_and_cost(x), axis=1
             )
         ep_bids_df["bid"] = ep_bids_df["bid"] * self.pvalues_rescale_coef
         ep_bids_df["cost"] = ep_bids_df["cost"] * self.pvalues_rescale_coef

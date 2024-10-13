@@ -235,7 +235,13 @@ parser.add_argument(
     help="Stochastic exposure",
 )
 parser.add_argument(
-    "--auction_noise",
+    "--auction_noise_min",
+    type=float,
+    default=0.0,
+    help="Cost and bid noise",
+)
+parser.add_argument(
+    "--auction_noise_max",
     type=float,
     default=0.0,
     help="Cost and bid noise",
@@ -357,7 +363,10 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "sample_log_budget": args.sample_log_budget,
             "simplified_bidding": args.simplified_bidding,
             "stochastic_exposure": args.stochastic_exposure,
-            "auction_noise": args.auction_noise,
+            "auction_noise": (
+                args.auction_noise_min,
+                args.auction_noise_max,
+            ),
             "pvalues_rescale_range": (
                 args.pvalues_rescale_min,
                 args.pvalues_rescale_max,
@@ -698,4 +707,103 @@ python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_0
     --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
         --new_action --exp_action --out_suffix=_flex_two_slopes_oracle \
             --flex_oracle --two_slopes_action --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 037_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --new_action --exp_action --out_suffix=_no_self_id_flex_two_slopes_oracle_145_keys \
+            --flex_oracle --two_slopes_action --obs_type obs_145_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 038_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_flex_two_slopes_oracle_145_keys \
+            --flex_oracle --two_slopes_action --obs_type obs_145_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 039_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_flex_two_slopes_oracle_145_keys_4_layers \
+            --flex_oracle --two_slopes_action --obs_type obs_145_keys --learning_rate 1e-3 --save_every 10000 --num_layers 4
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 040_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_60_obs_seed_1 --seed 1\
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 20000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 040_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_60_obs_seed_1 --seed 1\
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 20000 --num_layers 3
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 041_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_145_obs_seed_1 --seed 1\
+            --obs_type obs_145_keys --learning_rate 1e-3 --save_every 20000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 043_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_145_obs_4_layers_seed_1 --seed 1\
+            --obs_type obs_145_keys --learning_rate 1e-3 --save_every 20000 --num_layers 4
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 046_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_60_obs_resume_040 --seed 1\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/040_onbc_seed_1_new_data_realistic_60_obs_seed_1 --checkpoint_num 1640000
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 047_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_flex_two_slopes_oracle_60 \
+            --flex_oracle --two_slopes_action --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 048_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_flex_two_slopes_oracle_60_resume_047 \
+            --flex_oracle --two_slopes_action --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/047_onbc_seed_0_flex_two_slopes_oracle_60 --checkpoint_num 6000000
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 050_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_60_obs_fix_oracle --seed 0\
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 20000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 051_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_flex_two_slopes_oracle_60_obs_fix_oracle \
+            --flex_oracle --two_slopes_action --obs_type obs_60_keys --learning_rate 1e-3 --save_every 20000 --num_layers 3
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 052_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_flex_two_slopes_oracle_60_obs_fix_oracle_resume_051 \
+            --flex_oracle --two_slopes_action --obs_type obs_60_keys --learning_rate 1e-5 --save_every 20000 --num_layers 3 \
+                --load_path output/training/ongoing/051_onbc_seed_0_flex_two_slopes_oracle_60_obs_fix_oracle
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 053_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_60_obs_resume_050 --seed 0\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 054_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_60_obs_resume_050_with_bid_noise --seed 1\
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3 \
+                --auction_noise_min 0.0 --auction_noise_max 0.2 \
+                    --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+                    
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 056_ \
+    --budget_min 1000 --budget_max 3000 --target_cpa_min 40 --target_cpa_max 90 \
+        --new_action --exp_action --out_suffix=_specialize_050_1000_3000_40_90 --seed 1 \
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+                
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 057_ \
+    --budget_min 2000 --budget_max 4000 --target_cpa_min 40 --target_cpa_max 90 \
+        --new_action --exp_action --out_suffix=_specialize_050_2000_4000_40_90 --seed 1 \
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 058_ \
+    --budget_min 3000 --budget_max 5000 --target_cpa_min 40 --target_cpa_max 90 \
+        --new_action --exp_action --out_suffix=_specialize_050_3000_5000_40_90 --seed 1 \
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
 """
