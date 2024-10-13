@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from typing import NamedTuple
 from stable_baselines3.common.buffers import RolloutBuffer
-from typing import Union
+from typing import Union, Optional
 from gymnasium import spaces
 from stable_baselines3.common.buffers import BaseBuffer
 
@@ -20,6 +20,37 @@ class OracleRolloutBufferSamples(NamedTuple):
 class OracleRolloutBuffer(RolloutBuffer):
     """Rollout buffer that also stores the expert actions."""
 
+    def __init__(
+        self,
+        buffer_size: int,
+        observation_space: spaces.Space,
+        action_space: spaces.Space,
+        device: Union[torch.device, str] = "auto",
+        gae_lambda: float = 1,
+        gamma: float = 0.99,
+        n_envs: int = 1,
+        batch_state_subsample: Optional[int] = None,
+    ):
+        self.batch_state_subsample = batch_state_subsample
+        super().__init__(
+            buffer_size,
+            observation_space,
+            action_space,
+            device,
+            gae_lambda,
+            gamma,
+            n_envs,
+        )
+        if batch_state_subsample is not None:
+            assert (
+                self.action_dim == 1
+            ), "Batch state subsample only works with 1D actions"
+            assert isinstance(
+                self.observation_space, spaces.Box
+            ), "Batch state subsample only works with Box observations"
+            self.action_dim = batch_state_subsample
+            self.obs_shape = (batch_state_subsample, *self.obs_shape)
+
     def reset(self):
         self.expert_actions = np.zeros(
             (self.buffer_size, self.n_envs, self.action_dim), dtype=np.float32
@@ -27,6 +58,17 @@ class OracleRolloutBuffer(RolloutBuffer):
         super().reset()
 
     def add(self, obs, action, reward, episode_start, value, log_prob, expert_action):
+        if self.batch_state_subsample is not None:
+            num_elements = action.shape[1]
+            subsample_indices = np.random.choice(
+                num_elements, self.batch_state_subsample * self.n_envs, replace=True
+            )
+            obs = obs[subsample_indices]
+            action = action[subsample_indices]
+            expert_action = expert_action[subsample_indices]
+            log_prob = log_prob[subsample_indices].mean()
+        obs = obs.reshape((self.n_envs, *self.obs_shape))
+        action = action.reshape((self.n_envs, self.action_dim))
         expert_action = expert_action.reshape((self.n_envs, self.action_dim))
         self.expert_actions[self.pos] = np.array(expert_action)
         super().add(obs, action, reward, episode_start, value, log_prob)

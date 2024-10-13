@@ -175,7 +175,7 @@ class ActorPolicy(BasePolicy):
         full_std: bool = True,
         use_expln: bool = False,
         squash_output: bool = False,
-        features_extractor_class: Type[BaseFeaturesExtractor] = FlattenExtractor,
+        features_extractor_class: Type[BaseFeaturesExtractor] = IdentityFeaturesExtractor,
         features_extractor_kwargs: Optional[Dict[str, Any]] = None,
         normalize_images: bool = True,
         optimizer_class: Type[torch.optim.Optimizer] = torch.optim.Adam,

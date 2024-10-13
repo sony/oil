@@ -877,7 +877,7 @@ class BiddingEnv(gym.Env):
         return df_sorted
 
     def get_oracle_action(self):
-        if self.detailed_bid:
+        if self.detailed_bid and not self.batch_state:
             if self.pv_idx == 0:
                 self.cur_oracle_action = self.get_action_from_correct_oracle()
             if self.flex_oracle:

@@ -152,8 +152,17 @@ class OnPolicyBC(OnPolicyAlgorithm):
                         actions, self.action_space.low, self.action_space.high
                     )
 
+            oracle_actions = env.env_method("get_oracle_action")
+            action_lengths = [arr.shape[0] for arr in oracle_actions[:-1]]
+            split_indices = np.cumsum(action_lengths)
+            clipped_actions = np.split(clipped_actions, split_indices, axis=0)
+
+            if oracle_actions[0].shape == self.action_space.shape:
+                oracle_actions = np.stack(oracle_actions)
+            else:
+                oracle_actions = np.concatenate(oracle_actions)
+
             new_obs, rewards, dones, infos = env.step(clipped_actions)
-            oracle_actions = np.stack(env.env_method("get_oracle_action"))
 
             self.num_timesteps += env.num_envs
 
@@ -206,6 +215,7 @@ class OnPolicyBC(OnPolicyAlgorithm):
             for rollout_data in self.rollout_buffer.get(self.batch_size):
                 actions = rollout_data.actions
                 expert_actions = rollout_data.oracle_actions
+
                 if isinstance(self.action_space, spaces.Discrete):
                     # Convert discrete action from float to long
                     actions = rollout_data.actions.long().flatten()
@@ -215,8 +225,12 @@ class OnPolicyBC(OnPolicyAlgorithm):
                 if self.use_sde:
                     self.policy.reset_noise(self.batch_size)
 
-                # Imitation loss
+                # Compute pred and several hacks to deal with the different shapes
                 actions_pred, _ = self.policy(rollout_data.observations)
+                actions = actions.reshape(actions_pred.shape)
+                actions_pred = actions_pred.reshape(expert_actions.shape)
+
+                # Imitation loss
                 if isinstance(self.action_space, spaces.Discrete):
                     imitation_loss = F.cross_entropy(actions_pred, expert_actions)
                 else:

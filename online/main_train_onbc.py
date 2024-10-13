@@ -12,8 +12,7 @@ import wandb
 import torch
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import VecNormalize
-from stable_baselines3.common.vec_env.subproc_vec_env import SubprocVecEnv
+from online.env_wrappers.subproc_vec_env import BatchSubprocVecEnv
 from definitions import ROOT_DIR
 from envs.environment_factory import EnvironmentFactory
 from metrics.custom_callbacks import TensorboardCallback
@@ -21,6 +20,7 @@ from train.trainer import SingleEnvTrainer
 from envs.helpers import get_model_and_env_path
 from online.policies.actor import ActorPolicy, TransformerActorPolicy
 from algos.buffers import OracleRolloutBuffer, OracleEpisodeRolloutBuffer
+from online.env_wrappers.vec_normalize import BatchVecNormalize
 
 torch.manual_seed(0)
 
@@ -297,7 +297,22 @@ parser.add_argument(
     action="store_true",
     help="Use two slopes for the action transformation",
 )
-
+parser.add_argument(
+    "--detailed_bid",
+    action="store_true",
+    help="Use detailed prediction",
+)
+parser.add_argument(
+    "--batch_state",
+    action="store_true",
+    help="Use batched states",
+)
+parser.add_argument(
+    "--batch_state_subsample",
+    type=int,
+    default=1000,
+    help="Subsample for batched states",
+)
 args = parser.parse_args()
 
 run_name = f"{args.out_prefix}onbc_seed_{args.seed}{args.out_suffix}"
@@ -328,12 +343,14 @@ for period in range(7, 7 + args.num_envs):  # one period per env
         / "data"
         / "online_rl_data_final_with_ad_idx"
         / f"period-{period}_pvalues.parquet"
+        # / f"pvalues_periods_7_26.parquet"
     )
     bids_df_path = (
         ROOT_DIR
         / "data"
         / "online_rl_data_final_with_ad_idx"
         / f"period-{period}_bids.parquet"
+        # / f"bids_periods_7_26.parquet"
     )
 
     rwd_weights = {
@@ -368,8 +385,10 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             ),
             "simplified_oracle": args.simplified_oracle,
             "exclude_self_bids": args.exclude_self_bids,
-            "flex_oracle": args.flex_oracle,
+            "flex_oracle": args.flex_oracle or args.detailed_bid,
             "two_slopes_action": args.two_slopes_action,
+            "detailed_bid": args.detailed_bid,
+            "batch_state": args.batch_state,
             "seed": args.seed,
         }
     )
@@ -393,7 +412,11 @@ else:
     net_arch = [args.dim_feedforward for _ in range(args.num_layers)]
     n_steps = args.n_rollout_steps
     rollout_buffer_class = OracleRolloutBuffer
-    rollout_buffer_kwargs = {}
+    rollout_buffer_kwargs = {
+        "batch_state_subsample": (
+            args.batch_state_subsample if args.batch_state else None
+        ),
+    }
 
 model_config = dict(
     policy=policy,
@@ -432,7 +455,7 @@ def make_parallel_envs(env_config_list):
 
         return _thunk
 
-    return SubprocVecEnv([make_env(c) for c in env_config_list])
+    return BatchSubprocVecEnv([make_env(c) for c in env_config_list])
 
 
 if __name__ == "__main__":
@@ -488,9 +511,9 @@ if __name__ == "__main__":
     # Create and wrap the training and evaluations environments
     envs = make_parallel_envs(config_list)
     if env_path is not None:
-        envs = VecNormalize.load(env_path, envs)
+        envs = BatchVecNormalize.load(env_path, envs)
     else:
-        envs = VecNormalize(envs)
+        envs = BatchVecNormalize(envs)
 
     # Define trainer
     trainer = SingleEnvTrainer(
@@ -698,4 +721,35 @@ python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_0
     --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
         --new_action --exp_action --out_suffix=_flex_two_slopes_oracle \
             --flex_oracle --two_slopes_action --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3
+
+python online/main_train_onbc.py --algo onbc_transformer --num_envs 20 --batch_size=20 --num_steps=10_000_000 \
+    --n_rollout_steps 192 --budget_min=1000 --budget_max=6000 --target_cpa_min=50 --target_cpa_max=150 \
+        --new_action --exp_action --out_prefix=044_ --out_suffix=_transformer_35_obs_two_slopes \
+            --obs_type obs_35_keys_transformer --use_transformer --embed_size 64 --num_heads 4 --num_layers 4 \
+                --dim_feedforward 256 --dropout 0.1 --layer_norm_eps 1e-5 --learning_rate 1e-3 --save_every 20000 \
+                    --flex_oracle --two_slopes_action
+            
+python online/main_train_onbc.py --num_envs 20 --num_steps 1_000_000_000 --out_prefix 046_ \
+    --n_rollout_steps 16192 --batch_size 2048 --out_suffix=_detailed_bid \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action \
+            --detailed_bid --obs_type obs_60_keys --learning_rate 1e-3 --save_every 500000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 1 --num_steps 1_000_000_000 --out_prefix 051_ \
+    --n_rollout_steps 128 --batch_size 32 --detailed_bid --batch_state \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_detailed_bid_batch_state \
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 500000 --num_layers 3
+
+python online/main_train_onbc.py --num_envs 20 --num_steps 1_000_000_000 --out_prefix 055_ \
+    --n_rollout_steps 128 --batch_size 256 --detailed_bid --batch_state \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_detailed_bid_batch_state_20_envs_1000_subs \
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 50000 --num_layers 3
+            
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 058_ \
+    --budget_min 3000 --budget_max 5000 --target_cpa_min 40 --target_cpa_max 90 \
+        --new_action --exp_action --out_suffix=_specialize_050_3000_5000_40_90 --seed 1 \
+            --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
 """
