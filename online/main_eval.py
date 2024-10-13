@@ -21,6 +21,7 @@ from helpers import (
     get_number,
     load_model,
     load_vecnormalize,
+    get_sorted_checkpoints
 )
 
 torch.manual_seed(0)
@@ -74,25 +75,25 @@ def main(args):
                 for el in model_list
                 if args.min_checkpoint < get_number(el) < args.max_checkpoint
             ]
-            if args.all_checkpoints:
-                checkpoint_list = checkpoints
-            else:
-                # First get the training data from the tensorboard log
-                tb_dir_path = os.path.join(
-                    experiment_path, ALGO_TB_DIR_NAME_DICT[args.algo]
-                )
-                experiment_data = get_experiment_data(
-                    tb_dir_path, CKPT_CHOICE_CRITERION
-                )
-                steps = experiment_data[CKPT_CHOICE_CRITERION]["x"][0]
-                rewards = experiment_data[CKPT_CHOICE_CRITERION]["y"][0]
+            # First get the training data from the tensorboard log
+            tb_dir_path = os.path.join(
+                experiment_path, ALGO_TB_DIR_NAME_DICT[args.algo]
+            )
+            experiment_data = get_experiment_data(
+                tb_dir_path, CKPT_CHOICE_CRITERION
+            )
+            steps = experiment_data[CKPT_CHOICE_CRITERION]["x"][0]
+            rewards = experiment_data[CKPT_CHOICE_CRITERION]["y"][0]
 
-                if len(checkpoints):
+            if len(checkpoints):
+                if args.all_checkpoints:
+                    checkpoint_list = get_sorted_checkpoints(steps, rewards, checkpoints)
+                else:
                     # Select the checkpoint corresponding to the best reward
                     checkpoint = get_best_checkpoint(steps, rewards, checkpoints)
                     checkpoint_list = [checkpoint]
-                else:
-                    checkpoint_list = [None]
+            else:
+                checkpoint_list = [None]
         else:
             checkpoint_list = [args.checkpoint]
 
@@ -112,6 +113,8 @@ def main(args):
         # Collect rollouts and store them
         vecnormalize.training = False
         mean_ep_rew = 0
+        mean_ep_cost_over_budget = 0
+        mean_ep_target_cpa_over_cpa = 0
         mean_baseline_ep_rew = 0
         mean_topline_ep_rew = 0
         mean_flex_topline_ep_rew = 0
@@ -122,7 +125,7 @@ def main(args):
             topline_ep_rew = 0
             flex_topline_ep_rew = 0
             step = 0
-            obs, _ = env.reset(seed=i, advertiser=args.advertiser)
+            obs, _ = env.reset(seed=i + args.seed, advertiser=args.advertiser)
             if args.compute_baseline:
                 baseline_env.reset(
                     budget=env.unwrapped.total_budget,
@@ -190,15 +193,15 @@ def main(args):
                         {
                             "episode": i,
                             "step": step,
-                            "obs": obs,
-                            "norm_obs": norm_obs,
-                            "action": action,
-                            "oracle_action": oracle_action.flatten(),
-                            "pvalues": pvalues,
-                            "pvalues_sigma": pvalues_sigma,
+                            "obs": obs.tolist(),
+                            "norm_obs": norm_obs.tolist(),
+                            "action": action.item(),
+                            "oracle_action": oracle_action.flatten().tolist(),
+                            "pvalues": pvalues.tolist(),
+                            "pvalues_sigma": pvalues_sigma.tolist(),
                         }
                     )
-                obs, rewards, terminated, truncated, _ = env.step(action)
+                obs, rewards, terminated, truncated, info = env.step(action)
 
                 if args.compute_baseline:
                     baseline_action = baseline_env.unwrapped.get_baseline_action()
@@ -223,6 +226,8 @@ def main(args):
                 ep_rew += rewards
                 step += 1
             mean_ep_rew = (mean_ep_rew * i + ep_rew) / (i + 1)
+            mean_ep_cost_over_budget = (mean_ep_cost_over_budget * i + info["cost_over_budget"]) / (i + 1)
+            mean_ep_target_cpa_over_cpa = (mean_ep_target_cpa_over_cpa * i + info["target_cpa_over_cpa"]) / (i + 1)
             if args.compute_baseline:
                 mean_baseline_ep_rew = (mean_baseline_ep_rew * i + baseline_ep_rew) / (
                     i + 1
@@ -236,8 +241,8 @@ def main(args):
                 mean_flex_topline_ep_rew = (mean_flex_topline_ep_rew * i + flex_topline_ep_rew) / (
                     i + 1
                 )
-            str_out = "Ep: {} ep rew: {:.2f} avg score: {:.2f}".format(
-                i, ep_rew, mean_ep_rew
+            str_out = "Ep: {} ep rew: {:.2f}, avg score: {:.2f}, avg c/b: {:.2f}, avg t_cpa/cpa: {:.2f},".format(
+                i, ep_rew, mean_ep_rew, mean_ep_cost_over_budget, mean_ep_target_cpa_over_cpa
             )
             if args.compute_baseline:
                 str_out += " avg_baseline_score: {:.2f}".format(mean_baseline_ep_rew)
@@ -268,7 +273,7 @@ def main(args):
             out_path = ROOT_DIR / "output" / "testing" / experiment_name
             out_path.mkdir(parents=True, exist_ok=True)
             dataset_df = pd.DataFrame(dataset_list)
-            dataset_df.to_parquet(out_path / "dataset.parquet", index=False)
+            dataset_df.to_parquet(out_path / f"dataset_seed_{args.seed}.parquet", index=False)
             print("Dataset saved at", out_path / "dataset.parquet")
 
 if __name__ == "__main__":
@@ -276,6 +281,12 @@ if __name__ == "__main__":
         description="Main script to create a dataset of episodes with a trained agent"
     )
 
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Seed used to initialize the environment",
+    )
     parser.add_argument(
         "--algo",
         type=str,
@@ -1025,8 +1036,57 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json \
             --compute_baseline --compute_topline --compute_flex_topline --two_slopes_action
 
+# This seems to be better for low vals
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/052_onbc_seed_0_flex_two_slopes_oracle_60_obs_fix_oracle_resume_051 \
+    --num_episodes=100 --deterministic --all_checkpoints\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+# Best submission all checkpoints
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
+    --num_episodes=100 --deterministic --all_checkpoints\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+# Bug fix all checkpoints
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+    --num_episodes=100 --deterministic --all_checkpoints  --min_checkpoint 5000000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+ 
+# Noisy bids all checkpoints       
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/054_onbc_seed_1_new_data_realistic_60_obs_resume_050_with_bid_noise \
+    --num_episodes=100 --deterministic --all_checkpoints\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle \
+    --num_episodes=100 --deterministic --all_checkpoints --deterministic_conversion\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+# 29.46 stochastic, 29.32 deterministic
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/052_onbc_seed_0_flex_two_slopes_oracle_60_obs_fix_oracle_resume_051 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 7040000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+# 29.68 stochastic, 29.35 deterministic
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/052_onbc_seed_0_flex_two_slopes_oracle_60_obs_fix_oracle_resume_051 \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 5580000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/052_onbc_seed_0_flex_two_slopes_oracle_60_obs_fix_oracle_resume_051 \
+    --num_episodes=100 --no_save_df --deterministic --deterministic_conversion --checkpoint 9820000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+
+# 29.38
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+    --num_episodes=100 --no_save_df --deterministic --deterministic_conversion --checkpoint 3420000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+        
+# Test if same result as online agent
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/052_onbc_seed_0_flex_two_slopes_oracle_60_obs_fix_oracle_resume_051 \
+    --num_episodes=1 --no_save_df --deterministic --checkpoint 7040000 --deterministic_conversion --advertiser 0\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_test.json
+        
+        
 # Create dataset
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000 --create_dataset \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000 --create_dataset --seed=42424242\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 """
