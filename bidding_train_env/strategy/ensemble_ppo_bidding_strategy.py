@@ -15,7 +15,7 @@ from online.envs.helpers import safe_mean
 torch.manual_seed(0)
 
 
-class PpoBiddingStrategy(BaseBiddingStrategy):
+class EnsemblePpoBiddingStrategy(BaseBiddingStrategy):
     """
     Proximal Policy Optimization (PPO) Strategy
     """
@@ -87,34 +87,63 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         name="PPO-PlayerStrategy",
         cpa=100,
         category=0,
-        experiment_path=ROOT_DIR
-        / "saved_model"
-        / "ONBC"
-        / "054_onbc_seed_1_new_data_realistic_60_obs_resume_050_with_bid_noise",
-        checkpoint=11850000,
+        experiment_path_list=[
+            ROOT_DIR
+            / "saved_model"
+            / "ONBC"
+            / "026_onbc_seed_0_new_data_realistic_60_obs_resume_023",
+            ROOT_DIR
+            / "saved_model"
+            / "ONBC"
+            / "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
+            ROOT_DIR
+            / "saved_model"
+            / "ONBC"
+            / "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
+        ],
+        checkpoint_list=[
+            4600000,
+            3270000,
+            3420000,
+        ],
+        category_policy_dict={
+            0: 0,
+            1: 1,
+            2: 0,
+            3: 2,
+            4: 2,
+            5: 2,
+        },
         device="cpu",
         deterministic=True,
         algo="ppo",
     ):
+        assert 2000 <= budget <= 5000, budget
+        assert 60 <= cpa <= 130, cpa
         super().__init__(budget, name, cpa, category)
         self.device = device
-        self.experiment_path = experiment_path
-        self.checkpoint = checkpoint
-        self.model = load_model(algo, experiment_path, checkpoint)
+        self.experiment_path_list = experiment_path_list
+        self.checkpoint_list = checkpoint_list
+        self.model_list = [load_model(algo, p, c) for p, c in zip(experiment_path_list, checkpoint_list)]
 
-        train_env_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
-        train_env_config["bids_df_path"] = None
-        train_env_config["pvalues_df_path"] = None
+        train_env_config_list =[json.load(open(p / ENV_CONFIG_NAME, "r")) for p in experiment_path_list]
+        for config in train_env_config_list:
+            config["bids_df_path"] = None
+            config["pvalues_df_path"] = None
 
         # Train env to create the observation and turn action into bids
-        self.train_env = EnvironmentFactory.create(**train_env_config)
+        self.train_env_list = [EnvironmentFactory.create(**c) for c in train_env_config_list]
 
-        self.vecnormalize = load_vecnormalize(
-            experiment_path, checkpoint, self.train_env
-        )
-        self.vecnormalize.training = False
+        self.vecnormalize_list = [load_vecnormalize(
+            p, c, t_e
+        ) for p, c, t_e in zip(experiment_path_list, checkpoint_list, self.train_env_list)]
+        
+        for vecnormalize in self.vecnormalize_list:
+            vecnormalize.training = False
+            
         self.episode_length = 48
         self.deterministic = deterministic
+        self.category_policy_dict = category_policy_dict
 
     def reset(self):
         self.remaining_budget = self.budget
@@ -146,8 +175,6 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         return:
             Return the bids for all the opportunities in the delivery period.
         """
-        assert 2000 <= self.budget <= 5000
-        assert 60 <= self.cpa <= 130
         pvalues_list = [result[:, 0] for result in historyPValueInfo]
         pvalues_sigma_list = [result[:, 1] for result in historyPValueInfo]
         bid_list = historyBid
@@ -249,10 +276,16 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
                 ]
 
         state_dict = self.get_state_dict(pValues)
-        state = self.train_env.get_state(state_dict)
-        obs = self.vecnormalize.normalize_obs(state)
-        action = self.model.predict(obs, deterministic=self.deterministic)[0]
-        bid_coef, _ = self.train_env.compute_bid_coef(action, pValues, pValueSigmas)
+        
+        policy_index = self.category_policy_dict[self.category]
+        model = self.model_list[policy_index]
+        train_env = self.train_env_list[policy_index]
+        vecnormalize = self.vecnormalize_list[policy_index]
+        
+        state = train_env.get_state(state_dict)
+        obs = vecnormalize.normalize_obs(state)
+        action = model.predict(obs, deterministic=self.deterministic)[0]
+        bid_coef, _ = train_env.compute_bid_coef(action, pValues, pValueSigmas)
         bids = bid_coef * self.cpa
         return bids
 
