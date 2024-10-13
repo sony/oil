@@ -329,8 +329,8 @@ class OnPolicyTransformerBC(OnPolicyBC):
                         clipped_actions = np.clip(
                             actions, self.action_space.low, self.action_space.high
                         )
-                new_obs, rewards, dones, infos = env.step(clipped_actions)
                 oracle_actions = np.stack(env.env_method("get_oracle_action"))
+                new_obs, rewards, dones, infos = env.step(clipped_actions)
                 self.num_timesteps += env.num_envs
 
                 callback.update_locals(locals())

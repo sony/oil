@@ -44,28 +44,40 @@ def load_vecnormalize(experiment_path, checkpoint_number, base_env):
     return vecnormalize
 
 
-def get_best_checkpoint(steps, rewards, checkpoints, verbose=1):
+def get_sorted_checkpoints(steps, rewards, checkpoints, verbose=1):
     # Lowpass filter the rewards to avoid choosing a checkpoint at a peak due to noise
     clean_rewards = savgol_filter(rewards, window_length=51, polyorder=3)
     steps = list(steps)
+
     # Get the list of the closest steps to the checkpoints and the corresponding rewards
     closest_step_list = [
         min(steps, key=lambda x: abs(x - ckpt)) for ckpt in checkpoints
     ]
+
+    # Get the corresponding filtered rewards for these checkpoints
     closest_reward_list = [
         clean_rewards[steps.index(closest_step)] for closest_step in closest_step_list
     ]
-    reward_ckpt_max = max(closest_reward_list)
-    step_ckpt_max_approx = closest_step_list[closest_reward_list.index(reward_ckpt_max)]
-    step_ckpt_max = min(checkpoints, key=lambda x: abs(x - step_ckpt_max_approx))
+
+    # Combine checkpoints and rewards into tuples and sort by reward (best to worst)
+    checkpoint_reward_pairs = sorted(
+        zip(checkpoints, closest_reward_list), key=lambda x: x[1], reverse=True
+    )
+
+    # Unpack the sorted list
+    sorted_checkpoints = [ckpt for ckpt, _ in checkpoint_reward_pairs]
+
     if verbose:
-        print(
-            "Best checkpoint:",
-            step_ckpt_max,
-            ", corresponding reward:",
-            reward_ckpt_max,
-        )
-    return step_ckpt_max
+        print("Checkpoints sorted by reward (best to worst):")
+        for ckpt, reward in checkpoint_reward_pairs:
+            print(f"Checkpoint: {ckpt}, Reward: {reward}")
+
+    return sorted_checkpoints
+
+
+def get_best_checkpoint(steps, rewards, checkpoints, verbose=1):
+    sorted_checkpoints = get_sorted_checkpoints(steps, rewards, checkpoints, verbose)
+    return sorted_checkpoints[0]
 
 
 def get_data_from_tb_log(path, y, x="step", tb_config=None):
