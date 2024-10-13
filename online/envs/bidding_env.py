@@ -114,10 +114,15 @@ class BiddingEnv(gym.Env):
         piecewise_linear_action=False,
         pv_range_list=DEFAULT_PV_RANGE_LIST,
         two_slopes_action=False,
+        detailed_bid=False,
+        batch_state=False,  # For evaluation, return matrix obs
         seed=0,
     ):
         self.observation_space = gym.spaces.Box(
-            low=-np.inf, high=np.inf, shape=(len(obs_keys),), dtype=np.float32
+            low=-np.inf,
+            high=np.inf,
+            shape=(len(obs_keys) + 2 * detailed_bid,),
+            dtype=np.float32,
         )
         if multi_action:
             print(
@@ -182,6 +187,8 @@ class BiddingEnv(gym.Env):
         self.two_slopes_action = two_slopes_action
         self.pv_range_list = pv_range_list
         self.cost_weight = flex_oracle_cost_weight
+        self.detailed_bid = detailed_bid
+        self.batch_state = batch_state
 
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
@@ -246,7 +253,6 @@ class BiddingEnv(gym.Env):
         self.time_steps_arr = None
         self.eff_pv_table = None
         self.eff_cost_table = None
-
         self.impression_ids_f = None
         self.slots_f = None
         self.pv_costs_f = None
@@ -258,6 +264,11 @@ class BiddingEnv(gym.Env):
         self.eff_pvs_with_up = None
         self.eff_costs_with_up = None
         self.imp_idx_arr = None
+        self.pv_idx = 0
+        self.cur_pv_num = None
+        self.cur_matrix_state = None
+        self.cur_action = None
+        self.cur_oracle_action = None
 
     def reset(
         self,
@@ -271,11 +282,38 @@ class BiddingEnv(gym.Env):
         super().reset(seed=seed)
         self.reset_campaign_params(budget, target_cpa, advertiser, period)
         pvalues, pvalues_std = self.get_pvalues_mean_and_std()
-        state_dict = self.get_state_dict(pvalues)
+        state_dict = self.get_state_dict(pvalues, pvalues_std)
         state = self.get_state(state_dict)
+        if self.detailed_bid and not self.batch_state:
+            self.cur_matrix_state = state
+            self.cur_pv_num = len(pvalues)
+            self.cur_action = np.zeros((self.cur_pv_num, len(self.act_keys)))
+            self.cur_oracle_action = np.zeros((self.cur_pv_num, len(self.act_keys)))
+            state = self.cur_matrix_state[self.pv_idx]
         return state, {}
 
     def step(self, action):
+        if self.detailed_bid and not self.batch_state:
+            self.cur_action[self.pv_idx, self.pvalues_key_pos] = action
+            self.pv_idx = (self.pv_idx + 1) % self.cur_pv_num
+            if self.pv_idx == 0:
+                obs, reward, terminated, truncated, info = self.execute_step(
+                    self.cur_action
+                )
+                self.cur_pv_num = obs.shape[0]
+                self.cur_action = np.zeros((self.cur_pv_num, len(self.act_keys)))
+                self.cur_matrix_state = obs
+            else:
+                reward = 0
+                terminated = False
+                truncated = False
+                info = {}
+            state = self.cur_matrix_state[self.pv_idx]
+            return state, reward, terminated, truncated, info
+        else:
+            return self.execute_step(action)
+
+    def execute_step(self, action):
         bid_data = self.get_bid_data()
 
         # Get current pvalues to compute the bids
@@ -423,7 +461,7 @@ class BiddingEnv(gym.Env):
 
             # Get the new pvalues for the next state
             new_pvalues, new_pvalues_std = self.get_pvalues_mean_and_std()
-        state_dict = self.get_state_dict(new_pvalues)
+        state_dict = self.get_state_dict(new_pvalues, new_pvalues_std)
         state = self.get_state(state_dict)
         return state, reward, terminated, False, info
 
@@ -569,7 +607,7 @@ class BiddingEnv(gym.Env):
     def sample_period(self):
         return self.np_random.choice(self.period_list)
 
-    def get_state_dict(self, pvalues):
+    def get_state_dict(self, pvalues, pvalues_std):
         state_dict = {
             "time_left": (self.episode_length - self.time_step) / self.episode_length,
             "budget_left": max(self.remaining_budget, 0) / self.total_budget,
@@ -589,6 +627,10 @@ class BiddingEnv(gym.Env):
             state_dict[f"last_{key}"] = safe_mean(info[-1:])
             state_dict[f"last_three_{key}"] = safe_mean(info[-3:])
             state_dict[f"historical_{key}"] = safe_mean(info)
+
+        # For matrix obs
+        state_dict["pvalues"] = pvalues
+        state_dict["pvalues_std"] = pvalues_std
 
         # Correction for backward compatibility
         state_dict["last_three_pv_num"] = np.sum(self.history_info["pv_num"][-3:])
@@ -631,7 +673,17 @@ class BiddingEnv(gym.Env):
         return state_dict
 
     def get_state(self, state_dict):
-        state = np.array([state_dict[key] for key in self.obs_keys]).astype(np.float32)
+        state_vec = np.array([state_dict[key] for key in self.obs_keys]).astype(
+            np.float32
+        )
+        if self.detailed_bid:
+            # Create a matrix with pv, pv_sigma and state for each impression
+            state = np.zeros((state_dict["current_pv_num"], 2 + len(self.obs_keys)))
+            state[:, 0] = state_dict["pvalues"]
+            state[:, 1] = state_dict["pvalues_std"]
+            state[:, 2:] = state_vec
+        else:
+            state = state_vec
         return state
 
     def get_bid_basis_dict(self, pvalues, pvalues_sigma):
@@ -828,6 +880,17 @@ class BiddingEnv(gym.Env):
         return df_sorted
 
     def get_oracle_action(self):
+        if self.detailed_bid:
+            if self.pv_idx == 0:
+                self.cur_oracle_action = self.get_action_from_correct_oracle()
+            if self.flex_oracle:
+                return self.cur_oracle_action[self.pv_idx]
+            else:
+                return self.cur_oracle_action
+        else:
+            return self.get_action_from_correct_oracle()
+
+    def get_action_from_correct_oracle(self):
         if self.simplified_bidding or self.simplified_oracle:
             return self.get_simplified_oracle_action()
         elif self.flex_oracle:
@@ -1070,7 +1133,10 @@ class BiddingEnv(gym.Env):
         # It works because even if some indices are repeated, we want to use the cost and the pv of
         # the last occurrence, which is the highest slot and it always comes last in the good_imp_idx
         action[good_imp_idx] = (
-            (self.cost_weight * self.costs[valid_mask] + (1 - self.cost_weight) * self.costs_next_slot[valid_mask])
+            (
+                self.cost_weight * self.costs[valid_mask]
+                + (1 - self.cost_weight) * self.costs_next_slot[valid_mask]
+            )
             / self.pvs[valid_mask]
             / self.target_cpa
         )
