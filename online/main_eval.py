@@ -61,6 +61,8 @@ def main(args):
         env_config["deterministic_conversion"] = args.deterministic_conversion
         env_config["cpa_multiplier"] = args.cpa_multiplier
         env_config["two_slopes_action"] = train_config.get("two_slopes_action", False)
+        env_config["detailed_bid"] = train_config.get("detailed_bid", False)
+        env_config["batch_state"] = True
 
         env = EnvironmentFactory.create(**env_config)
         if args.checkpoint is None:
@@ -1024,6 +1026,10 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
     --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json \
             --compute_baseline --compute_topline --compute_flex_topline --two_slopes_action
+
+python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/046_onbc_seed_0_detailed_bid \
+    --num_episodes=100 --no_save_df --deterministic --checkpoint 59500000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
 # Create dataset
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
