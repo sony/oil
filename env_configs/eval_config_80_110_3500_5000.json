@@ -3,12 +3,12 @@
     "pvalues_df_path": "data/online_rl_data_final_with_ad_idx/period-27_pvalues.parquet",
     "bids_df_path": "data/online_rl_data_final_with_ad_idx/period-27_bids.parquet",
     "budget_range": [
-        2000,
-        4000
+        3500,
+        5000
     ],
     "target_cpa_range": [
-        70,
-        120
+        80,
+        110
     ],
     "rwd_weights": {
         "dense": 0,
