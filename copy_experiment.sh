@@ -4,7 +4,7 @@
 exp_name="$1"           # Experiment name
 checkpoint="$2"         # Checkpoint number to copy
 source_folder="output/training/ongoing/${exp_name}"
-target_folder="saved_model/PPO/${exp_name}"
+target_folder="saved_model/ONBC/${exp_name}"
 
 # Create the target directory if it does not exist
 mkdir -p "$target_folder"
