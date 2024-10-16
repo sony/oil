@@ -100,19 +100,24 @@ class EnsemblePpoBiddingStrategy(BaseBiddingStrategy):
             / "saved_model"
             / "ONBC"
             / "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
+            ROOT_DIR
+            / "saved_model"
+            / "ONBC"
+            / "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
         ],
         checkpoint_list=[
             4600000,
             3270000,
-            3420000,
+            10850000,
+            13170000
         ],
         category_policy_dict={
             0: 0,
-            1: 1,
-            2: 0,
-            3: 2,
-            4: 2,
-            5: 2,
+            1: 3,
+            2: 2,
+            3: 3,
+            4: 3,
+            5: 1,
         },
         device="cpu",
         deterministic=True,
@@ -285,7 +290,7 @@ class EnsemblePpoBiddingStrategy(BaseBiddingStrategy):
         state = train_env.get_state(state_dict)
         obs = vecnormalize.normalize_obs(state)
         action = model.predict(obs, deterministic=self.deterministic)[0]
-        bid_coef, _ = train_env.compute_bid_coef(action, pValues, pValueSigmas)
+        bid_coef = train_env.compute_bid_coef(action, pValues, pValueSigmas)
         bids = bid_coef * self.cpa
         return bids
 

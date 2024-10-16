@@ -176,7 +176,7 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
         action, _ = self.model.predict(
             obs, deterministic=self.deterministic, single_action=True
         )
-        bid_coef, _ = self.train_env.compute_bid_coef(action, pValues, pValueSigmas)
+        bid_coef = self.train_env.compute_bid_coef(action, pValues, pValueSigmas)
         bids = bid_coef * self.cpa
         return bids
 

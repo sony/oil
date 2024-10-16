@@ -90,8 +90,8 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         experiment_path=ROOT_DIR
         / "saved_model"
         / "ONBC"
-        / "054_onbc_seed_1_new_data_realistic_60_obs_resume_050_with_bid_noise",
-        checkpoint=11850000,
+        / "052_onbc_seed_0_flex_two_slopes_oracle_60_obs_fix_oracle_resume_051",
+        checkpoint=3580000,
         device="cpu",
         deterministic=True,
         algo="ppo",
@@ -252,7 +252,7 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         state = self.train_env.get_state(state_dict)
         obs = self.vecnormalize.normalize_obs(state)
         action = self.model.predict(obs, deterministic=self.deterministic)[0]
-        bid_coef, _ = self.train_env.compute_bid_coef(action, pValues, pValueSigmas)
+        bid_coef = self.train_env.compute_bid_coef(action, pValues, pValueSigmas)
         bids = bid_coef * self.cpa
         return bids
 
