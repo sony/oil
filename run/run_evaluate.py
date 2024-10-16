@@ -33,7 +33,7 @@ def run_test(
     / "data/raw_traffic_final_parquet/period-27.parquet",
     budget_list=[2000, 3000, 4000, 5000],
     target_cpa_list=[60, 95, 130],
-    category_list=[0],
+    category_list=[0, 1],
     device="cpu",
 ):
     """
@@ -188,19 +188,19 @@ def run_test(
     logger.info(f"Score: {score:.2f}")
     logger.info(f"Reward: {reward:.2f}")
 
-    # Turn the path after saved_model into a string and use it as the experiment name
-    out_path = (
-        ROOT_DIR
-        / "output"
-        / "offline_evaluation"
-        / agent.experiment_path
-        / f"checkpoint_{agent.checkpoint}.json"
-    )
-    logger.info(f"Saving results to {out_path}")
-    if not out_path.parent.exists():
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w") as f:
-        json.dump(result_dict_list, f, indent=4)
+    # # Turn the path after saved_model into a string and use it as the experiment name
+    # out_path = (
+    #     ROOT_DIR
+    #     / "output"
+    #     / "offline_evaluation"
+    #     / agent.experiment_path
+    #     / f"checkpoint_{agent.checkpoint}.json"
+    # )
+    # logger.info(f"Saving results to {out_path}")
+    # if not out_path.parent.exists():
+    #     out_path.parent.mkdir(parents=True, exist_ok=True)
+    # with open(out_path, "w") as f:
+    #     json.dump(result_dict_list, f, indent=4)
 
 
 if __name__ == "__main__":
