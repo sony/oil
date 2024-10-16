@@ -594,4 +594,18 @@ python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_00
             --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys --act_type act_6_keys --save_every 50_000 \
                 --pg_coef 1 --imitation_coef 0 --learning_rate 1e-5 --ent_coef 1e-4\
                     --load_path output/training/ongoing/025_ppo_seed_0_60_obs_6_acts_new_data_realistic
+                
+python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 030_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_60_obs_6_acts_sparse_rl_fine_tune_025 \
+            --dense_weight 0 --sparse_weight 1 --obs_type obs_60_keys --act_type act_6_keys --save_every 10_000 \
+                --pg_coef 1 --imitation_coef 0 --learning_rate 1e-5 --ent_coef 1e-2\
+                    --load_path output/training/ongoing/025_ppo_seed_0_60_obs_6_acts_new_data_realistic
+                    
+python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 031_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_29_obs_6_acts_sparse_rl_fine_tune_024 \
+            --dense_weight 0 --sparse_weight 1 --obs_type obs_29_keys --act_type act_6_keys --save_every 10_000 \
+                --pg_coef 1 --imitation_coef 0 --learning_rate 1e-5 --ent_coef 1e-2\
+                    --load_path output/training/ongoing/024_ppo_seed_0_29_obs_6_acts_new_data_realistic
 """

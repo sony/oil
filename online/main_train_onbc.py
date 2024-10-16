@@ -880,4 +880,28 @@ python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_0
             --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
                 --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
 
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 063_ \
+    --budget_min 2000 --budget_max 4000 --target_cpa_min 70 --target_cpa_max 120 \
+        --new_action --exp_action --out_suffix=_specialize_050_2000_4000_70_120 --seed 1 \
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 064_ \
+    --budget_min 1000 --budget_max 3000 --target_cpa_min 100 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_specialize_050_1000_3000_100_150 --seed 1 \
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 065_ \
+    --budget_min 3000 --budget_max 5000 --target_cpa_min 70 --target_cpa_max 120 \
+        --new_action --exp_action --out_suffix=_specialize_050_3000_5000_70_120 --seed 1 \
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 066_ \
+    --budget_min 3000 --budget_max 5000 --target_cpa_min 100 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_specialize_050_3000_5000_100_150 --seed 1 \
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+
 """
