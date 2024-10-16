@@ -1,3 +1,2 @@
-docker build -t registry.cn-beijing.aliyuncs.com/nips_train_env/train_env:duqiao_td3_4000 -f ./Dockerfile .
-docker push registry.cn-beijing.aliyuncs.com/nips_train_env/train_env:duqiao_td3_4000
-
+docker buildx build --platform linux/amd64 --load -t registry-intl.cn-beijing.aliyuncs.com/alberto-sony/alberto-sony-env:onbc_052_358_10x -f ./Dockerfile .
+docker push registry-intl.cn-beijing.aliyuncs.com/alberto-sony/alberto-sony-env:onbc_052_358_10x
