@@ -314,14 +314,15 @@ class BiddingEnv(gym.Env):
             return self.execute_step(action)
 
     def execute_step(self, action):
-        bid_data = self.get_bid_data()
-
         # Get current pvalues to compute the bids
         pvalues, pvalues_sigma = self.get_pvalues_mean_and_std()
 
-        bid_coef, alpha = self.compute_bid_coef(action, pvalues, pvalues_sigma)
+        bid_coef = self.compute_bid_coef(action, pvalues, pvalues_sigma)
         advertiser_bids = bid_coef * self.target_cpa
+        return self.place_bids(advertiser_bids, pvalues, pvalues_sigma)
 
+    def place_bids(self, advertiser_bids, pvalues, pvalues_sigma):
+        bid_data = self.get_bid_data()
         top_bids = bid_data.bid.item()
         top_bids_cost = bid_data.cost.item()
         least_winning_cost = top_bids_cost[:, 0]
@@ -419,7 +420,7 @@ class BiddingEnv(gym.Env):
             self.history_info[key].append(value)
 
         info = {
-            "action": alpha,
+            "action": np.sum(advertiser_bids) / (np.sum(pvalues) + self.EPS) / self.target_cpa,
             "bid": np.mean(advertiser_bids),
         }
         if terminated:
@@ -745,8 +746,7 @@ class BiddingEnv(gym.Env):
 
         bid_basis = self.get_bid_basis(pvalues, pvalues_sigma)
         bid_coef = np.clip(np.einsum("nk,nk->n", action, bid_basis), 0, np.inf)
-        alpha = np.sum(bid_coef) / (np.sum(pvalues) + self.EPS)
-        return bid_coef, alpha
+        return bid_coef
 
     def get_pvalues_mean_and_std(self):
         p_row = self.episode_pvalues_df[
