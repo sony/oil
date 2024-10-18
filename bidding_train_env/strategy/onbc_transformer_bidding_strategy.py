@@ -10,6 +10,7 @@ from bidding_train_env.strategy.base_bidding_strategy import BaseBiddingStrategy
 from definitions import ROOT_DIR, ENV_CONFIG_NAME
 from online.helpers import load_model, load_vecnormalize
 from online.envs.environment_factory import EnvironmentFactory
+from online.envs.helpers import safe_mean
 
 torch.manual_seed(0)
 
@@ -42,6 +43,47 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
         "current_pv_num",
     ]
 
+    NO_HISTORY_KEYS = [
+        "time_left",
+        "budget_left",
+        "budget",
+        "cpa",
+        "category",
+        "total_conversions",
+        "total_cost",
+        "total_cpa",
+        "current_pvalues_mean",
+        "current_pvalues_90_pct",
+        "current_pvalues_99_pct",
+        "current_pv_num",
+    ]
+
+    HISTORY_KEYS = [
+        "least_winning_cost_mean",
+        "least_winning_cost_10_pct",
+        "least_winning_cost_01_pct",
+        "cpa_exceedence_rate",
+        "pvalues_mean",
+        "conversion_mean",
+        "conversion_count",
+        "bid_success_mean",
+        "successful_bid_position_mean",
+        "bid_over_lwc_mean",
+        "pv_over_lwc_mean",
+        "pv_over_lwc_90_pct",
+        "pv_over_lwc_99_pct",
+        "pv_num",
+        "exposure_count",
+        "cost_sum",
+    ]
+
+    HISTORY_AND_SLOT_KEYS = [
+        "bid_mean",
+        "cost_mean",
+        "bid_success_count",
+        "exposure_mean",
+    ]
+
     def __init__(
         self,
         budget=6000,
@@ -51,8 +93,8 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
         experiment_path=ROOT_DIR
         / "saved_model"
         / "ONBC"
-        / "020_onbc_seed_0_transformer_new_data_realistic",
-        checkpoint=4500000,
+        / "072_onbc_seed_0_transformer_new_data_realistic_resume_029",
+        checkpoint=2300000,
         device="cpu",
         deterministic=True,
         algo="onbc_transformer",
@@ -108,71 +150,119 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
         return:
             Return the bids for all the opportunities in the delivery period.
         """
+        pvalues_list = [result[:, 0] for result in historyPValueInfo]
+        pvalues_sigma_list = [result[:, 1] for result in historyPValueInfo]
+        bid_list = historyBid
+        bid_success_list = [result[:, 0] > 0 for result in historyAuctionResult]
+        bid_position_list = [
+            result[:, 1].astype(int) for result in historyAuctionResult
+        ]
+        # Here we have to adapt the bid position to the one used in the environment.
+        # In the challenge it seems that they use 0 for lost, 1-2-3 for first-second-third slot.
+        # In the environment we use -1 for lost, 2-1-0 for first-second-third slot (weird choice sorry)
+        bid_position_list = [(3 - result).astype(int) for result in bid_position_list]
+        for el in bid_position_list:
+            el[el == 3] = -1
+
+        bid_cost_list = [result[:, 2] for result in historyAuctionResult]
+        bid_exposure_list = [result[:, 0] > 0 for result in historyImpressionResult]
+        conversions_list = [result[:, 1] for result in historyImpressionResult]
+        least_winning_cost_list = historyLeastWinningCost
+
         self.time_step = timeStepIndex
         self.total_budget = self.budget
-        self.mean_bid_list = [np.mean(result) for result in historyBid]
-        self.mean_pvalues_list = [np.mean(result[:, 0]) for result in historyPValueInfo]
-        self.pct_90_pvalues_list = [
-            np.percentile(result[:, 0], 90) for result in historyPValueInfo
-        ]
-        self.pct_99_pvalues_list = [
-            np.percentile(result[:, 0], 99) for result in historyPValueInfo
-        ]
-
-        self.mean_least_winning_cost_list = [
-            np.mean(result) for result in historyLeastWinningCost
-        ]
-        self.pct_01_least_winning_cost_list = [
-            np.percentile(result, 1) for result in historyLeastWinningCost
-        ]
-        self.mean_conversion_list = [
-            np.mean(result[:, 1]) for result in historyImpressionResult
-        ]
-        self.mean_bid_success_list = [
-            np.mean(result[:, 0]) for result in historyAuctionResult
-        ]
-        self.num_pv_list = [len(result) for result in historyBid]
-        self.mean_bid_over_lwc_list = [
-            np.mean(bid / (lwc + self.EPS))
-            for bid, lwc in zip(historyBid, historyLeastWinningCost)
-        ]
-        self.mean_pv_over_lwc_list = [
-            np.mean(pv[:, 0] / (lwc + self.EPS))
-            for pv, lwc in zip(historyPValueInfo, historyLeastWinningCost)
-        ]
-        self.pct_90_pv_over_lwc_list = [
-            np.percentile(pv[:, 0] / (lwc + self.EPS), 90)
-            for pv, lwc in zip(historyPValueInfo, historyLeastWinningCost)
-        ]
-        self.pct_99_pv_over_lwc_list = [
-            np.percentile(pv[:, 0] / (lwc + self.EPS), 99)
-            for pv, lwc in zip(historyPValueInfo, historyLeastWinningCost)
-        ]
-
-        self.mean_cost_list = [np.mean(result[:, 2]) for result in historyAuctionResult]
-        self.total_cost_list = [np.sum(result[:, 2]) for result in historyAuctionResult]
-        cum_cost = np.cumsum(self.total_cost_list)
-        self.budget_left_list = [
-            (self.total_budget - cost) / self.total_budget for cost in cum_cost
-        ]
-        self.time_left_list = list(
-            (self.episode_length - np.arange(timeStepIndex + 1)) / self.episode_length
+        self.total_conversions = np.sum([np.sum(el) for el in conversions_list])
+        self.total_cost = np.sum([np.sum(el) for el in bid_cost_list])
+        self.total_cpa = (
+            self.total_cost / self.total_conversions
+            if self.total_conversions > 0
+            else 0
         )
+        self.pv_num_total = np.sum([len(el) for el in pvalues_list])
 
-        # Currently unused, but may be useful in the future
-        self.bid_slot_list = [result[:, 1] for result in historyAuctionResult]
-        self.bid_cost_list = [result[:, 2] for result in historyAuctionResult]
-        self.exposure_list = [result[:, 0] for result in historyImpressionResult]
-        self.pvalue_sigma_list = [result[:, 1] for result in historyPValueInfo]
+        self.history_info = {
+            "least_winning_cost_mean": [np.mean(el) for el in least_winning_cost_list],
+            "least_winning_cost_10_pct": [
+                np.percentile(el, 10) for el in least_winning_cost_list
+            ],
+            "least_winning_cost_01_pct": [
+                np.percentile(el, 1) for el in least_winning_cost_list
+            ],
+            "cpa_exceedence_rate": (
+                [(self.total_cpa - self.cpa) / self.cpa] if timeStepIndex > 0 else [0]
+            ),
+            "pvalues_mean": [np.mean(el) for el in pvalues_list],
+            "conversion_mean": [np.mean(el) for el in conversions_list],
+            "conversion_count": [np.sum(el) for el in conversions_list],
+            "bid_success_mean": [np.mean(el) for el in bid_success_list],
+            "successful_bid_position_mean": [
+                safe_mean(pos[succ])
+                for pos, succ in zip(bid_position_list, bid_success_list)
+            ],  # TODO: check bid slot
+            "bid_over_lwc_mean": [
+                np.mean(bid / (lwc + self.EPS))
+                for bid, lwc in zip(bid_list, least_winning_cost_list)
+            ],
+            "pv_over_lwc_mean": [
+                np.mean(pv / (lwc + self.EPS))
+                for pv, lwc in zip(pvalues_list, least_winning_cost_list)
+            ],
+            "pv_over_lwc_90_pct": [
+                np.percentile(pv / (lwc + self.EPS), 90)
+                for pv, lwc in zip(pvalues_list, least_winning_cost_list)
+            ],
+            "pv_over_lwc_99_pct": [
+                np.percentile(pv / (lwc + self.EPS), 99)
+                for pv, lwc in zip(pvalues_list, least_winning_cost_list)
+            ],
+            "pv_num": [len(el) for el in pvalues_list],
+            "exposure_count": [np.sum(el) for el in bid_exposure_list],
+            "cost_sum": [np.sum(el) for el in bid_cost_list],
+        }
+        slot_info_source = {
+            "bid_mean": {
+                "data": bid_list,
+                "func": safe_mean,
+                "condition": bid_success_list,
+            },
+            "cost_mean": {
+                "data": bid_cost_list,
+                "func": safe_mean,
+                "condition": bid_exposure_list,
+            },
+            "bid_success_count": {
+                "data": bid_success_list,
+                "func": np.sum,
+                "condition": [True] * len(bid_success_list),
+            },
+            "exposure_mean": {
+                "data": bid_exposure_list,
+                "func": safe_mean,
+                "condition": [True] * len(bid_exposure_list),
+            },
+        }
+        for key, slot_info in slot_info_source.items():
+            func = slot_info["func"]
+            condition = slot_info["condition"]
+            data = slot_info["data"]
+            self.history_info[key] = [
+                func(el) for el in data
+            ]  # For some reason we did not apply the condition for the non-slot-specific metric
+            for slot in range(3):
+                self.history_info[f"{key}_slot_{3 - slot}"] = [
+                    func(el[np.logical_and(pos == slot, cond)])
+                    for el, pos, cond in zip(data, bid_position_list, condition)
+                ]
 
         state_dict = self.get_state_dict(pValues)
-        state = self.train_env.get_state(state_dict)
+        state = np.atleast_2d(self.train_env.get_state(state_dict))
+        # breakpoint()
 
         if self.prev_obs is not None:
-            assert np.allclose(state[:, :-1], self.prev_obs), (state, self.prev_obs)
+            # assert np.allclose(state[:, :-1], self.prev_obs), (state, self.prev_obs)
+            state = np.concatenate((self.prev_obs, state), axis=0)
         self.prev_obs = state
-
-        obs = self.vecnormalize.normalize_obs(state.T)
+        obs = self.vecnormalize.normalize_obs(state)
         action, _ = self.model.predict(
             obs, deterministic=self.deterministic, single_action=True
         )
@@ -182,26 +272,61 @@ class ONBCTransformerBiddingStrategy(BaseBiddingStrategy):
 
     def get_state_dict(self, pvalues):
         state_dict = {
-            "time_left": self.time_left_list,
-            "budget_left": [1] + self.budget_left_list,
-            "budget": [self.total_budget] * (self.time_step + 1),
-            "cpa": [self.cpa] * (self.time_step + 1),
-            "category": [self.category] * (self.time_step + 1),
-            "last_bid_mean": [0] + self.mean_bid_list,
-            "last_least_winning_cost_mean": [0] + self.mean_least_winning_cost_list,
-            "last_least_winning_cost_01_pct": [0] + self.pct_01_least_winning_cost_list,
-            "last_conversion_mean": [0] + self.mean_conversion_list,
-            "last_bid_success": [0] + self.mean_bid_success_list,
-            "last_cost_mean": [0] + self.mean_cost_list,
-            "last_bid_over_lwc_mean": [0] + self.mean_bid_over_lwc_list,
-            "last_pv_over_lwc_mean": [0] + self.mean_pv_over_lwc_list,
-            "last_pv_over_lwc_90_pct": [0] + self.pct_90_pv_over_lwc_list,
-            "last_pv_over_lwc_99_pct": [0] + self.pct_99_pv_over_lwc_list,
-            "current_pvalues_mean": self.mean_pvalues_list + [np.mean(pvalues)],
-            "current_pvalues_90_pct": self.pct_90_pvalues_list
-            + [np.percentile(pvalues, 90)],
-            "current_pvalues_99_pct": self.pct_99_pvalues_list
-            + [np.percentile(pvalues, 99)],
-            "current_pv_num": self.num_pv_list + [len(pvalues)],
+            "time_left": (self.episode_length - self.time_step) / self.episode_length,
+            "budget_left": max(self.remaining_budget, 0) / self.total_budget,
+            "budget": self.total_budget,
+            "cpa": self.cpa,
+            "category": self.category,
+            "total_conversions": self.total_conversions,
+            "total_cost": self.total_cost,
+            "total_cpa": self.total_cpa,
+            "pv_num_total": self.pv_num_total,
+            "current_pvalues_mean": np.mean(pvalues),
+            "current_pvalues_90_pct": np.percentile(pvalues, 90),
+            "current_pvalues_99_pct": np.percentile(pvalues, 99),
+            "current_pv_num": len(pvalues),
         }
+        for key, info in self.history_info.items():
+            state_dict[f"last_{key}"] = safe_mean(info[-1:])
+            state_dict[f"last_three_{key}"] = safe_mean(info[-3:])
+            state_dict[f"historical_{key}"] = safe_mean(info)
+
+        # Correction for backward compatibility
+        state_dict["last_three_pv_num"] = np.sum(self.history_info["pv_num"][-3:])
+
+        # Deprecated keys compatibility
+        state_dict["least_winning_cost_mean"] = state_dict[
+            "historical_least_winning_cost_mean"
+        ]
+        state_dict["least_winning_cost_10_pct"] = state_dict[
+            "historical_least_winning_cost_10_pct"
+        ]
+        state_dict["least_winning_cost_01_pct"] = state_dict[
+            "historical_least_winning_cost_01_pct"
+        ]
+        state_dict["pvalues_mean"] = state_dict["historical_pvalues_mean"]
+        state_dict["conversion_mean"] = state_dict["historical_conversion_mean"]
+        state_dict["bid_success_mean"] = state_dict["historical_bid_success_mean"]
+        state_dict["last_bid_success"] = state_dict["last_bid_success_mean"]
+        state_dict["historical_cost_slot_1_mean"] = state_dict[
+            "historical_cost_mean_slot_1"
+        ]
+        state_dict["historical_cost_slot_2_mean"] = state_dict[
+            "historical_cost_mean_slot_2"
+        ]
+        state_dict["historical_cost_slot_3_mean"] = state_dict[
+            "historical_cost_mean_slot_3"
+        ]
+        state_dict["last_cost_slot_1_mean"] = state_dict["last_cost_mean_slot_1"]
+        state_dict["last_cost_slot_2_mean"] = state_dict["last_cost_mean_slot_2"]
+        state_dict["last_cost_slot_3_mean"] = state_dict["last_cost_mean_slot_3"]
+        state_dict["last_three_cost_slot_1_mean"] = state_dict[
+            "last_three_cost_mean_slot_1"
+        ]
+        state_dict["last_three_cost_slot_2_mean"] = state_dict[
+            "last_three_cost_mean_slot_2"
+        ]
+        state_dict["last_three_cost_slot_3_mean"] = state_dict[
+            "last_three_cost_mean_slot_3"
+        ]
         return state_dict
