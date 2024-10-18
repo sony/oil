@@ -334,7 +334,6 @@ class BiddingEnv(gym.Env):
             top_bids_exposed = self.np_random.binomial(
                 n=1, p=exposure_prob_per_slot, size=top_bids_exposed.shape
             )
-
         bid_success, bid_position, bid_exposed, bid_cost, bid_conversion = (
             self.simulate_ad_bidding(
                 pvalues,
@@ -357,7 +356,6 @@ class BiddingEnv(gym.Env):
         self.remaining_budget -= np.sum(bid_cost)
         terminated = self.time_step >= self.episode_length
         dense_reward = self.compute_score(np.sum(bid_cost), np.sum(bid_conversion))
-
         # Update the history which is used to compute the observations
         history_info_update = {
             "least_winning_cost_mean": np.mean(least_winning_cost),
@@ -414,7 +412,6 @@ class BiddingEnv(gym.Env):
                 history_info_update[f"{key}_slot_{3 - slot}"] = func(
                     data[np.logical_and(bid_position == slot, condition)]
                 )
-
         for key, value in history_info_update.items():
             self.history_info[key].append(value)
 
@@ -521,9 +518,8 @@ class BiddingEnv(gym.Env):
         if self.simplified_bidding:
             bid_success = advertiser_bids >= least_winning_cost
             bid_cost = least_winning_cost * bid_success
-            bid_position = 2 + np.zeros_like(
-                bid_cost
-            )  # No bid position in simplified bidding
+            bid_position = - np.ones_like(bid_cost)
+            bid_position[bid_success] = 2 # All first position in simplified bidding
             # bid_exposed = (
             #     bid_success  # Simplified bidding always exposes successful bids
             # )
