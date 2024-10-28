@@ -183,15 +183,26 @@ parser.add_argument(
     help="Use simplified bidding",
 )
 parser.add_argument(
+    "--simplified_oracle",
+    action="store_true",
+    help="Use simplified oracle",
+)
+parser.add_argument(
     "--stochastic_exposure",
     action="store_true",
     help="Stochastic exposure",
 )
 parser.add_argument(
-    "--auction_noise",
+    "--auction_noise_min",
     type=float,
     default=0.0,
-    help="Bid and cost noise",
+    help="Cost and bid noise",
+)
+parser.add_argument(
+    "--auction_noise_max",
+    type=float,
+    default=0.0,
+    help="Cost and bid noise",
 )
 parser.add_argument(
     "--pg_coef",
@@ -212,12 +223,61 @@ parser.add_argument(
     help="Learning rate",
 )
 parser.add_argument(
+    "--n_rollout_steps",
+    type=int,
+    default=128,
+    help="Number of steps to run for each environment",
+)
+parser.add_argument(
     "--ent_coef",
     type=float,
     default=3e-06,
     help="Entropy coefficient",
 )
-
+parser.add_argument(
+    "--episode_len",
+    type=int,
+    default=48,
+    help="Length of each episode",
+)
+parser.add_argument(
+    "--exclude_self_bids",
+    action="store_true",
+    help="Exclude self bids from the auction",
+)
+parser.add_argument(
+    "--flex_oracle",
+    action="store_true",
+    help="Use flexible oracle",
+)
+parser.add_argument(
+    "--two_slopes_action",
+    action="store_true",
+    help="Use two slopes for the action transformation",
+)
+parser.add_argument(
+    "--detailed_bid",
+    action="store_true",
+    help="Use detailed prediction",
+)
+parser.add_argument(
+    "--batch_state",
+    action="store_true",
+    help="Use batched states",
+)
+parser.add_argument(
+    "--batch_state_subsample",
+    type=int,
+    default=1000,
+    help="Subsample for batched states",
+)
+parser.add_argument(
+    "--advertiser_categories",
+    type=int,
+    nargs="+",
+    default=None,
+    help="Advertiser categories where to sample from, if None all are used",
+)
 args = parser.parse_args()
 
 run_name = f"{args.out_prefix}ppo_seed_{args.seed}{args.out_suffix}"
@@ -232,16 +292,16 @@ with open(ROOT_DIR / "env_configs" / f"{args.act_type}.json", "r") as f:
 config_list = []
 for period in range(7, 7 + args.num_envs):  # one period per env
     assert os.path.exists(
-        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_bids.parquet"
+        ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx" / f"period-{period}_bids.parquet"
     )
     assert os.path.exists(
-        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_pvalues.parquet"
+        ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx" / f"period-{period}_pvalues.parquet"
     )
     pvalues_df_path = (
-        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_pvalues.parquet"
+        ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx" / f"period-{period}_pvalues.parquet"
     )
     bids_df_path = (
-        ROOT_DIR / "data" / "online_rl_data_final" / f"period-{period}_bids.parquet"
+        ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx" / f"period-{period}_bids.parquet"
     )
 
     rwd_weights = {
@@ -265,7 +325,13 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "sample_log_budget": args.sample_log_budget,
             "simplified_bidding": args.simplified_bidding,
             "stochastic_exposure": args.stochastic_exposure,
-            "auction_noise": args.auction_noise,
+            "simplified_oracle": args.simplified_oracle,
+            "exclude_self_bids": args.exclude_self_bids,
+            "flex_oracle": args.flex_oracle or args.detailed_bid,
+            "two_slopes_action": args.two_slopes_action,
+            "detailed_bid": args.detailed_bid,
+            "batch_state": args.batch_state,
+            "advertiser_categories": args.advertiser_categories,
             "seed": args.seed,
         }
     )
@@ -274,7 +340,7 @@ model_config = dict(
     policy="MlpPolicy",
     device=args.device,
     batch_size=args.batch_size,
-    n_steps=128,
+    n_steps=args.n_rollout_steps,
     learning_rate=args.learning_rate,
     ent_coef=args.ent_coef,
     vf_coef=0.5,
@@ -608,4 +674,18 @@ python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_00
             --dense_weight 0 --sparse_weight 1 --obs_type obs_29_keys --act_type act_6_keys --save_every 10_000 \
                 --pg_coef 1 --imitation_coef 0 --learning_rate 1e-5 --ent_coef 1e-2\
                     --load_path output/training/ongoing/024_ppo_seed_0_29_obs_6_acts_new_data_realistic
+
+python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 086_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_imit_1_pg_1 --learning_rate 1e-3 --seed 0 --dense_weight 0 --sparse_weight 1\
+            --obs_type obs_60_keys --save_every 20000 --stochastic_exposure \
+                --pg_coef 1 --imitation_coef 1 --ent_coef 1e-4 --net_arch 256 256 256
+
+
+python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 087_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_imit_1_pg_0_1_resume_086 --learning_rate 1e-4 --seed 0 --dense_weight 0 --sparse_weight 1\
+            --obs_type obs_60_keys --save_every 20000 --stochastic_exposure \
+                --pg_coef 0.1 --imitation_coef 1 --ent_coef 1e-4 --net_arch 256 256 256 \
+                    --load_path output/training/ongoing/086_ppo_seed_0_imit_1_pg_1
 """
