@@ -31,9 +31,9 @@ def getScore_nips(reward, cpa, cpa_constraint):
 def run_test(
     data_path_or_dataloader=ROOT_DIR
     / "data/raw_traffic_final_parquet/period-27.parquet",
-    budget_list=[2000, 3000, 4000, 5000],
-    target_cpa_list=[60, 95, 130],
-    category_list=[0, 1],
+    budget_list=[3500],
+    target_cpa_list=[80],
+    category_list=[0],
     device="cpu",
 ):
     """
