@@ -44,7 +44,7 @@ def load_vecnormalize(experiment_path, checkpoint_number, base_env):
     return vecnormalize
 
 
-def get_sorted_checkpoints(steps, rewards, checkpoints, verbose=1):
+def get_sorted_checkpoints(steps, rewards, checkpoints, verbose=1, descending=True):
     # Lowpass filter the rewards to avoid choosing a checkpoint at a peak due to noise
     clean_rewards = savgol_filter(rewards, window_length=51, polyorder=3)
     steps = list(steps)
@@ -61,7 +61,7 @@ def get_sorted_checkpoints(steps, rewards, checkpoints, verbose=1):
 
     # Combine checkpoints and rewards into tuples and sort by reward (best to worst)
     checkpoint_reward_pairs = sorted(
-        zip(checkpoints, closest_reward_list), key=lambda x: x[1], reverse=True
+        zip(checkpoints, closest_reward_list), key=lambda x: x[1], reverse=descending
     )
 
     # Unpack the sorted list
@@ -75,8 +75,8 @@ def get_sorted_checkpoints(steps, rewards, checkpoints, verbose=1):
     return sorted_checkpoints
 
 
-def get_best_checkpoint(steps, rewards, checkpoints, verbose=1):
-    sorted_checkpoints = get_sorted_checkpoints(steps, rewards, checkpoints, verbose)
+def get_best_checkpoint(steps, rewards, checkpoints, verbose=1, descending=True):
+    sorted_checkpoints = get_sorted_checkpoints(steps, rewards, checkpoints, verbose, descending)
     return sorted_checkpoints[0]
 
 
