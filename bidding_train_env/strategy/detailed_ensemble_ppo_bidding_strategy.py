@@ -81,388 +81,6 @@ class DetailedEnsemblePpoBiddingStrategy(BaseBiddingStrategy):
         "bid_success_count",
         "exposure_mean",
     ]
-    
-    model_list = [
-    {
-        "category": 0,
-        "budget_range": 0,
-        "cpa_range": 0,
-        "path": "059_onbc_seed_1_specialize_050_1000_3000_40_90",
-        "checkpoint": 3530000,
-    },
-    {
-        "category": 0,
-        "budget_range": 0,
-        "cpa_range": 1,
-        "path": "062_onbc_seed_1_specialize_050_1000_3000_70_120",
-        "checkpoint": 5900000,
-    },
-    {
-        "category": 0,
-        "budget_range": 0,
-        "cpa_range": 2,
-        "path": "064_onbc_seed_1_specialize_050_1000_3000_100_150",
-        "checkpoint": 4450000,
-    },
-    {
-        "category": 0,
-        "budget_range": 1,
-        "cpa_range": 0,
-        "path": "026_onbc_seed_0_new_data_realistic_60_obs_resume_023",
-        "checkpoint": 4600000,
-    },
-    {
-        "category": 0,
-        "budget_range": 1,
-        "cpa_range": 1,
-        "path": "063_onbc_seed_1_specialize_050_2000_4000_70_120",
-        "checkpoint": 3310000,
-    },
-    {
-        "category": 0,
-        "budget_range": 1,
-        "cpa_range": 2,
-        "path": "067_onbc_seed_1_specialize_050_2000_4000_100_150",
-        "checkpoint": 4570000,
-    },
-    {
-        "category": 0,
-        "budget_range": 2,
-        "cpa_range": 0,
-        "path": "026_onbc_seed_0_new_data_realistic_60_obs_resume_023",
-        "checkpoint": 4600000,
-    },
-    {
-        "category": 0,
-        "budget_range": 2,
-        "cpa_range": 1,
-        "path": "065_onbc_seed_1_specialize_050_3000_5000_70_120",
-        "checkpoint": 3240000,
-    },
-    {
-        "category": 0,
-        "budget_range": 2,
-        "cpa_range": 2,
-        "path": "066_onbc_seed_1_specialize_050_3000_5000_100_150",
-        "checkpoint": 7880000,
-    },
-    {
-        "category": 1,
-        "budget_range": 0,
-        "cpa_range": 0,
-        "path": "059_onbc_seed_1_specialize_050_1000_3000_40_90",
-        "checkpoint": 3530000,
-    },
-    {
-        "category": 1,
-        "budget_range": 0,
-        "cpa_range": 1,
-        "path": "062_onbc_seed_1_specialize_050_1000_3000_70_120",
-        "checkpoint": 5900000,
-    },
-    {
-        "category": 1,
-        "budget_range": 0,
-        "cpa_range": 2,
-        "path": "064_onbc_seed_1_specialize_050_1000_3000_100_150",
-        "checkpoint": 4450000,
-    },
-    {
-        "category": 1,
-        "budget_range": 1,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 13170000,
-    },
-    {
-        "category": 1,
-        "budget_range": 1,
-        "cpa_range": 1,
-        "path": "063_onbc_seed_1_specialize_050_2000_4000_70_120",
-        "checkpoint": 3310000,
-    },
-    {
-        "category": 1,
-        "budget_range": 1,
-        "cpa_range": 2,
-        "path": "067_onbc_seed_1_specialize_050_2000_4000_100_150",
-        "checkpoint": 4570000,
-    },
-    {
-        "category": 1,
-        "budget_range": 2,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 13170000,
-    },
-    {
-        "category": 1,
-        "budget_range": 2,
-        "cpa_range": 1,
-        "path": "065_onbc_seed_1_specialize_050_3000_5000_70_120",
-        "checkpoint": 3240000,
-    },
-    {
-        "category": 1,
-        "budget_range": 2,
-        "cpa_range": 2,
-        "path": "066_onbc_seed_1_specialize_050_3000_5000_100_150",
-        "checkpoint": 7880000,
-    },
-    {
-        "category": 2,
-        "budget_range": 0,
-        "cpa_range": 0,
-        "path": "059_onbc_seed_1_specialize_050_1000_3000_40_90",
-        "checkpoint": 3530000,
-    },
-    {
-        "category": 2,
-        "budget_range": 0,
-        "cpa_range": 1,
-        "path": "062_onbc_seed_1_specialize_050_1000_3000_70_120",
-        "checkpoint": 5900000,
-    },
-    {
-        "category": 2,
-        "budget_range": 0,
-        "cpa_range": 2,
-        "path": "064_onbc_seed_1_specialize_050_1000_3000_100_150",
-        "checkpoint": 4450000,
-    },
-    {
-        "category": 2,
-        "budget_range": 1,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 10850000,
-    },
-    {
-        "category": 2,
-        "budget_range": 1,
-        "cpa_range": 1,
-        "path": "063_onbc_seed_1_specialize_050_2000_4000_70_120",
-        "checkpoint": 3310000,
-    },
-    {
-        "category": 2,
-        "budget_range": 1,
-        "cpa_range": 2,
-        "path": "067_onbc_seed_1_specialize_050_2000_4000_100_150",
-        "checkpoint": 4570000,
-    },
-    {
-        "category": 2,
-        "budget_range": 2,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 10850000,
-    },
-    {
-        "category": 2,
-        "budget_range": 2,
-        "cpa_range": 1,
-        "path": "065_onbc_seed_1_specialize_050_3000_5000_70_120",
-        "checkpoint": 3240000,
-    },
-    {
-        "category": 2,
-        "budget_range": 2,
-        "cpa_range": 2,
-        "path": "066_onbc_seed_1_specialize_050_3000_5000_100_150",
-        "checkpoint": 7880000,
-    },
-    {
-        "category": 3,
-        "budget_range": 0,
-        "cpa_range": 0,
-        "path": "059_onbc_seed_1_specialize_050_1000_3000_40_90",
-        "checkpoint": 3530000,
-    },
-    {
-        "category": 3,
-        "budget_range": 0,
-        "cpa_range": 1,
-        "path": "062_onbc_seed_1_specialize_050_1000_3000_70_120",
-        "checkpoint": 5900000,
-    },
-    {
-        "category": 3,
-        "budget_range": 0,
-        "cpa_range": 2,
-        "path": "064_onbc_seed_1_specialize_050_1000_3000_100_150",
-        "checkpoint": 4450000,
-    },
-    {
-        "category": 3,
-        "budget_range": 1,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 13170000,
-    },
-    {
-        "category": 3,
-        "budget_range": 1,
-        "cpa_range": 1,
-        "path": "063_onbc_seed_1_specialize_050_2000_4000_70_120",
-        "checkpoint": 3310000,
-    },
-    {
-        "category": 3,
-        "budget_range": 1,
-        "cpa_range": 2,
-        "path": "067_onbc_seed_1_specialize_050_2000_4000_100_150",
-        "checkpoint": 4570000,
-    },
-    {
-        "category": 3,
-        "budget_range": 2,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 13170000,
-    },
-    {
-        "category": 3,
-        "budget_range": 2,
-        "cpa_range": 1,
-        "path": "065_onbc_seed_1_specialize_050_3000_5000_70_120",
-        "checkpoint": 3240000,
-    },
-    {
-        "category": 3,
-        "budget_range": 2,
-        "cpa_range": 2,
-        "path": "066_onbc_seed_1_specialize_050_3000_5000_100_150",
-        "checkpoint": 7880000,
-    },
-    {
-        "category": 4,
-        "budget_range": 0,
-        "cpa_range": 0,
-        "path": "059_onbc_seed_1_specialize_050_1000_3000_40_90",
-        "checkpoint": 3530000,
-    },
-    {
-        "category": 4,
-        "budget_range": 0,
-        "cpa_range": 1,
-        "path": "062_onbc_seed_1_specialize_050_1000_3000_70_120",
-        "checkpoint": 5900000,
-    },
-    {
-        "category": 4,
-        "budget_range": 0,
-        "cpa_range": 2,
-        "path": "064_onbc_seed_1_specialize_050_1000_3000_100_150",
-        "checkpoint": 4450000,
-    },
-    {
-        "category": 4,
-        "budget_range": 1,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 13170000,
-    },
-    {
-        "category": 4,
-        "budget_range": 1,
-        "cpa_range": 1,
-        "path": "063_onbc_seed_1_specialize_050_2000_4000_70_120",
-        "checkpoint": 3310000,
-    },
-    {
-        "category": 4,
-        "budget_range": 1,
-        "cpa_range": 2,
-        "path": "067_onbc_seed_1_specialize_050_2000_4000_100_150",
-        "checkpoint": 4570000,
-    },
-    {
-        "category": 4,
-        "budget_range": 2,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 13170000,
-    },
-    {
-        "category": 4,
-        "budget_range": 2,
-        "cpa_range": 1,
-        "path": "065_onbc_seed_1_specialize_050_3000_5000_70_120",
-        "checkpoint": 3240000,
-    },
-    {
-        "category": 4,
-        "budget_range": 2,
-        "cpa_range": 2,
-        "path": "066_onbc_seed_1_specialize_050_3000_5000_100_150",
-        "checkpoint": 7880000,
-    },
-    {
-        "category": 5,
-        "budget_range": 0,
-        "cpa_range": 0,
-        "path": "059_onbc_seed_1_specialize_050_1000_3000_40_90",
-        "checkpoint": 3530000,
-    },
-    {
-        "category": 5,
-        "budget_range": 0,
-        "cpa_range": 1,
-        "path": "062_onbc_seed_1_specialize_050_1000_3000_70_120",
-        "checkpoint": 5900000,
-    },
-    {
-        "category": 5,
-        "budget_range": 0,
-        "cpa_range": 2,
-        "path": "064_onbc_seed_1_specialize_050_1000_3000_100_150",
-        "checkpoint": 4450000,
-    },
-    {
-        "category": 5,
-        "budget_range": 1,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 3270000,
-    },
-    {
-        "category": 5,
-        "budget_range": 1,
-        "cpa_range": 1,
-        "path": "063_onbc_seed_1_specialize_050_2000_4000_70_120",
-        "checkpoint": 3310000,
-    },
-    {
-        "category": 5,
-        "budget_range": 1,
-        "cpa_range": 2,
-        "path": "067_onbc_seed_1_specialize_050_2000_4000_100_150",
-        "checkpoint": 4570000,
-    },
-    {
-        "category": 5,
-        "budget_range": 2,
-        "cpa_range": 0,
-        "path": "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
-        "checkpoint": 3270000,
-    },
-    {
-        "category": 5,
-        "budget_range": 2,
-        "cpa_range": 1,
-        "path": "065_onbc_seed_1_specialize_050_3000_5000_70_120",
-        "checkpoint": 3240000,
-    },
-    {
-        "category": 5,
-        "budget_range": 2,
-        "cpa_range": 2,
-        "path": "066_onbc_seed_1_specialize_050_3000_5000_100_150",
-        "checkpoint": 7880000,
-    },
-]
-
 
     def __init__(
         self,
@@ -470,23 +88,24 @@ class DetailedEnsemblePpoBiddingStrategy(BaseBiddingStrategy):
         name="PPO-PlayerStrategy",
         cpa=100,
         category=0,
-        model_list=model_list,
         device="cpu",
         deterministic=True,
-        algo="ppo",
+        ensemble_name="ensemble_36"
     ):
         assert 2000 <= budget <= 5000, budget
         assert 60 <= cpa <= 130, cpa
         super().__init__(budget, name, cpa, category)
         self.device = device
-        self.model_df = pd.DataFrame(model_list)
-        unique_models_df = self.model_df.drop_duplicates(subset=["path", "checkpoint"])
+        info_list = json.load(open(ROOT_DIR / "ensembles" / f"{ensemble_name}.json", "r"))
+        self.info_df = pd.DataFrame(info_list)
+        unique_models_df = self.info_df.drop_duplicates(subset=["path", "checkpoint"])
 
         self.model_data_dict = {}
         for path, checkpoint in zip(
             unique_models_df["path"], unique_models_df["checkpoint"]
         ):
-            experiment_path = ROOT_DIR / "saved_model" / "ONBC" / path
+            checkpoint = int(checkpoint)
+            experiment_path = ROOT_DIR / "saved_model" / ensemble_name / path
             model = load_model(
                 "onbc",
                 experiment_path,
@@ -505,7 +124,7 @@ class DetailedEnsemblePpoBiddingStrategy(BaseBiddingStrategy):
                 "vecnormalize": vecnormalize,
                 "train_env": train_env,
             }
-            
+
         self.episode_length = 48
         self.deterministic = deterministic
 
@@ -543,14 +162,16 @@ class DetailedEnsemblePpoBiddingStrategy(BaseBiddingStrategy):
         pvalues_sigma_list = [result[:, 1] for result in historyPValueInfo]
         bid_list = historyBid
         bid_success_list = [result[:, 0] > 0 for result in historyAuctionResult]
-        bid_position_list = [result[:, 1].astype(int) for result in historyAuctionResult]
+        bid_position_list = [
+            result[:, 1].astype(int) for result in historyAuctionResult
+        ]
         # Here we have to adapt the bid position to the one used in the environment.
         # In the challenge it seems that they use 0 for lost, 1-2-3 for first-second-third slot.
         # In the environment we use -1 for lost, 2-1-0 for first-second-third slot (weird choice sorry)
         bid_position_list = [(3 - result).astype(int) for result in bid_position_list]
         for el in bid_position_list:
             el[el == 3] = -1
-        
+
         bid_cost_list = [result[:, 2] for result in historyAuctionResult]
         bid_exposure_list = [result[:, 0] > 0 for result in historyImpressionResult]
         conversions_list = [result[:, 1] for result in historyImpressionResult]
@@ -640,16 +261,17 @@ class DetailedEnsemblePpoBiddingStrategy(BaseBiddingStrategy):
                 ]
 
         state_dict = self.get_state_dict(pValues)
-        
-        model, vecnormalize, train_env = get_model_vecnormalize_train_env(
-            self.model_data_dict, self.model_df, self.category, self.budget, self.cpa
+
+        model, vecnormalize, train_env, max_bid = get_model_vecnormalize_train_env(
+            self.model_data_dict, self.info_df, self.category, self.budget, self.cpa
         )
-        
+
         state = train_env.get_state(state_dict)
         obs = vecnormalize.normalize_obs(state)
         action = model.predict(obs, deterministic=self.deterministic)[0]
         bid_coef = train_env.compute_bid_coef(action, pValues, pValueSigmas)
         bids = bid_coef * self.cpa
+        bids = np.clip(bids, 0, max_bid)
         return bids
 
     def get_state_dict(self, pvalues):
@@ -713,39 +335,22 @@ class DetailedEnsemblePpoBiddingStrategy(BaseBiddingStrategy):
         ]
         return state_dict
 
-# Helper function to map budget to budget range
-def get_budget_range(budget):
-    if budget < 2500:
-        return 0
-    elif 2500 <= budget < 3500:
-        return 1
-    else:
-        return 2
-
-
-# Helper function to map CPA to CPA range
-def get_cpa_range(cpa):
-    if cpa < 80:
-        return 0
-    elif 80 <= cpa < 110:
-        return 1
-    else:
-        return 2
-
 
 # Function to retrieve the correct model
-def get_model_vecnormalize_train_env(model_data_dict, model_df, category, budget, cpa):
-    budget_range = get_budget_range(budget)
-    cpa_range = get_cpa_range(cpa)
-    model_row = model_df[
-        (model_df["category"] == category)
-        & (model_df["budget_range"] == budget_range)
-        & (model_df["cpa_range"] == cpa_range)
+def get_model_vecnormalize_train_env(model_data_dict, info_df, category, budget, cpa):
+    model_info = info_df[
+        (info_df.category == category)
+        & (info_df.budget == budget)
+        & (info_df.cpa == cpa)
     ]
-    assert len(model_row) == 1
-    path = model_row["path"].values[0]
-    checkpoint = model_row["checkpoint"].values[0]
-    model = model_data_dict[path][checkpoint]["model"]
-    vecnormalize = model_data_dict[path][checkpoint]["vecnormalize"]
-    train_env = model_data_dict[path][checkpoint]["train_env"]
-    return model, vecnormalize, train_env
+    if len(model_info) != 1:
+        raise ValueError(
+            f"No single model found for category {category}, budget {budget}, cpa {cpa}"
+        )
+    model_path = model_info["path"].item()
+    model_checkpoint = model_info["checkpoint"].item()
+    model = model_data_dict[model_path][model_checkpoint]["model"]
+    vecnormalize = model_data_dict[model_path][model_checkpoint]["vecnormalize"]
+    train_env = model_data_dict[model_path][model_checkpoint]["train_env"]
+    max_bid = model_info["max_bid"].item()
+    return model, vecnormalize, train_env, max_bid

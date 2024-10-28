@@ -90,11 +90,12 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         experiment_path=ROOT_DIR
         / "saved_model"
         / "ONBC"
-        / "052_onbc_seed_0_flex_two_slopes_oracle_60_obs_fix_oracle_resume_051",
-        checkpoint=3580000,
+        / "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
+        checkpoint=13170000,
         device="cpu",
         deterministic=True,
         algo="ppo",
+        max_bid=0.2,
     ):
         super().__init__(budget, name, cpa, category)
         self.device = device
@@ -115,6 +116,7 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         self.vecnormalize.training = False
         self.episode_length = 48
         self.deterministic = deterministic
+        self.max_bid = max_bid
 
     def reset(self):
         self.remaining_budget = self.budget
@@ -148,18 +150,21 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         """
         assert 2000 <= self.budget <= 5000
         assert 60 <= self.cpa <= 130
+
         pvalues_list = [result[:, 0] for result in historyPValueInfo]
         pvalues_sigma_list = [result[:, 1] for result in historyPValueInfo]
         bid_list = historyBid
         bid_success_list = [result[:, 0] > 0 for result in historyAuctionResult]
-        bid_position_list = [result[:, 1].astype(int) for result in historyAuctionResult]
+        bid_position_list = [
+            result[:, 1].astype(int) for result in historyAuctionResult
+        ]
         # Here we have to adapt the bid position to the one used in the environment.
         # In the challenge it seems that they use 0 for lost, 1-2-3 for first-second-third slot.
         # In the environment we use -1 for lost, 2-1-0 for first-second-third slot (weird choice sorry)
         bid_position_list = [(3 - result).astype(int) for result in bid_position_list]
         for el in bid_position_list:
             el[el == 3] = -1
-        
+
         bid_cost_list = [result[:, 2] for result in historyAuctionResult]
         bid_exposure_list = [result[:, 0] > 0 for result in historyImpressionResult]
         conversions_list = [result[:, 1] for result in historyImpressionResult]
@@ -253,7 +258,16 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         obs = self.vecnormalize.normalize_obs(state)
         action = self.model.predict(obs, deterministic=self.deterministic)[0]
         bid_coef = self.train_env.compute_bid_coef(action, pValues, pValueSigmas)
+
+        # pvalues_corr = pValues - 60 * pValueSigmas * pValues
+        # bid_coef = self.train_env.compute_bid_coef(action, pvalues_corr, pValueSigmas)
+
+        # p0 = 0.001
+        # bid_coef[pValues > 0.001] -= (pValues[pValues > p0] - p0) * 100 * pValues[pValues > p0]
+        # bid_coef *= 1.02
+
         bids = bid_coef * self.cpa
+        bids = np.clip(bids, 0, self.max_bid)
         return bids
 
     def get_state_dict(self, pvalues):

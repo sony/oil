@@ -1,0 +1,386 @@
+[
+    {
+        "advertser": 0,
+        "category": 0,
+        "budget": 2900,
+        "cpa": 100,
+        "path": "101_onbc_seed_42_resume_053_advertiser_0_exclude_self",
+        "checkpoint": 13215000
+    },
+    {
+        "advertser": 1,
+        "category": 0,
+        "budget": 4350,
+        "cpa": 70,
+        "path": "102_onbc_seed_42_resume_053_advertiser_1_exclude_self",
+        "checkpoint": 14265000
+    },
+    {
+        "advertser": 2,
+        "category": 0,
+        "budget": 3000,
+        "cpa": 90,
+        "path": "103_onbc_seed_42_resume_053_advertiser_2_exclude_self",
+        "checkpoint": 13205000
+    },
+    {
+        "advertser": 3,
+        "category": 0,
+        "budget": 2400,
+        "cpa": 110,
+        "path": "104_onbc_seed_42_resume_053_advertiser_3_exclude_self",
+        "checkpoint": 13215000
+    },
+    {
+        "advertser": 4,
+        "category": 0,
+        "budget": 4800,
+        "cpa": 60,
+        "path": "105_onbc_seed_42_resume_053_advertiser_4_exclude_self",
+        "checkpoint": 13750000
+    },
+    {
+        "advertser": 5,
+        "category": 0,
+        "budget": 2000,
+        "cpa": 130,
+        "path": "106_onbc_seed_42_resume_053_advertiser_5_exclude_self",
+        "checkpoint": 13985000
+    },
+    {
+        "advertser": 6,
+        "category": 0,
+        "budget": 2050,
+        "cpa": 120,
+        "path": "218_onbc_seed_42_resume_053_advertiser_6_exclude_self",
+        "checkpoint": 14120000
+    },
+    {
+        "advertser": 7,
+        "category": 0,
+        "budget": 3500,
+        "cpa": 80,
+        "path": "219_onbc_seed_42_resume_053_advertiser_7_exclude_self",
+        "checkpoint": 13195000
+    },
+    {
+        "advertser": 8,
+        "category": 1,
+        "budget": 4600,
+        "cpa": 70,
+        "path": "109_onbc_seed_42_resume_053_advertiser_8_exclude_self",
+        "checkpoint": 13260000
+    },
+    {
+        "advertser": 9,
+        "category": 1,
+        "budget": 2000,
+        "cpa": 130,
+        "path": "221_onbc_seed_42_resume_053_advertiser_9_exclude_self",
+        "checkpoint": 13530000
+    },
+    {
+        "advertser": 10,
+        "category": 1,
+        "budget": 2800,
+        "cpa": 100,
+        "path": "222_onbc_seed_42_resume_053_advertiser_10_exclude_self",
+        "checkpoint": 13520000
+    },
+    {
+        "advertser": 11,
+        "category": 1,
+        "budget": 2350,
+        "cpa": 110,
+        "path": "224_onbc_seed_42_resume_053_advertiser_12_exclude_self",
+        "checkpoint": 13850000
+    },
+    {
+        "advertser": 12,
+        "category": 1,
+        "budget": 2050,
+        "cpa": 120,
+        "path": "113_onbc_seed_42_resume_053_advertiser_12_exclude_self",
+        "checkpoint": 13175000
+    },
+    {
+        "advertser": 13,
+        "category": 1,
+        "budget": 2900,
+        "cpa": 90,
+        "path": "225_onbc_seed_42_resume_053_advertiser_13_exclude_self",
+        "checkpoint": 13305000
+    },
+    {
+        "advertser": 14,
+        "category": 1,
+        "budget": 4750,
+        "cpa": 60,
+        "path": "227_onbc_seed_42_resume_053_advertiser_15_exclude_self",
+        "checkpoint": 13380000
+    },
+    {
+        "advertser": 15,
+        "category": 1,
+        "budget": 3450,
+        "cpa": 80,
+        "path": "116_onbc_seed_42_resume_053_advertiser_15_exclude_self",
+        "checkpoint": 13240000
+    },
+    {
+        "advertser": 16,
+        "category": 2,
+        "budget": 2000,
+        "cpa": 130,
+        "path": "098_onbc_seed_42_resume_053_advertiser_16_exclude_self",
+        "checkpoint": 13790000
+    },
+    {
+        "advertser": 17,
+        "category": 2,
+        "budget": 3500,
+        "cpa": 80,
+        "path": "068_onbc_seed_42_new_data_realistic_60_obs_resume_053_with_period_27",
+        "checkpoint": 15938892
+    },
+    {
+        "advertser": 18,
+        "category": 2,
+        "budget": 2200,
+        "cpa": 110,
+        "path": "089_onbc_seed_42_resume_053_advertiser_18_exclude_self",
+        "checkpoint": 14260000
+    },
+    {
+        "advertser": 19,
+        "category": 2,
+        "budget": 2700,
+        "cpa": 100,
+        "path": "090_onbc_seed_42_resume_053_advertiser_19_exclude_self",
+        "checkpoint": 13265000
+    },
+    {
+        "advertser": 20,
+        "category": 2,
+        "budget": 3100,
+        "cpa": 90,
+        "path": "091_onbc_seed_42_resume_053_advertiser_20_exclude_self",
+        "checkpoint": 14000000
+    },
+    {
+        "advertser": 21,
+        "category": 2,
+        "budget": 2100,
+        "cpa": 120,
+        "path": "092_onbc_seed_42_resume_053_advertiser_21_exclude_self",
+        "checkpoint": 14085000
+    },
+    {
+        "advertser": 22,
+        "category": 2,
+        "budget": 4850,
+        "cpa": 60,
+        "path": "093_onbc_seed_42_resume_053_advertiser_22_exclude_self",
+        "checkpoint": 13470000
+    },
+    {
+        "advertser": 23,
+        "category": 2,
+        "budget": 4100,
+        "cpa": 70,
+        "path": "094_onbc_seed_42_resume_053_advertiser_23_exclude_self",
+        "checkpoint": 14185000
+    },
+    {
+        "advertser": 24,
+        "category": 3,
+        "budget": 2000,
+        "cpa": 120,
+        "path": "095_onbc_seed_42_resume_053_advertiser_24_exclude_self",
+        "checkpoint": 13335000
+    },
+    {
+        "advertser": 25,
+        "category": 3,
+        "budget": 4800,
+        "cpa": 60,
+        "path": "096_onbc_seed_42_resume_053_advertiser_25_exclude_self",
+        "checkpoint": 13340000
+    },
+    {
+        "advertser": 26,
+        "category": 3,
+        "budget": 3050,
+        "cpa": 90,
+        "path": "097_onbc_seed_42_resume_053_advertiser_26_exclude_self",
+        "checkpoint": 13225000
+    },
+    {
+        "advertser": 27,
+        "category": 3,
+        "budget": 4250,
+        "cpa": 70,
+        "path": "100_onbc_seed_42_resume_053_advertiser_27_exclude_self",
+        "checkpoint": 15905000
+    },
+    {
+        "advertser": 28,
+        "category": 3,
+        "budget": 2850,
+        "cpa": 100,
+        "path": "228_onbc_seed_42_resume_053_advertiser_28_exclude_self",
+        "checkpoint": 13260000
+    },
+    {
+        "advertser": 29,
+        "category": 3,
+        "budget": 2250,
+        "cpa": 110,
+        "path": "118_onbc_seed_42_resume_053_advertiser_29_exclude_self",
+        "checkpoint": 15270000
+    },
+    {
+        "advertser": 30,
+        "category": 3,
+        "budget": 2000,
+        "cpa": 130,
+        "path": "203_onbc_seed_42_resume_053_advertiser_30_exclude_self",
+        "checkpoint": 13235000
+    },
+    {
+        "advertser": 31,
+        "category": 3,
+        "budget": 3900,
+        "cpa": 80,
+        "path": "120_onbc_seed_42_resume_053_advertiser_31_exclude_self",
+        "checkpoint": 13375000
+    },
+    {
+        "advertser": 32,
+        "category": 4,
+        "budget": 2000,
+        "cpa": 120,
+        "path": "121_onbc_seed_42_resume_053_advertiser_32_exclude_self",
+        "checkpoint": 14100000
+    },
+    {
+        "advertser": 33,
+        "category": 4,
+        "budget": 3250,
+        "cpa": 90,
+        "path": "122_onbc_seed_42_resume_053_advertiser_33_exclude_self",
+        "checkpoint": 14250000
+    },
+    {
+        "advertser": 34,
+        "category": 4,
+        "budget": 4450,
+        "cpa": 70,
+        "path": "123_onbc_seed_42_resume_053_advertiser_34_exclude_self",
+        "checkpoint": 13200000
+    },
+    {
+        "advertser": 35,
+        "category": 4,
+        "budget": 3550,
+        "cpa": 80,
+        "path": "124_onbc_seed_42_resume_053_advertiser_35_exclude_self",
+        "checkpoint": 13245000
+    },
+    {
+        "advertser": 36,
+        "category": 4,
+        "budget": 2700,
+        "cpa": 100,
+        "path": "125_onbc_seed_42_resume_053_advertiser_36_exclude_self",
+        "checkpoint": 13200000
+    },
+    {
+        "advertser": 37,
+        "category": 4,
+        "budget": 2100,
+        "cpa": 110,
+        "path": "126_onbc_seed_42_resume_053_advertiser_37_exclude_self",
+        "checkpoint": 14100000
+    },
+    {
+        "advertser": 38,
+        "category": 4,
+        "budget": 4650,
+        "cpa": 60,
+        "path": "127_onbc_seed_42_resume_053_advertiser_38_exclude_self",
+        "checkpoint": 13225000
+    },
+    {
+        "advertser": 39,
+        "category": 4,
+        "budget": 2000,
+        "cpa": 130,
+        "path": "128_onbc_seed_42_resume_053_advertiser_39_exclude_self",
+        "checkpoint": 14060000
+    },
+    {
+        "advertser": 40,
+        "category": 5,
+        "budget": 3400,
+        "cpa": 90,
+        "path": "207_onbc_seed_42_resume_053_advertiser_40_exclude_self",
+        "checkpoint": 13205000
+    },
+    {
+        "advertser": 41,
+        "category": 5,
+        "budget": 2650,
+        "cpa": 100,
+        "path": "130_onbc_seed_42_resume_053_advertiser_41_exclude_self",
+        "checkpoint": 13205000
+    },
+    {
+        "advertser": 42,
+        "category": 5,
+        "budget": 2300,
+        "cpa": 110,
+        "path": "131_onbc_seed_42_resume_053_advertiser_42_exclude_self",
+        "checkpoint": 13175000
+    },
+    {
+        "advertser": 43,
+        "category": 5,
+        "budget": 4100,
+        "cpa": 80,
+        "path": "132_onbc_seed_42_resume_053_advertiser_43_exclude_self",
+        "checkpoint": 13850000
+    },
+    {
+        "advertser": 44,
+        "category": 5,
+        "budget": 4800,
+        "cpa": 60,
+        "path": "133_onbc_seed_42_resume_053_advertiser_44_exclude_self",
+        "checkpoint": 13260000
+    },
+    {
+        "advertser": 45,
+        "category": 5,
+        "budget": 4450,
+        "cpa": 70,
+        "path": "134_onbc_seed_42_resume_053_advertiser_45_exclude_self",
+        "checkpoint": 13695000
+    },
+    {
+        "advertser": 46,
+        "category": 5,
+        "budget": 2000,
+        "cpa": 130,
+        "path": "135_onbc_seed_42_resume_053_advertiser_46_exclude_self",
+        "checkpoint": 13525000
+    },
+    {
+        "advertser": 47,
+        "category": 5,
+        "budget": 2050,
+        "cpa": 120,
+        "path": "136_onbc_seed_42_resume_053_advertiser_47_exclude_self",
+        "checkpoint": 13550000
+    }
+]

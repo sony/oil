@@ -2,6 +2,7 @@
 # from .iql_bidding_strategy import IqlBiddingStrategy as PlayerBiddingStrategy
 # from .bc_bidding_strategy import BcBiddingStrategy as PlayerBiddingStrategy
 # from .onlinelp_bidding_strategy import OnlineLpBiddingStrategy as PlayerBiddingStrategy
-from .ppo_bidding_strategy import PpoBiddingStrategy as PlayerBiddingStrategy
+# from .ppo_bidding_strategy import PpoBiddingStrategy as PlayerBiddingStrategy
 # from .ensemble_ppo_bidding_strategy import EnsemblePpoBiddingStrategy as PlayerBiddingStrategy
+from .detailed_ensemble_ppo_bidding_strategy import DetailedEnsemblePpoBiddingStrategy as PlayerBiddingStrategy
 # from .onbc_transformer_bidding_strategy import ONBCTransformerBiddingStrategy as PlayerBiddingStrategy

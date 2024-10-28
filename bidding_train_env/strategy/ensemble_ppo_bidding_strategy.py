@@ -103,28 +103,33 @@ class EnsemblePpoBiddingStrategy(BaseBiddingStrategy):
             ROOT_DIR
             / "saved_model"
             / "ONBC"
-            / "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
+            / "068_onbc_seed_42_new_data_realistic_60_obs_resume_053_with_period_27",
+            ROOT_DIR
+            / "saved_model"
+            / "ONBC"
+            / "068_onbc_seed_42_new_data_realistic_60_obs_resume_053_with_period_27",  
         ],
         checkpoint_list=[
             4600000,
             3270000,
-            10850000,
-            13170000
+            13170000,
+            16868520,
+            14439492
         ],
         category_policy_dict={
             0: 0,
-            1: 3,
-            2: 2,
-            3: 3,
-            4: 3,
+            1: 2,
+            2: 3,
+            3: 4,
+            4: 2,
             5: 1,
         },
         device="cpu",
         deterministic=True,
         algo="ppo",
     ):
-        assert 2000 <= budget <= 5000, budget
-        assert 60 <= cpa <= 130, cpa
+        if not 2000 <= budget <= 5000 and 60 <= cpa <= 130:
+            raise ValueError(f"No policy of the ensemple trained for the given budget and cpa: {budget}, {cpa}")
         super().__init__(budget, name, cpa, category)
         self.device = device
         self.experiment_path_list = experiment_path_list
