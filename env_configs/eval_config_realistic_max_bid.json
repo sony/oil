@@ -17,6 +17,7 @@
     "simplified_bidding": false,
     "stochastic_exposure": true,
     "exclude_self_bids": false,
-    "deterministic_conversion": true,
-    "seed": 0
+    "deterministic_conversion": false,
+    "seed": 0,
+    "max_bid": 0.23
 }

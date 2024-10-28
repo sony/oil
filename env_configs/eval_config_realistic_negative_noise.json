@@ -18,5 +18,9 @@
     "stochastic_exposure": true,
     "exclude_self_bids": false,
     "deterministic_conversion": false,
-    "seed": 0
+    "seed": 0,
+    "auction_noise": [
+        -0.2,
+        0
+    ]
 }
