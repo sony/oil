@@ -10,7 +10,7 @@ target_folder="saved_model/ONBC/${exp_name}"
 mkdir -p "$target_folder"
 
 # Copy all files that are not checkpoint files
-find "$source_folder" -type f ! -name "rl_model_*_steps.zip" ! -name "rl_model_vecnormalize_*_steps.pkl" -exec cp {} "$target_folder" \;
+find "$source_folder" -type f ! -name "rl_model_*_steps.zip" ! -name "rl_model_vecnormalize_*_steps.pkl" ! -name "events*" -exec cp {} "$target_folder" \;
 
 # Copy the specified checkpoint files
 cp "${source_folder}/rl_model_${checkpoint}_steps.zip" "${target_folder}/"
