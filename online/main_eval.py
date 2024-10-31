@@ -21,13 +21,16 @@ from helpers import (
     get_number,
     load_model,
     load_vecnormalize,
-    get_sorted_checkpoints
+    get_sorted_checkpoints,
 )
 
 torch.manual_seed(0)
 
-CKPT_CHOICE_CRITERION = "train/imitation_loss"  # "rollout/ep_rew_mean", "rollout/solved"
+CKPT_CHOICE_CRITERION = (
+    "train/imitation_loss"  # "rollout/ep_rew_mean", "rollout/solved"
+)
 descending = False
+
 
 def main(args):
     start_ts = int(time.time())
@@ -43,9 +46,15 @@ def main(args):
         train_config = json.load(open(experiment_path / ENV_CONFIG_NAME, "r"))
 
         if args.eval_config_path is None:
-            env_config = {key: val for key, val in train_config.items() if key != "seed"}
-            env_config["pvalues_df_path"] = "data/online_rl_data_final_with_ad_idx/period-27_pvalues.parquet"
-            env_config["bids_df_path"] = "data/online_rl_data_final_with_ad_idx/period-27_bids.parquet",
+            env_config = {
+                key: val for key, val in train_config.items() if key != "seed"
+            }
+            env_config["pvalues_df_path"] = (
+                "data/online_rl_data_final_with_ad_idx/period-27_pvalues.parquet"
+            )
+            env_config["bids_df_path"] = (
+                "data/online_rl_data_final_with_ad_idx/period-27_bids.parquet",
+            )
         else:
             env_config = json.load(open(args.eval_config_path, "r"))
         if args.compute_baseline:
@@ -56,9 +65,11 @@ def main(args):
             flex_topline_config = env_config.copy()
             flex_topline_config["flex_oracle"] = True
             flex_topline_config["two_slopes_action"] = args.two_slopes_action
-            flex_topline_config["flex_oracle_cost_weight"] = args.flex_oracle_cost_weight
+            flex_topline_config["flex_oracle_cost_weight"] = (
+                args.flex_oracle_cost_weight
+            )
             flex_topline_env = EnvironmentFactory.create(**flex_topline_config)
-            
+
         env_config["obs_keys"] = train_config["obs_keys"]
         if "act_keys" in train_config:
             env_config["act_keys"] = train_config["act_keys"]
@@ -87,18 +98,20 @@ def main(args):
             tb_dir_path = os.path.join(
                 experiment_path, ALGO_TB_DIR_NAME_DICT[args.algo]
             )
-            experiment_data = get_experiment_data(
-                tb_dir_path, CKPT_CHOICE_CRITERION
-            )
+            experiment_data = get_experiment_data(tb_dir_path, CKPT_CHOICE_CRITERION)
             steps = experiment_data[CKPT_CHOICE_CRITERION]["x"][0]
             rewards = experiment_data[CKPT_CHOICE_CRITERION]["y"][0]
 
             if len(checkpoints):
                 if args.all_checkpoints:
-                    checkpoint_list = get_sorted_checkpoints(steps, rewards, checkpoints, descending)
+                    checkpoint_list = get_sorted_checkpoints(
+                        steps, rewards, checkpoints, descending
+                    )
                 else:
                     # Select the checkpoint corresponding to the best reward
-                    checkpoint = get_best_checkpoint(steps, rewards, checkpoints, descending)
+                    checkpoint = get_best_checkpoint(
+                        steps, rewards, checkpoints, descending
+                    )
                     checkpoint_list = [checkpoint]
             else:
                 checkpoint_list = [None]
@@ -109,7 +122,7 @@ def main(args):
     best_checkpoint = None
     score_list = []
     dataset_list = []
-    
+
     for checkpoint in checkpoint_list:
         model = load_model(
             args.algo,
@@ -120,12 +133,13 @@ def main(args):
 
         # Collect rollouts and store them
         vecnormalize.training = False
-        mean_ep_rew = 0
-        mean_ep_cost_over_budget = 0
-        mean_ep_target_cpa_over_cpa = 0
-        mean_baseline_ep_rew = 0
-        mean_topline_ep_rew = 0
-        mean_flex_topline_ep_rew = 0
+        ep_rew_list = []
+        ep_cost_over_budget_list = []
+        ep_target_cpa_over_cpa_list = []
+        ep_baseline_rew_list = []
+        ep_topline_rew_list = []
+        ep_flex_topline_rew_list = []
+
         for i in range(args.num_episodes):
             lstm_states = None
             ep_rew = 0
@@ -157,7 +171,7 @@ def main(args):
                     env.unwrapped.episode_pvalues_df
                 )
                 topline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
-            
+
             if args.compute_flex_topline:
                 flex_topline_env.reset(
                     budget=env.unwrapped.total_budget,
@@ -168,7 +182,9 @@ def main(args):
                 flex_topline_env.unwrapped.episode_pvalues_df = (
                     env.unwrapped.episode_pvalues_df
                 )
-                flex_topline_env.unwrapped.episode_bids_df = env.unwrapped.episode_bids_df
+                flex_topline_env.unwrapped.episode_bids_df = (
+                    env.unwrapped.episode_bids_df
+                )
 
             episode_starts = np.ones((1,), dtype=bool)
             done = False
@@ -193,7 +209,7 @@ def main(args):
                         episode_start=episode_starts,
                         deterministic=args.deterministic,
                     )
-                
+
                 if args.create_dataset:
                     oracle_action = env.unwrapped.get_flex_oracle_action()
                     pvalues, pvalues_sigma = env.unwrapped.get_pvalues_mean_and_std()
@@ -223,42 +239,82 @@ def main(args):
                     # )
                     _, topline_rewards, _, _, _ = topline_env.step(topline_action)
                     topline_ep_rew += topline_rewards
-                
+
                 if args.compute_flex_topline:
-                    flex_topline_action = flex_topline_env.unwrapped.get_flex_oracle_action()
-                    _, flex_topline_rewards, _, _, _ = flex_topline_env.step(flex_topline_action)
+                    flex_topline_action = (
+                        flex_topline_env.unwrapped.get_flex_oracle_action()
+                    )
+                    _, flex_topline_rewards, _, _, _ = flex_topline_env.step(
+                        flex_topline_action
+                    )
                     flex_topline_ep_rew += flex_topline_rewards
-                    
+
                 done = terminated or truncated
                 episode_starts = done
                 ep_rew += rewards
                 step += 1
-            mean_ep_rew = (mean_ep_rew * i + ep_rew) / (i + 1)
-            mean_ep_cost_over_budget = (mean_ep_cost_over_budget * i + info["cost_over_budget"]) / (i + 1)
-            mean_ep_target_cpa_over_cpa = (mean_ep_target_cpa_over_cpa * i + info["target_cpa_over_cpa"]) / (i + 1)
+            ep_rew_list.append(ep_rew)
+            ep_cost_over_budget_list.append(info["cost_over_budget"])
+            ep_target_cpa_over_cpa_list.append(info["target_cpa_over_cpa"])
+
             if args.compute_baseline:
-                mean_baseline_ep_rew = (mean_baseline_ep_rew * i + baseline_ep_rew) / (
-                    i + 1
+                ep_baseline_rew_list.append(baseline_ep_rew)
+            if args.compute_topline:
+                ep_topline_rew_list.append(topline_ep_rew)
+            if args.compute_flex_topline:
+                ep_flex_topline_rew_list.append(flex_topline_ep_rew)
+
+            mean_ep_rew = np.mean(ep_rew_list)
+            sem_ep_rew = np.std(ep_rew_list) / np.sqrt(len(ep_rew_list))
+            mean_ep_cost_over_budget = np.mean(ep_cost_over_budget_list)
+            sem_ep_cost_over_budget = np.std(ep_cost_over_budget_list) / np.sqrt(
+                len(ep_cost_over_budget_list)
+            )
+            mean_ep_target_cpa_over_cpa = np.mean(ep_target_cpa_over_cpa_list)
+            sem_ep_target_cpa_over_cpa = np.std(ep_target_cpa_over_cpa_list) / np.sqrt(
+                len(ep_target_cpa_over_cpa_list)
+            )
+
+            if args.compute_baseline:
+                mean_baseline_ep_rew = np.mean(ep_baseline_rew_list)
+                sem_baseline_ep_rew = np.std(ep_baseline_rew_list) / np.sqrt(
+                    len(ep_baseline_rew_list)
                 )
             if args.compute_topline:
-                mean_topline_ep_rew = (mean_topline_ep_rew * i + topline_ep_rew) / (
-                    i + 1
+                mean_topline_ep_rew = np.mean(ep_topline_rew_list)
+                sem_topline_ep_rew = np.std(ep_topline_rew_list) / np.sqrt(
+                    len(ep_topline_rew_list)
                 )
-                
             if args.compute_flex_topline:
-                mean_flex_topline_ep_rew = (mean_flex_topline_ep_rew * i + flex_topline_ep_rew) / (
-                    i + 1
+                mean_flex_topline_ep_rew = np.mean(ep_flex_topline_rew_list)
+                sem_flex_topline_ep_rew = np.std(ep_flex_topline_rew_list) / np.sqrt(
+                    len(ep_flex_topline_rew_list)
                 )
-            str_out = "Ep: {} ep rew: {:.2f}, avg score: {:.2f}, avg c/b: {:.2f}, avg t_cpa/cpa: {:.2f},".format(
-                i, ep_rew, mean_ep_rew, mean_ep_cost_over_budget, mean_ep_target_cpa_over_cpa
+
+            str_out = "Ep: {} ep rew: {:.2f}, avg score: {:.2f} ± {:.2f}, avg c/b: {:.2f} ± {:.2f}, avg t_cpa/cpa: {:.2f} ± {:.2f},".format(
+                i,
+                ep_rew,
+                mean_ep_rew,
+                sem_ep_rew,
+                mean_ep_cost_over_budget,
+                sem_ep_cost_over_budget,
+                mean_ep_target_cpa_over_cpa,
+                sem_ep_target_cpa_over_cpa,
             )
             if args.compute_baseline:
-                str_out += " avg_baseline_score: {:.2f}".format(mean_baseline_ep_rew)
+                str_out += " avg_baseline_score: {:.2f} ± {:.2f}".format(
+                    mean_baseline_ep_rew, sem_baseline_ep_rew
+                )
             if args.compute_topline:
-                str_out += " avg_topline_score: {:.2f}".format(mean_topline_ep_rew)
+                str_out += " avg_topline_score: {:.2f} ± {:.2f}".format(
+                    mean_topline_ep_rew, sem_topline_ep_rew
+                )
             if args.compute_flex_topline:
-                str_out += " avg_flex_topline_score: {:.2f}".format(mean_flex_topline_ep_rew)
+                str_out += " avg_flex_topline_score: {:.2f} ± {:.2f}".format(
+                    mean_flex_topline_ep_rew, sem_flex_topline_ep_rew
+                )
             print(str_out)
+
         env.close()
         score_list.append(mean_ep_rew)
         if mean_ep_rew > best_score:
@@ -282,8 +338,11 @@ def main(args):
             out_path = ROOT_DIR / "output" / "testing" / experiment_name
             out_path.mkdir(parents=True, exist_ok=True)
             dataset_df = pd.DataFrame(dataset_list)
-            dataset_df.to_parquet(out_path / f"dataset_seed_{args.seed}.parquet", index=False)
+            dataset_df.to_parquet(
+                out_path / f"dataset_seed_{args.seed}.parquet", index=False
+            )
             print("Dataset saved at", out_path / "dataset.parquet")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -613,7 +672,7 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
 
 25.86
 python online/main_eval.py --algo ppo --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_29_obs_exp_single_action_realistic_auction_new_data \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 4350000 \
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 4350000 \
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
 python online/main_eval.py --algo ppo --experiment_path=output/training/ongoing/042_ppo_seed_0_dense_29_obs_exp_single_action_realistic_auction_new_data \
@@ -1097,7 +1156,7 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
         
 # 29.62 stoch, 29.28 det  --  stochastic result not reproducible?
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 13170000\
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 13170000 --compute_flex_topline --two_slopes_action\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
 
 python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
