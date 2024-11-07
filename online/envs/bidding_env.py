@@ -2,89 +2,18 @@ import gymnasium as gym
 import numpy as np
 import pandas as pd
 from .helpers import safe_mean, safe_max
+from definitions import (
+    DEFAULT_ACT_KEYS,
+    DEFAULT_OBS_KEYS,
+    DEFAULT_RWD_WEIGHTS,
+    HISTORY_KEYS,
+    NO_HISTORY_KEYS,
+    HISTORY_AND_SLOT_KEYS,
+)
 
 
 class BiddingEnv(gym.Env):
-    DEFAULT_OBS_KEYS = [
-        "time_left",
-        "budget_left",
-        "historical_bid_mean",
-        "last_three_bid_mean",
-        "least_winning_cost_mean",
-        "pvalues_mean",
-        "conversion_mean",
-        "bid_success_mean",
-        "last_three_least_winning_cost_mean",
-        "last_three_pvalues_mean",
-        "last_three_conversion_mean",
-        "last_three_bid_success_mean",
-        "current_pvalues_mean",
-        "current_pv_num",
-        "last_three_pv_num",
-        "pv_num_total",
-    ]
-
-    DEFAULT_ACT_KEYS = [
-        "pvalue",
-    ]
-
-    DEFAULT_RWD_WEIGHTS = {
-        "dense": 0.0,
-        "sparse": 1.0,
-    }
     EPS = 1e-6
-
-    NO_HISTORY_KEYS = [
-        "time_left",
-        "budget_left",
-        "budget",
-        "cpa",
-        "category",
-        "total_conversions",
-        "total_cost",
-        "total_cpa",
-        "current_pvalues_mean",
-        "current_pvalues_90_pct",
-        "current_pvalues_99_pct",
-        "current_pv_num",
-    ]
-
-    HISTORY_KEYS = [
-        "least_winning_cost_mean",
-        "least_winning_cost_10_pct",
-        "least_winning_cost_01_pct",
-        "cpa_exceedence_rate",
-        "pvalues_mean",
-        "conversion_mean",
-        "conversion_count",
-        "bid_success_mean",
-        "successful_bid_position_mean",
-        "bid_over_lwc_mean",
-        "pv_over_lwc_mean",
-        "pv_over_lwc_90_pct",
-        "pv_over_lwc_99_pct",
-        "pv_num",
-        "exposure_count",
-        "cost_sum",
-    ]
-
-    HISTORY_AND_SLOT_KEYS = [
-        "bid_mean",
-        "cost_mean",
-        "bid_success_count",
-        "exposure_mean",
-    ]
-    DEFAULT_PV_RANGE_LIST = [
-        0.00011247,
-        0.00019815,
-        0.00026507,
-        0.0003291,
-        0.00039722,
-        0.00047526,
-        0.00057239,
-        0.00070457,
-        0.00092093,
-    ]
 
     def __init__(
         self,
@@ -96,29 +25,17 @@ class BiddingEnv(gym.Env):
         obs_keys=DEFAULT_OBS_KEYS,
         rwd_weights=DEFAULT_RWD_WEIGHTS,
         act_keys=DEFAULT_ACT_KEYS,
-        new_action=False,
-        multi_action=False,  # Deprecated, select the action keys instead
-        exp_action=False,
-        sample_log_budget=False,
-        simplified_bidding=False,
         auction_noise=(0, 0),
-        pvalues_rescale_range=(1, 1),
-        simplified_exposure_prob_range=(1, 1),
         stochastic_exposure=False,
         deterministic_conversion=False,
-        simplified_oracle=False,
         flex_oracle=False,
         flex_oracle_cost_weight=0.5,  # How to mix lower and upper cost
-        exclude_self_bids=False,
-        cpa_multiplier=1,
-        piecewise_linear_action=False,
-        pv_range_list=DEFAULT_PV_RANGE_LIST,
+        exclude_self_bids=True,
         two_slopes_action=False,
         detailed_bid=False,
         batch_state=False,  # For evaluation, return matrix obs
         advertiser_categories=None,
         seed=0,
-        max_bid=10.,
     ):
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
@@ -126,38 +43,11 @@ class BiddingEnv(gym.Env):
             shape=(len(obs_keys) + 2 * detailed_bid,),
             dtype=np.float32,
         )
-        if multi_action:
-            print(
-                "Warning: multi_action is deprecated, use act_keys instead. Ignoring act_keys."
-            )
-            self.act_keys = [
-                "pvalue",
-                "pvalue_sigma",
-                "pvalue_square",
-                "pvalue_sigma_square",
-                "pvalue_sigma_pvalue",
-                "pvalue_sqrt",
-            ]
-        else:
-            self.act_keys = act_keys
+        self.act_keys = act_keys
         self.pvalues_key_pos = self.act_keys.index("pvalue")
-        if new_action:
-            low_lim = -10
-            high_lim = 10
-        else:
-            low_lim = 0
-            high_lim = 10
-        if exp_action:
-            assert new_action, "Exponential action requires new action"
-
-        if piecewise_linear_action:
-            self.action_space = gym.spaces.Box(
-                low=-10,
-                high=10,
-                shape=(len(self.act_keys) + len(pv_range_list),),
-                dtype=np.float32,
-            )
-        elif two_slopes_action:
+        low_lim = -10
+        high_lim = 10
+        if two_slopes_action:
             self.action_space = gym.spaces.Box(
                 low=low_lim, high=high_lim, shape=(3,), dtype=np.float32
             )
@@ -167,31 +57,18 @@ class BiddingEnv(gym.Env):
             )
         self.obs_keys = obs_keys
         self.rwd_weights = rwd_weights
-        self.new_action = new_action
-        self.exp_action = exp_action
-        self.sample_log_budget = sample_log_budget
-        self.simplified_bidding = simplified_bidding
         if isinstance(auction_noise, (int, float)):
             self.auction_noise_min = self.auction_noise_max = auction_noise
         else:
             self.auction_noise_min, self.auction_noise_max = auction_noise
-        self.pvalues_rescale_min, self.pvalues_rescale_max = pvalues_rescale_range
-        self.simplified_exposure_prob_min, self.simplified_exposure_prob_max = (
-            simplified_exposure_prob_range
-        )
         self.stochastic_exposure = stochastic_exposure
         self.deterministic_conversion = deterministic_conversion
-        self.simplified_oracle = simplified_oracle
         self.flex_oracle = flex_oracle
         self.exclude_self_bids = exclude_self_bids
-        self.cpa_multiplier = cpa_multiplier
-        self.piecewise_linear_action = piecewise_linear_action
         self.two_slopes_action = two_slopes_action
-        self.pv_range_list = pv_range_list
         self.cost_weight = flex_oracle_cost_weight
         self.detailed_bid = detailed_bid
         self.batch_state = batch_state
-        self.max_bid = max_bid
 
         if pvalues_df_path is None or bids_df_path is None:
             print("Warning: creating a dummy environment with no dataset")
@@ -238,25 +115,21 @@ class BiddingEnv(gym.Env):
         self.total_cost = 0
         self.total_cpa = 0
         self.pv_num_total = 0
-        self.history_info = {key: [] for key in self.HISTORY_KEYS}
-        self.history_info.update({key: [] for key in self.NO_HISTORY_KEYS})
-        self.history_info.update({key: [] for key in self.HISTORY_AND_SLOT_KEYS})
+        self.history_info = {key: [] for key in HISTORY_KEYS}
+        self.history_info.update({key: [] for key in NO_HISTORY_KEYS})
+        self.history_info.update({key: [] for key in HISTORY_AND_SLOT_KEYS})
         self.history_info.update(
             {
                 f"{key}_slot_{slot}": []
-                for key in self.HISTORY_AND_SLOT_KEYS
+                for key in HISTORY_AND_SLOT_KEYS
                 for slot in range(1, 4)
             }
         )
 
-        self.pvalues_rescale_coef = self.np_random.uniform(
-            self.pvalues_rescale_min, self.pvalues_rescale_max
-        )
-        self.simplified_exposure_prob = self.np_random.uniform(
-            self.simplified_exposure_prob_min, self.simplified_exposure_prob_max
-        )
         self.episode_bids_df = self.get_episode_bids_df()
         self.episode_pvalues_df = self.get_episode_pvalues_df()
+
+        # TODO: try to merge some of these attributes
         self.ranked_df = None
         self.impression_ids = None
         self.slots = None
@@ -305,9 +178,11 @@ class BiddingEnv(gym.Env):
 
     def step(self, action):
         if self.detailed_bid and not self.batch_state:
+            # The action is just for one pv, we need to keep track of the bids for all pvs
             self.cur_action[self.pv_idx, self.pvalues_key_pos] = action
             self.pv_idx = (self.pv_idx + 1) % self.cur_pv_num
             if self.pv_idx == 0:
+                # We have collected actions for each pv, execute the step
                 obs, reward, terminated, truncated, info = self.execute_step(
                     self.cur_action
                 )
@@ -341,7 +216,8 @@ class BiddingEnv(gym.Env):
         top_bids_exposed = bid_data.isExposed.item()
         if self.stochastic_exposure:
             # We simulate exposure as a Bernoulli with the mean exposure probability per slot
-            # It could be unrealistic that one bid is not exposed but a lower one is, should be fine for training
+            # It could be unrealistic that one bid is not exposed but a lower one is,
+            # but it should be irrelevant from a single agent's perspective
             exposure_prob_per_slot = np.mean(top_bids_exposed, axis=0)
             top_bids_exposed = self.np_random.binomial(
                 n=1, p=exposure_prob_per_slot, size=top_bids_exposed.shape
@@ -517,7 +393,6 @@ class BiddingEnv(gym.Env):
             least_winning_cost,
         )
 
-        # TODO: check if the conversion depends on the position (AC: small dependence, we ignore it for now)
         if self.deterministic_conversion:
             bid_conversion = pvalues * bid_exposed
         else:
@@ -532,37 +407,18 @@ class BiddingEnv(gym.Env):
     def compute_success_exposition_cost(
         self, advertiser_bids, top_bids, top_bids_exposed, least_winning_cost
     ):
-        if self.simplified_bidding:
-            bid_success = advertiser_bids >= least_winning_cost
-            bid_cost = least_winning_cost * bid_success
-            bid_position = 2 + np.zeros_like(
-                bid_cost
-            )  # No bid position in simplified bidding
-            # bid_exposed = (
-            #     bid_success  # Simplified bidding always exposes successful bids
-            # )
-            bid_exposed = (
-                self.np_random.binomial(
-                    n=1, p=self.simplified_exposure_prob, size=bid_success.shape
-                )
-                * bid_success
-            )
+        advertiser_bid_higher = advertiser_bids[:, None] >= top_bids
+        bid_success = advertiser_bid_higher.any(axis=1)
+        bid_position = np.sum(advertiser_bid_higher, axis=1) - 1
 
-        else:
-            advertiser_bid_higher = advertiser_bids[:, None] >= top_bids
-            bid_success = advertiser_bid_higher.any(axis=1)
-            bid_position = np.sum(advertiser_bid_higher, axis=1) - 1
+        # Exposed is 0 if the bid is not successful
+        bid_exposed = np.zeros_like(bid_position)
+        bid_exposed[bid_success] = top_bids_exposed[
+            bid_success, bid_position[bid_success]
+        ]
 
-            # Exposed is 0 if the bid is not successful
-            bid_exposed = np.zeros_like(bid_position)
-            bid_exposed[bid_success] = top_bids_exposed[
-                bid_success, bid_position[bid_success]
-            ]
-
-            # If I am higher than a bid, I pay that bid's price. No payment for not winning or not exposing
-            bid_cost = (
-                top_bids[np.arange(len(bid_position)), bid_position] * bid_exposed
-            )
+        # If I am higher than a bid, I pay that bid's price. No payment for not winning or not exposing
+        bid_cost = top_bids[np.arange(len(bid_position)), bid_position] * bid_exposed
         return bid_success, bid_position, bid_exposed, bid_cost
 
     def handle_overcost(
@@ -577,6 +433,7 @@ class BiddingEnv(gym.Env):
         least_winning_cost,
     ):
         total_cost = sum(bid_cost)
+        # Remove random bids until below the budget
         while total_cost > self.remaining_budget:
             # Set a fraction of successful bids to 0
             over_cost_ratio = (total_cost - self.remaining_budget) / total_cost
@@ -608,12 +465,7 @@ class BiddingEnv(gym.Env):
         return self.np_random.uniform(*self.budget_range)
 
     def sample_cpa(self):
-        if self.sample_log_budget:
-            l = np.log(self.target_cpa_range[0])
-            h = np.log(self.target_cpa_range[1])
-            return np.exp(self.np_random.uniform(l, h))
-        else:
-            return self.np_random.uniform(*self.target_cpa_range)
+        return self.np_random.uniform(*self.target_cpa_range)
 
     def sample_advertiser(self):
         return self.np_random.choice(self.advertiser_list)
@@ -626,7 +478,7 @@ class BiddingEnv(gym.Env):
             "time_left": (self.episode_length - self.time_step) / self.episode_length,
             "budget_left": max(self.remaining_budget, 0) / self.total_budget,
             "budget": self.total_budget,
-            "cpa": self.target_cpa * self.cpa_multiplier,
+            "cpa": self.target_cpa,
             "category": self.advertiser_category_dict[self.advertiser],
             "total_conversions": self.total_conversions,
             "total_cost": self.total_cost,
@@ -716,47 +568,18 @@ class BiddingEnv(gym.Env):
 
     def compute_bid_coef(self, action, pvalues, pvalues_sigma):
         if self.two_slopes_action:
-            y_0, x_0, slope = action
+            log_y_0, x_0, slope = action
             x_0 = x_0 * 1e-3
             slope = slope * 1e3
-            if self.new_action:
-                if self.exp_action:
-                    y_0 = np.exp(y_0)
-                else:
-                    y_0 = y_0 + 1
+            y_0 = np.exp(log_y_0)
             y_pred = y_0 * np.ones_like(pvalues)
             y_pred[pvalues >= x_0] = y_0 + slope * (pvalues[pvalues >= x_0] - x_0)
 
             action = np.zeros((len(pvalues), len(self.act_keys)))
             action[:, self.pvalues_key_pos] = 1 / y_pred
         else:
-            if self.piecewise_linear_action:
-                piecewise_coefs = action[: len(self.pv_range_list) + 1]
-                other_coefs = action[len(self.pv_range_list) + 1 :]
-                piecewise_ranges = np.array([0] + self.pv_range_list + [np.inf])
-                pv_coefs = np.zeros(len(pvalues))
-                for idx, (rl, rr) in enumerate(
-                    zip(piecewise_ranges[:-1], piecewise_ranges[1:])
-                ):
-                    mask = np.logical_and(pvalues >= rl, pvalues < rr)
-                    pv_coefs[mask] = piecewise_coefs[idx]
-                action = np.zeros((len(pvalues), len(self.act_keys)))
-                action[:, self.pvalues_key_pos] = pv_coefs
-                action[
-                    :, np.delete(np.arange(len(self.act_keys)), self.pvalues_key_pos)
-                ] = other_coefs
-
             action = np.atleast_2d(action).copy()
-            if self.new_action:
-                if self.exp_action:
-                    action[:, self.pvalues_key_pos] = np.exp(
-                        action[:, self.pvalues_key_pos]
-                    )
-                else:
-                    action[:, self.pvalues_key_pos] = (
-                        action[:, self.pvalues_key_pos] + 1
-                    )
-
+            action[:, self.pvalues_key_pos] = np.exp(action[:, self.pvalues_key_pos])
         bid_basis = self.get_bid_basis(pvalues, pvalues_sigma)
         bid_coef = np.clip(np.einsum("nk,nk->n", action, bid_basis), 0, np.inf)
         return bid_coef
@@ -790,9 +613,13 @@ class BiddingEnv(gym.Env):
             bids_df["bid"] = bids_df["bid"].apply(np.stack)
             bids_df["isExposed"] = bids_df["isExposed"].apply(np.stack)
             bids_df["cost"] = bids_df["cost"].apply(np.stack)
-            bids_df["deliveryPeriodIndex"] = bids_df["deliveryPeriodIndex"].apply(lambda x: x % 28)
+            bids_df["deliveryPeriodIndex"] = bids_df["deliveryPeriodIndex"].apply(
+                lambda x: x % 28
+            )
             if self.exclude_self_bids:
-                bids_df["advertiserNumber"] = bids_df["advertiserNumber"].apply(np.stack)
+                bids_df["advertiserNumber"] = bids_df["advertiserNumber"].apply(
+                    np.stack
+                )
             bids_df_list.append(bids_df)
         return bids_df_list
 
@@ -811,10 +638,10 @@ class BiddingEnv(gym.Env):
 
         # Add noise to bids
         noisy_bid = bid * (
-            1
-            + self.np_random.uniform(
+            self.np_random.uniform(
                 self.auction_noise_min, self.auction_noise_max, bid.shape
             )
+            + 1
         )
         noisy_bid = np.sort(noisy_bid, axis=1)
         noisy_cost = np.zeros_like(noisy_bid)
@@ -830,29 +657,22 @@ class BiddingEnv(gym.Env):
         top_bids = row["bid"]
         top_bids_advertiser = row["advertiserNumber"]
         top_bids_cost = row["cost"]
-
-        # Combine the cost and bids into a full matrix
         full_top_bids = np.concatenate((top_bids_cost[:, :1], top_bids), axis=1)
 
-        # Create a mask for where the advertiser is equal to self.advertiser
+        # Mask for valid (non-matching advertiser) and the advertiser to replace
         ad_id_mask = top_bids_advertiser == advertiser
         found_mask = np.any(ad_id_mask, axis=1).reshape(-1, 1)
-
-        # Mask for valid (non-matching advertiser) and the advertiser to replace
         full_mask = np.concatenate((~found_mask, ad_id_mask), axis=1)
 
         # Update the bids: removing the self.advertiser and keeping the next bid
         updated_top_bids = full_top_bids[~full_mask].reshape(-1, 3)
 
-        # Return the updated bid array
         return updated_top_bids
 
     def get_episode_bids_df(self):
         random_idx = self.np_random.choice(len(self.bids_df_list))
         bids_df = self.bids_df_list[random_idx]
-        ep_bids_df = bids_df[
-            bids_df.deliveryPeriodIndex == self.period
-        ].copy()
+        ep_bids_df = bids_df[bids_df.deliveryPeriodIndex == self.period].copy()
 
         if self.exclude_self_bids:
             ep_bids_df["bid"] = ep_bids_df.apply(
@@ -864,8 +684,6 @@ class BiddingEnv(gym.Env):
             ep_bids_df[["bid", "cost"]] = ep_bids_df.apply(
                 lambda x: self.noisy_bid_and_cost(x), axis=1
             )
-        ep_bids_df["bid"] = ep_bids_df["bid"] * self.pvalues_rescale_coef
-        ep_bids_df["cost"] = ep_bids_df["cost"] * self.pvalues_rescale_coef
         return ep_bids_df
 
     def get_episode_pvalues_df(self):
@@ -873,7 +691,6 @@ class BiddingEnv(gym.Env):
             (self.pvalues_df.advertiserNumber == self.advertiser)
             & (self.pvalues_df.deliveryPeriodIndex == self.period)
         ].copy()
-        ep_pv_df["pValue"] = ep_pv_df["pValue"] * self.pvalues_rescale_coef
         return ep_pv_df
 
     def compute_ranked_impressions_df(self):
@@ -882,8 +699,6 @@ class BiddingEnv(gym.Env):
         min_cost_list = np.concatenate(
             self.episode_bids_df.cost.apply(lambda x: x[:, 0]).values
         )
-
-        # Create the DataFrame directly from arrays without looping
         df = pd.DataFrame(
             {
                 "time_step": np.repeat(
@@ -917,58 +732,10 @@ class BiddingEnv(gym.Env):
             return self.get_action_from_correct_oracle()
 
     def get_action_from_correct_oracle(self):
-        if self.simplified_bidding or self.simplified_oracle:
-            return self.get_simplified_oracle_action()
-        elif self.flex_oracle:
+        if self.flex_oracle:
             return self.get_flex_oracle_action()
         else:
             return self.get_realistic_oracle_action()
-
-    def get_simplified_oracle_action(self):
-        if self.ranked_df is None:
-            self.ranked_df = self.compute_ranked_impressions_df()
-        df_sorted = self.ranked_df[
-            self.ranked_df.time_step >= self.time_step
-        ].reset_index(drop=True)
-        df_sorted["cum_conversions"] = (
-            df_sorted["pvalue"].cumsum() * self.simplified_exposure_prob
-            + self.total_conversions
-        )  # If not exposed, no conversion
-        df_sorted["cum_cost"] = (
-            df_sorted["cost"].cumsum() * self.simplified_exposure_prob + self.total_cost
-        )  # If not exposed, no cost
-        df_sorted["cum_cpa"] = df_sorted["cum_cost"] / df_sorted["cum_conversions"]
-        df_sorted["score"] = (
-            df_sorted["cum_conversions"]
-            * np.minimum(1, self.target_cpa / df_sorted["cum_cpa"]) ** 2
-        )
-        # We use total budget because the cost already includes the current total cost
-        df_within_budget = df_sorted[df_sorted["cum_cost"] <= self.total_budget]
-
-        if df_within_budget.empty:
-            # We have run out of budget, it does not matter what we bid
-            action = 1
-        else:
-            # Find the impressions that lead to the max score
-            max_score_row = df_within_budget["score"].idxmax()
-            selected_rows = df_sorted.loc[:max_score_row]
-
-            # Select the action that buys the best impression opportunities
-            action = 1 / selected_rows.pv_over_cost.min() / self.target_cpa
-        if self.new_action:
-            if self.exp_action:
-                action = np.log(action)
-            else:
-                action = action - 1
-        if self.piecewise_linear_action:
-            oracle_action = np.zeros(len(self.pv_range_list) + len(self.act_keys))
-            oracle_action[: len(self.pv_range_list) + 1] = action
-        elif self.two_slopes_action:
-            oracle_action = np.array([1 / action, 0, 0])
-        else:
-            oracle_action = np.zeros(len(self.act_keys))
-            oracle_action[self.pvalues_key_pos] = action
-        return oracle_action
 
     def get_realistic_oracle_action(self):
         if self.impression_ids is None:
@@ -1058,19 +825,11 @@ class BiddingEnv(gym.Env):
             # Transform the best pv over cost into the action
             if best_score < 0:
                 # We cannot improve the score, just output 1
-                action = 1
+                action = 0
             else:
-                action = 1 / best_pv_cost / self.target_cpa
-
-        if self.new_action:
-            if self.exp_action:
-                action = np.log(action)
-            else:
-                action = action - 1
-        if self.piecewise_linear_action:
-            oracle_action = np.zeros(len(self.pv_range_list) + len(self.act_keys))
-            oracle_action[: len(self.pv_range_list) + 1] = action
-        elif self.two_slopes_action:
+                action = -np.log(best_pv_cost * self.target_cpa)
+                
+        if self.two_slopes_action:
             oracle_action = np.array([1 / action, 0, 0])
         else:
             oracle_action = np.zeros(len(self.act_keys))
@@ -1106,7 +865,6 @@ class BiddingEnv(gym.Env):
             ) = self.prepare_impressions()
             self.time_steps_arr_f = time_arr[self.impression_ids_f]
             self.imp_idx_arr = impression_indices[self.impression_ids_f]
-
         else:
             valid_indices = self.time_steps_arr_f >= self.time_step
             self.impression_ids_f = self.impression_ids_f[valid_indices]
@@ -1129,17 +887,6 @@ class BiddingEnv(gym.Env):
             * (cum_eff_cost <= self.total_budget)
         )
         max_score_idx = np.argmax(cum_score)
-
-        # max_score = cum_score[max_score_idx]
-        # print(
-        #     "Expected score: ",
-        #     max_score,
-        #     "conversions: ",
-        #     cum_eff_pv[max_score_idx],
-        #     "cost: ",
-        #     cum_eff_cost[max_score_idx],
-        # )
-
         max_score_mask = np.arange(len(self.impression_ids_f)) <= max_score_idx
         this_ts_mask = self.time_steps_arr_f == self.time_step
         valid_mask = np.logical_and(this_ts_mask, max_score_mask)
@@ -1157,7 +904,7 @@ class BiddingEnv(gym.Env):
         action = np.ones(num_imp) * good_cost_pv_max / self.target_cpa - self.EPS
 
         # It works because even if some indices are repeated, we want to use the cost and the pv of
-        # the last occurrence, which is the highest slot and it always comes last in the good_imp_idx
+        # the least efficient slot among the selected ones,  and it always comes last in the good_imp_idx
         action[good_imp_idx] = (
             (
                 self.cost_weight * self.costs[valid_mask]
@@ -1166,29 +913,7 @@ class BiddingEnv(gym.Env):
             / self.pvs[valid_mask]
             / self.target_cpa
         )
-
-        # expected_cost = np.sum(self.eff_costs_with_up[valid_mask])
-        # print(f"Budget left: {self.remaining_budget:.2f}, expected budget left: {(self.remaining_budget - expected_cost):.2f}")
-
-        if self.piecewise_linear_action:
-            piecewise_coefs = np.zeros(len(self.pv_range_list) + 1)
-            pv_ranges = np.array([0] + self.pv_range_list + [np.inf])
-            for idx, (rl, rr) in enumerate(zip(pv_ranges[:-1], pv_ranges[1:])):
-                mask = np.logical_and(pvs_t >= rl, pvs_t < rr)
-                if any(mask):
-                    piecewise_coefs[idx] = np.mean(action[mask])
-                elif idx == 0:
-                    piecewise_coefs[idx] = good_cost_pv_max / self.target_cpa
-                else:
-                    piecewise_coefs[idx] = piecewise_coefs[idx - 1]
-            if self.new_action:
-                if self.exp_action:
-                    piecewise_coefs = np.log(piecewise_coefs)
-                else:
-                    piecewise_coefs = piecewise_coefs
-            oracle_action = np.zeros(len(self.pv_range_list) + len(self.act_keys))
-            oracle_action[: len(self.pv_range_list) + 1] = piecewise_coefs
-        elif self.two_slopes_action:
+        if self.two_slopes_action:
             const_val = good_cost_pv_max / self.target_cpa
             y_0 = 1 / const_val
             y = 1 / action[good_imp_idx] - 1 / const_val
@@ -1200,20 +925,12 @@ class BiddingEnv(gym.Env):
             else:
                 slope, intercept = np.polyfit(x, y, 1)
                 x_0 = -intercept / slope
-            if self.new_action:
-                if self.exp_action:
-                    y_0 = np.log(y_0)
-                else:
-                    y_0 = y_0 - 1
+                log_y_0 = np.log(y_0)
             x_0 = np.clip(x_0 * 1e3, 0, 10)
             slope = np.clip(slope * 1e-3, 0, 10)
-            oracle_action = np.array([y_0, x_0, slope])
+            oracle_action = np.array([log_y_0, x_0, slope])
         else:
-            if self.new_action:
-                if self.exp_action:
-                    action = np.log(action)
-                else:
-                    action = action - 1
+            action = np.log(action)
             oracle_action = np.zeros((num_imp, len(self.act_keys)))
             oracle_action[:, self.pvalues_key_pos] = action
         return oracle_action
@@ -1244,9 +961,9 @@ class BiddingEnv(gym.Env):
 
         # # Sanity checks
         # # No 3_2 upgrade should be better than slot 3 (see theory)
-        # assert (upgrade_3_2_ratio > slot_3_ratio).mean() == 0
+        # assert (upgrade_3_2_ratio >= slot_3_ratio).mean() == 0
         # # No 3_1 upgrade should be better than slot 3 (see theory)
-        # assert (upgrade_3_1_ratio > slot_3_ratio).mean() == 0
+        # assert (upgrade_3_1_ratio >= slot_3_ratio).mean() == 0
         # # If 2_1 is better than 3_2, then 3_1 should be better than 3_2 (see theory)
         # assert ((upgrade_2_1_ratio > upgrade_3_2_ratio) == (upgrade_3_1_ratio > upgrade_3_2_ratio)).all()
 
@@ -1314,8 +1031,7 @@ class BiddingEnv(gym.Env):
         slot_indices = slot_indices[valid_mask]
         impression_indices = impression_indices[valid_mask]
 
-        # Step 4: Rank all impressions by pv/cost ratio (descending)
-        # Exclude the pvalues equal to 0
+        # Rank all impressions by pv/cost ratio (descending)
         sorted_indices = np.argsort(-flat_ratio)  # negative sign for descending order
 
         # Return the sorted indices along with corresponding impression and slot
