@@ -188,11 +188,11 @@ def main(args):
 
             episode_starts = np.ones((1,), dtype=bool)
             done = False
-            if args.algo == "onbc_transformer":
+            if args.algo == "oil_transformer":
                 obs_list = []
             while not done:
                 norm_obs = vecnormalize.normalize_obs(obs)
-                if args.algo == "onbc_transformer":
+                if args.algo == "oil_transformer":
                     obs_list.append(norm_obs)
                     norm_obs = np.stack(obs_list)
                     action, _ = model.predict(

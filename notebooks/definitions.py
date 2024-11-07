@@ -16,12 +16,12 @@ ALGO_CLASS_DICT = {
     "recurrent_ppo": RecurrentPPO,
     "sac": SAC,
     "td3": TD3,
-    "onbc": OnPolicyBC,
-    "onbc_transformer": OnPolicyTransformerBC
+    "oil": OnPolicyBC,
+    "oil_transformer": OnPolicyTransformerBC
 }
 
 ALGO_TB_DIR_NAME_DICT = {
     "ppo": "PPO_0",
-    "onbc": "OnPolicyAlgorithm_0",
-    "onbc_transformer": "OnPolicyAlgorithm_0",
+    "oil": "OnPolicyAlgorithm_0",
+    "oil_transformer": "OnPolicyAlgorithm_0",
 }

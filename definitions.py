@@ -2,7 +2,7 @@ import pathlib
 import json
 from stable_baselines3 import SAC, TD3, PPO
 from sb3_contrib import RecurrentPPO
-from online.train.ppo import BCPPO
+from online.algos.ppo import BCPPO
 from online.algos.on_policy_bc import OnPolicyBC, OnPolicyTransformerBC
 
 
@@ -19,17 +19,17 @@ ALGO_CLASS_DICT = {
     "recurrent_ppo": RecurrentPPO,
     "sac": SAC,
     "td3": TD3,
-    "onbc": OnPolicyBC,
-    "onbc_transformer": OnPolicyTransformerBC,
+    "oil": OnPolicyBC,
+    "oil_transformer": OnPolicyTransformerBC,
 }
 
 ALGO_TB_DIR_NAME_DICT = {
     "ppo": "PPO_0",
-    "onbc": "OnPolicyAlgorithm_0",
-    "onbc_transformer": "OnPolicyAlgorithm_0",
+    "oil": "OnPolicyAlgorithm_0",
+    "oil_transformer": "OnPolicyAlgorithm_0",
 }
 
-DEFAULT_ACT_KEYS = json.load(open(ACT_CONFIG_PATH / "obs_60_keys.json", "r"))
+DEFAULT_ACT_KEYS = json.load(open(ACT_CONFIG_PATH / "act_1_key.json", "r"))
 DEFAULT_OBS_KEYS = json.load(open(OBS_CONFIG_PATH / "obs_60_keys.json", "r"))
 DEFAULT_RWD_WEIGHTS = {
     "dense": 0.0,

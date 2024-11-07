@@ -100,7 +100,7 @@ parser.add_argument(
 parser.add_argument(
     "--project_name",
     type=str,
-    default="alibaba",
+    default="paper",
     help="Project name for wandb",
 )
 parser.add_argument(

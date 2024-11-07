@@ -209,7 +209,6 @@ class BiddingEnv(gym.Env):
         return self.place_bids(advertiser_bids, pvalues, pvalues_sigma)
 
     def place_bids(self, advertiser_bids, pvalues, pvalues_sigma):
-        advertiser_bids = np.clip(advertiser_bids, 0, self.max_bid)
         bid_data = self.get_bid_data()
         top_bids = bid_data.bid.item()
         top_bids_cost = bid_data.cost.item()
@@ -975,7 +974,7 @@ class BiddingEnv(gym.Env):
             else:
                 slope, intercept = np.polyfit(x, y, 1)
                 x_0 = -intercept / slope
-                log_y_0 = np.log(y_0)
+            log_y_0 = np.log(y_0)
             x_0 = np.clip(x_0 * 1e3, 0, 10)
             slope = np.clip(slope * 1e-3, 0, 10)
             oracle_action = np.array([log_y_0, x_0, slope])

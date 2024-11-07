@@ -151,11 +151,11 @@ class OnPolicyBC(OnPolicyAlgorithm):
                     clipped_actions = np.clip(
                         actions, self.action_space.low, self.action_space.high
                     )
-
             oracle_actions = env.env_method("get_oracle_action")
             action_lengths = [arr.shape[0] for arr in oracle_actions[:-1]]
             split_indices = np.cumsum(action_lengths)
             clipped_actions = np.split(clipped_actions, split_indices, axis=0)
+            clipped_actions = [arr.flatten() for arr in clipped_actions]
 
             if oracle_actions[0].shape == self.action_space.shape:
                 oracle_actions = np.stack(oracle_actions)
