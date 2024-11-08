@@ -274,7 +274,7 @@ parser.add_argument(
 parser.add_argument(
     "--data_folder_name",
     type=str,
-    default="online_rl_data_final_expert_bids",
+    default="online_rl_data_final_with_ad_idx",
     help="Data folder name",
 )
 args = parser.parse_args()
@@ -290,20 +290,6 @@ with open(ACT_CONFIG_PATH / f"{args.act_type}.json", "r") as f:
 
 config_list = []
 for period in range(7, 7 + args.num_envs):  # one period per env
-    assert os.path.exists(
-        ROOT_DIR
-        / "data"
-        / "traffic"
-        / args.data_folder_name
-        / f"period-{period}_bids_0.parquet"
-    )
-    assert os.path.exists(
-        ROOT_DIR
-        / "data"
-        / "traffic"
-        / args.data_folder_name
-        / f"period-{period}_pvalues.parquet"
-    )
     pvalues_df_path = (
         ROOT_DIR
         / "data"
@@ -311,17 +297,13 @@ for period in range(7, 7 + args.num_envs):  # one period per env
         / args.data_folder_name
         / f"period-{period}_pvalues.parquet"
     )
-    bids_df_path = [
-        (
-            ROOT_DIR
-            / "data"
-            / "traffic"
-            / args.data_folder_name
-            / f"period-{period}_bids_{idx}.parquet"
-        )
-        for idx in range(1)
-    ]
-
+    bids_df_path = (
+        ROOT_DIR
+        / "data"
+        / "traffic"
+        / args.data_folder_name
+        / f"period-{period}_bids.parquet"
+    )
     rwd_weights = {
         "dense": 0,
         "sparse": 1,
@@ -522,4 +504,19 @@ python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_00
     --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
         --out_suffix=_final_dataset_flex_oracle_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
+
+python online/main_train_oil.py --num_envs 1 --batch_size 512 --num_steps 10_000_000 --out_prefix 003_ \
+    --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --out_suffix=_final_dataset_flex_oracle_two_slopes_medium_bids --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+            --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+
+python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 004_ \
+    --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --out_suffix=_final_dataset_flex_oracle_two_slopes_medium_bids --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+            --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+
+python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 005_ \
+    --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --out_suffix=_final_dataset_flex_oracle_two_slopes_medium_bids --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+            --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
 """

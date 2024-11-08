@@ -256,7 +256,7 @@ parser.add_argument(
 parser.add_argument(
     "--data_folder_name",
     type=str,
-    default="online_rl_data_final_expert_bids",
+    default="online_rl_data_final_with_ad_idx",
     help="Data folder name",
 )
 args = parser.parse_args()
@@ -271,14 +271,7 @@ with open(ACT_CONFIG_PATH / f"{args.act_type}.json", "r") as f:
     act_keys = json.load(f)
 
 config_list = []
-for period in range(7, 7 + args.num_envs):  # one period per env
-    assert os.path.exists(
-        ROOT_DIR
-        / "data"
-        / "traffic"
-        / args.data_folder_name
-        / f"period-{period}_pvalues.parquet"
-    )
+for period in range(7, 7 + args.num_envs):  # one perwith_ad_idx
     pvalues_df_path = (
         ROOT_DIR
         / "data"
@@ -286,16 +279,13 @@ for period in range(7, 7 + args.num_envs):  # one period per env
         / args.data_folder_name
         / f"period-{period}_pvalues.parquet"
     )
-    bids_df_path = [
-        (
-            ROOT_DIR
-            / "data"
-            / "traffic"
-            / args.data_folder_name
-            / f"period-{period}_bids_{idx}.parquet"
-        )
-        for idx in range(1)
-    ]
+    bids_df_path = (
+        ROOT_DIR
+        / "data"
+        / "traffic"
+        / args.data_folder_name
+        / f"period-{period}_bids.parquet"
+    )
 
     rwd_weights = {
         "dense": args.dense_weight,
@@ -441,22 +431,14 @@ if __name__ == "__main__":
     trainer.save()
 
 """
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 086_ \
-    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
-        --new_action --exp_action --out_suffix=_imit_1_pg_1 --learning_rate 1e-3 --seed 0 --dense_weight 0 --sparse_weight 1\
-            --obs_type obs_60_keys --save_every 20000 --stochastic_exposure \
-                --pg_coef 1 --imitation_coef 1 --ent_coef 1e-4 --net_arch 256 256 256
-
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 087_ \
-    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
-        --new_action --exp_action --out_suffix=_imit_1_pg_0_1_resume_086 --learning_rate 1e-4 --seed 0 --dense_weight 0 --sparse_weight 1\
-            --obs_type obs_60_keys --save_every 20000 --stochastic_exposure \
-                --pg_coef 0.1 --imitation_coef 1 --ent_coef 1e-4 --net_arch 256 256 256 \
-                    --load_path output/training/ongoing/086_ppo_seed_0_imit_1_pg_1
-                    
-python online/main_train_ppo.py --num_envs 1 --batch_size 512 --num_steps 10_000_000 --out_prefix 003_ \
+python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 003_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --out_suffix=_final_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+            --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
+                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
+
+python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 004_ \
+    --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
         --out_suffix=_final_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
                 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
