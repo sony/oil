@@ -90,8 +90,8 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         experiment_path=ROOT_DIR
         / "saved_model"
         / "ONBC"
-        / "052_onbc_seed_0_flex_two_slopes_oracle_60_obs_fix_oracle_resume_051",
-        checkpoint=3580000,
+        / "085_onbc_seed_42_resume_053_expert_competitors_exclude_self",
+        checkpoint=17330000,
         device="cpu",
         deterministic=True,
         algo="ppo",
@@ -253,6 +253,15 @@ class PpoBiddingStrategy(BaseBiddingStrategy):
         obs = self.vecnormalize.normalize_obs(state)
         action = self.model.predict(obs, deterministic=self.deterministic)[0]
         bid_coef = self.train_env.compute_bid_coef(action, pValues, pValueSigmas)
+
+        # pvalues_corr = pValues - 60 * pValueSigmas * pValues
+        # pvalues_corr = pValues - 0.2 * pValueSigmas
+        # bid_coef = self.train_env.compute_bid_coef(action, pvalues_corr, pValueSigmas)
+        
+        # p0 = 0.001
+        # bid_coef[pValues > 0.001] -= (pValues[pValues > p0] - p0) * 100 * pValues[pValues > p0]
+        # bid_coef *= 1.02
+        
         bids = bid_coef * self.cpa
         return bids
 

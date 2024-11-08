@@ -16,7 +16,7 @@
     },
     "simplified_bidding": false,
     "stochastic_exposure": true,
-    "exclude_self_bids": false,
+    "exclude_self_bids": true,
     "deterministic_conversion": false,
     "seed": 0
 }

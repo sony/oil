@@ -1,2 +1,2 @@
-docker buildx build --platform linux/amd64 --load -t registry-intl.cn-beijing.aliyuncs.com/alberto-sony/alberto-sony-env:onbc_052_358_10x -f ./Dockerfile .
-docker push registry-intl.cn-beijing.aliyuncs.com/alberto-sony/alberto-sony-env:onbc_052_358_10x
+docker buildx build --platform linux/amd64 --load -t registry-intl.cn-beijing.aliyuncs.com/alberto-sony/alberto-sony-env:onbc_085_1733 -f ./Dockerfile .
+docker push registry-intl.cn-beijing.aliyuncs.com/alberto-sony/alberto-sony-env:onbc_085_1733

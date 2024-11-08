@@ -319,6 +319,19 @@ parser.add_argument(
     default=1000,
     help="Subsample for batched states",
 )
+parser.add_argument(
+    "--advertiser_categories",
+    type=int,
+    nargs="+",
+    default=None,
+    help="Advertiser categories where to sample from, if None all are used",
+)
+parser.add_argument(
+    "--advertiser_id",
+    type=int,
+    default=None,
+    help="Advertiser id to use, if None all are used",
+)
 args = parser.parse_args()
 
 run_name = f"{args.out_prefix}onbc_seed_{args.seed}{args.out_suffix}"
@@ -332,31 +345,17 @@ with open(ROOT_DIR / "env_configs" / f"{args.act_type}.json", "r") as f:
 
 config_list = []
 for period in range(7, 7 + args.num_envs):  # one period per env
-    assert os.path.exists(
-        ROOT_DIR
-        / "data"
-        / "online_rl_data_final_with_ad_idx"
-        / f"period-{period}_bids.parquet"
-    )
-    assert os.path.exists(
-        ROOT_DIR
-        / "data"
-        / "online_rl_data_final_with_ad_idx"
-        / f"period-{period}_pvalues.parquet"
-    )
     pvalues_df_path = (
         ROOT_DIR
         / "data"
         / "online_rl_data_final_with_ad_idx"
         / f"period-{period}_pvalues.parquet"
-        # / f"pvalues_periods_7_26.parquet"
     )
     bids_df_path = (
         ROOT_DIR
         / "data"
         / "online_rl_data_final_with_ad_idx"
         / f"period-{period}_bids.parquet"
-        # / f"bids_periods_7_26.parquet"
     )
 
     rwd_weights = {
@@ -398,7 +397,9 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "two_slopes_action": args.two_slopes_action,
             "detailed_bid": args.detailed_bid,
             "batch_state": args.batch_state,
+            "advertiser_categories": args.advertiser_categories,
             "seed": args.seed,
+            "advertiser_id": args.advertiser_id,
         }
     )
 
@@ -903,5 +904,146 @@ python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_0
         --new_action --exp_action --out_suffix=_specialize_050_3000_5000_100_150 --seed 1 \
             --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
                 --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+                
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 067_ \
+    --budget_min 2000 --budget_max 4000 --target_cpa_min 100 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_specialize_050_2000_4000_100_150 --seed 1 \
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/050_onbc_seed_0_new_data_realistic_60_obs_fix_oracle
+                
+python online/main_train_onbc.py --num_envs 21 --batch_size 512 --num_steps 20_000_000 --out_prefix 068_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_60_obs_resume_053_with_period_27 --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 --checkpoint_num 13170000
+
+python online/main_train_onbc.py --num_envs 21 --batch_size 512 --num_steps 20_000_000 --out_prefix 069_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --advertiser_categories 3 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_60_obs_resume_068_specialize_cat_3_with_period_27 --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/068_onbc_seed_42_new_data_realistic_60_obs_resume_053_with_period_27 --checkpoint_num 14439492
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 070_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_new_data_realistic_60_obs_resume_053_specialize_cat_3 --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 10000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 --checkpoint_num 13170000
+
+python online/main_train_onbc.py --num_envs 20 --num_steps 1_000_000_000 --out_prefix 071_ \
+    --n_rollout_steps 128 --batch_size 256 --detailed_bid --batch_state --batch_state_subsample 100 \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150\
+        --new_action --exp_action --out_suffix=_detailed_bid_batch_state_20_envs_100_subs \
+            --obs_type obs_60_keys --learning_rate 1e-2 --save_every 50000 --num_layers 3
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 084_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_resume_053_expert_competitors --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure
+                    
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 085_ \
+    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
+        --new_action --exp_action --out_suffix=_resume_053_expert_competitors_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure --exclude_self_bids
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 092_ \
+    --budget_min 2100 --budget_max 2100 --target_cpa_min 120 --target_cpa_max 120 --advertiser_id 21 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_21_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure --exclude_self_bids 
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 093_ \
+    --budget_min 4850 --budget_max 4850 --target_cpa_min 60 --target_cpa_max 60 --advertiser_id 22 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_22_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure --exclude_self_bids
+                    
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 094_ \
+    --budget_min 4100 --budget_max 4100 --target_cpa_min 70 --target_cpa_max 70 --advertiser_id 23 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_23_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure --exclude_self_bids
+
+
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 119_ \
+    --budget_min 2000 --budget_max 2000 --target_cpa_min 130 --target_cpa_max 130 --advertiser_id 30 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_30_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure --exclude_self_bids 
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 120_ \
+    --budget_min 3900 --budget_max 3900 --target_cpa_min 80 --target_cpa_max 80 --advertiser_id 31 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_31_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure --exclude_self_bids
+                    
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 121_ \
+    --budget_min 2000 --budget_max 2000 --target_cpa_min 120 --target_cpa_max 120 --advertiser_id 32 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_32_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure --exclude_self_bids        
+
+
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 203_ \
+    --budget_min 2000 --budget_max 2000 --target_cpa_min 130 --target_cpa_max 130 --advertiser_id 30 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_30_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure 
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 204_ \
+    --budget_min 3900 --budget_max 3900 --target_cpa_min 80 --target_cpa_max 80 --advertiser_id 31 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_31_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure
+                    
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 205_ \
+    --budget_min 2000 --budget_max 2000 --target_cpa_min 120 --target_cpa_max 120 --advertiser_id 32 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_32_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure
+
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 230_ \
+    --budget_min 2100 --budget_max 2100 --target_cpa_min 120 --target_cpa_max 120 --advertiser_id 21 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_21_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure
+
+python online/main_train_onbc.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 231_ \
+    --budget_min 4100 --budget_max 4100 --target_cpa_min 70 --target_cpa_max 70 --advertiser_id 23 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_23_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure
+
+
+python online/main_train_onbc.py --num_envs 21 --batch_size 512 --num_steps 20_000_000 --out_prefix 312_ \
+    --budget_min 2000 --budget_max 2000 --target_cpa_min 120 --target_cpa_max 120 --advertiser_id 32 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_32_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure
+
+python online/main_train_onbc.py --num_envs 21 --batch_size 512 --num_steps 20_000_000 --out_prefix 313_ \
+    --budget_min 4800 --budget_max 4800 --target_cpa_min 60 --target_cpa_max 60 --advertiser_id 4 \
+        --new_action --exp_action --out_suffix=_resume_053_advertiser_4_exclude_self --seed 42\
+            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
+                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
+                    --checkpoint_num 13170000 --stochastic_exposure
 
 """

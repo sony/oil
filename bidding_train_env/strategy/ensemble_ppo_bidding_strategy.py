@@ -103,49 +103,60 @@ class EnsemblePpoBiddingStrategy(BaseBiddingStrategy):
             ROOT_DIR
             / "saved_model"
             / "ONBC"
-            / "053_onbc_seed_0_new_data_realistic_60_obs_resume_050",
+            / "068_onbc_seed_42_new_data_realistic_60_obs_resume_053_with_period_27",
+            ROOT_DIR
+            / "saved_model"
+            / "ONBC"
+            / "068_onbc_seed_42_new_data_realistic_60_obs_resume_053_with_period_27",
+            ROOT_DIR
+            / "saved_model"
+            / "ONBC"
+            / "069_onbc_seed_42_new_data_realistic_60_obs_resume_068_specialize_cat_3_with_period_27",
         ],
-        checkpoint_list=[
-            4600000,
-            3270000,
-            10850000,
-            13170000
-        ],
+        checkpoint_list=[4600000, 3270000, 13170000, 16868520, 14439492, 14629416],
         category_policy_dict={
             0: 0,
-            1: 3,
-            2: 2,
-            3: 3,
-            4: 3,
+            1: 2,
+            2: 3,
+            3: 5,
+            4: 2,
             5: 1,
         },
         device="cpu",
         deterministic=True,
         algo="ppo",
     ):
-        assert 2000 <= budget <= 5000, budget
-        assert 60 <= cpa <= 130, cpa
         super().__init__(budget, name, cpa, category)
         self.device = device
         self.experiment_path_list = experiment_path_list
         self.checkpoint_list = checkpoint_list
-        self.model_list = [load_model(algo, p, c) for p, c in zip(experiment_path_list, checkpoint_list)]
+        self.model_list = [
+            load_model(algo, p, c)
+            for p, c in zip(experiment_path_list, checkpoint_list)
+        ]
 
-        train_env_config_list =[json.load(open(p / ENV_CONFIG_NAME, "r")) for p in experiment_path_list]
+        train_env_config_list = [
+            json.load(open(p / ENV_CONFIG_NAME, "r")) for p in experiment_path_list
+        ]
         for config in train_env_config_list:
             config["bids_df_path"] = None
             config["pvalues_df_path"] = None
 
         # Train env to create the observation and turn action into bids
-        self.train_env_list = [EnvironmentFactory.create(**c) for c in train_env_config_list]
+        self.train_env_list = [
+            EnvironmentFactory.create(**c) for c in train_env_config_list
+        ]
 
-        self.vecnormalize_list = [load_vecnormalize(
-            p, c, t_e
-        ) for p, c, t_e in zip(experiment_path_list, checkpoint_list, self.train_env_list)]
-        
+        self.vecnormalize_list = [
+            load_vecnormalize(p, c, t_e)
+            for p, c, t_e in zip(
+                experiment_path_list, checkpoint_list, self.train_env_list
+            )
+        ]
+
         for vecnormalize in self.vecnormalize_list:
             vecnormalize.training = False
-            
+
         self.episode_length = 48
         self.deterministic = deterministic
         self.category_policy_dict = category_policy_dict
@@ -180,18 +191,24 @@ class EnsemblePpoBiddingStrategy(BaseBiddingStrategy):
         return:
             Return the bids for all the opportunities in the delivery period.
         """
+        if not 2000 <= self.budget <= 5000 and 60 <= self.cpa <= 130:
+            raise ValueError(
+                f"No policy of the ensemple trained for the given budget and cpa"
+            )
         pvalues_list = [result[:, 0] for result in historyPValueInfo]
         pvalues_sigma_list = [result[:, 1] for result in historyPValueInfo]
         bid_list = historyBid
         bid_success_list = [result[:, 0] > 0 for result in historyAuctionResult]
-        bid_position_list = [result[:, 1].astype(int) for result in historyAuctionResult]
+        bid_position_list = [
+            result[:, 1].astype(int) for result in historyAuctionResult
+        ]
         # Here we have to adapt the bid position to the one used in the environment.
         # In the challenge it seems that they use 0 for lost, 1-2-3 for first-second-third slot.
         # In the environment we use -1 for lost, 2-1-0 for first-second-third slot (weird choice sorry)
         bid_position_list = [(3 - result).astype(int) for result in bid_position_list]
         for el in bid_position_list:
             el[el == 3] = -1
-        
+
         bid_cost_list = [result[:, 2] for result in historyAuctionResult]
         bid_exposure_list = [result[:, 0] > 0 for result in historyImpressionResult]
         conversions_list = [result[:, 1] for result in historyImpressionResult]
@@ -281,12 +298,12 @@ class EnsemblePpoBiddingStrategy(BaseBiddingStrategy):
                 ]
 
         state_dict = self.get_state_dict(pValues)
-        
+
         policy_index = self.category_policy_dict[self.category]
         model = self.model_list[policy_index]
         train_env = self.train_env_list[policy_index]
         vecnormalize = self.vecnormalize_list[policy_index]
-        
+
         state = train_env.get_state(state_dict)
         obs = vecnormalize.normalize_obs(state)
         action = model.predict(obs, deterministic=self.deterministic)[0]

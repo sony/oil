@@ -44,6 +44,7 @@ def generate_bids_df(data):
                 "isExposed": lambda x: x.tolist(),
                 "cost": lambda x: x.tolist(),
                 "advertiserNumber": lambda x: x.tolist(),
+                "conversionAction": lambda x: x.tolist(),
             }
         )
     )
@@ -54,6 +55,7 @@ def generate_bids_df(data):
             "isExposed": lambda x: x.tolist(),
             "cost": lambda x: x.tolist(),
             "advertiserNumber": lambda x: x.tolist(),
+            "conversionAction": lambda x: x.tolist(),
         }
     )
     bids_df.reset_index(inplace=True)
@@ -71,6 +73,9 @@ def generate_bids_df(data):
     )
     bids_df["advertiserNumber"] = bids_df.apply(
         lambda x: reorder_list_of_lists(x.advertiserNumber, x.positions), axis=1
+    )
+    bids_df["conversionAction"] = bids_df.apply(
+        lambda x: reorder_list_of_lists(x.conversionAction, x.positions), axis=1
     )
     bids_df.drop(columns=["positions"], inplace=True)
     return bids_df
