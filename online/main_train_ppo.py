@@ -14,7 +14,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import VecNormalize
 from stable_baselines3.common.vec_env.subproc_vec_env import SubprocVecEnv
-from definitions import ROOT_DIR
+from definitions import ROOT_DIR, OBS_CONFIG_PATH, ACT_CONFIG_PATH
 from envs.environment_factory import EnvironmentFactory
 from metrics.custom_callbacks import TensorboardCallback
 from train.trainer import SingleEnvTrainer
@@ -94,7 +94,7 @@ parser.add_argument(
     "--net_arch",
     type=int,
     nargs="*",
-    default=[256, 256],
+    default=[256, 256, 256],
     help="Layer sizes for the policy and value networks",
 )
 parser.add_argument(
@@ -106,7 +106,7 @@ parser.add_argument(
 parser.add_argument(
     "--save_every",
     type=int,
-    default=250_000,
+    default=10_000,
     help="Save a checkpoint every N number of steps",
 )
 parser.add_argument(
@@ -134,21 +134,6 @@ parser.add_argument(
     help="Maximum target CPA",
 )
 parser.add_argument(
-    "--new_action",
-    action="store_true",
-    help="Use the new action transformation",
-)
-parser.add_argument(
-    "--multi_action",
-    action="store_true",
-    help="Use an action vec of 5 elements",
-)
-parser.add_argument(
-    "--exp_action",
-    action="store_true",
-    help="Use the exponential action transformation",
-)
-parser.add_argument(
     "--dense_weight",
     type=float,
     default=1,
@@ -171,16 +156,6 @@ parser.add_argument(
     type=str,
     default="act_1_key",
     help="Type of action",
-)
-parser.add_argument(
-    "--sample_log_budget",
-    action="store_true",
-    help="Sample log budget",
-)
-parser.add_argument(
-    "--simplified_bidding",
-    action="store_true",
-    help="Use simplified bidding",
 )
 parser.add_argument(
     "--simplified_oracle",
@@ -213,7 +188,7 @@ parser.add_argument(
 parser.add_argument(
     "--imitation_coef",
     type=float,
-    default=1.0,
+    default=0.0,
     help="Imitation coefficient",
 )
 parser.add_argument(
@@ -278,31 +253,49 @@ parser.add_argument(
     default=None,
     help="Advertiser categories where to sample from, if None all are used",
 )
+parser.add_argument(
+    "--data_folder_name",
+    type=str,
+    default="online_rl_data_final_expert_bids",
+    help="Data folder name",
+)
 args = parser.parse_args()
 
 run_name = f"{args.out_prefix}ppo_seed_{args.seed}{args.out_suffix}"
 TENSORBOARD_LOG = os.path.join(ROOT_DIR, "output", "training", "ongoing", run_name)
 
 # Reward structure and task parameters:
-with open(ROOT_DIR / "env_configs" / f"{args.obs_type}.json", "r") as f:
+with open(OBS_CONFIG_PATH / f"{args.obs_type}.json", "r") as f:
     obs_keys = json.load(f)
-with open(ROOT_DIR / "env_configs" / f"{args.act_type}.json", "r") as f:
+with open(ACT_CONFIG_PATH / f"{args.act_type}.json", "r") as f:
     act_keys = json.load(f)
 
 config_list = []
 for period in range(7, 7 + args.num_envs):  # one period per env
     assert os.path.exists(
-        ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx" / f"period-{period}_bids.parquet"
-    )
-    assert os.path.exists(
-        ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx" / f"period-{period}_pvalues.parquet"
+        ROOT_DIR
+        / "data"
+        / "traffic"
+        / args.data_folder_name
+        / f"period-{period}_pvalues.parquet"
     )
     pvalues_df_path = (
-        ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx" / f"period-{period}_pvalues.parquet"
+        ROOT_DIR
+        / "data"
+        / "traffic"
+        / args.data_folder_name
+        / f"period-{period}_pvalues.parquet"
     )
-    bids_df_path = (
-        ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx" / f"period-{period}_bids.parquet"
-    )
+    bids_df_path = [
+        (
+            ROOT_DIR
+            / "data"
+            / "traffic"
+            / args.data_folder_name
+            / f"period-{period}_bids_{idx}.parquet"
+        )
+        for idx in range(1)
+    ]
 
     rwd_weights = {
         "dense": args.dense_weight,
@@ -317,13 +310,8 @@ for period in range(7, 7 + args.num_envs):  # one period per env
             "budget_range": (args.budget_min, args.budget_max),
             "target_cpa_range": (args.target_cpa_min, args.target_cpa_max),
             "rwd_weights": rwd_weights,
-            "new_action": args.new_action,
-            "multi_action": args.multi_action,
-            "exp_action": args.exp_action,
             "obs_keys": obs_keys,
             "act_keys": act_keys,
-            "sample_log_budget": args.sample_log_budget,
-            "simplified_bidding": args.simplified_bidding,
             "stochastic_exposure": args.stochastic_exposure,
             "simplified_oracle": args.simplified_oracle,
             "exclude_self_bids": args.exclude_self_bids,
@@ -453,228 +441,6 @@ if __name__ == "__main__":
     trainer.save()
 
 """
-python online/main_train_ppo.py --num_envs 1 --batch_size 8 --num_steps 1_000_000 --out_suffix _test_004
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 10_000_000 --out_suffix _test_005 \
-    --budget_min 6000 --budget_max 6000 --target_cpa_min 8 --target_cpa_max 8
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 10_000_000 --out_prefix 006_ \
-    --budget_min 2000 --budget_max 2000 --target_cpa_min 8 --target_cpa_max 8
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 10_000_000 --out_prefix 007_ \
-    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 10_000_000 --out_prefix 010_ \
-    --budget_min 6000 --budget_max 6000 --target_cpa_min 8 --target_cpa_max 8 \
-        --load_path output/training/ongoing/008_ppo_seed_0 --checkpoint_num 5250000
-        
-python online/main_train_ppo.py --num_envs 1 --batch_size 256 --num_steps 10_000_000 --out_prefix 012_ \
-    --budget_min 6000 --budget_max 6000 --target_cpa_min 8 --target_cpa_max 8 \
-        --load_path output/training/ongoing/008_ppo_seed_0 --checkpoint_num 5250000
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 013_ \
-    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --load_path output/training/ongoing/008_ppo_seed_0  --out_suffix=_old_action
-        
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 014_ \
-    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --out_suffix=_new_action_from_scratch
-        
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 016_ \
-    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --out_suffix=_new_action_test
-        
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 017_ \
-    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --out_suffix=_new_action_test
-        
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 50_000_000 --out_prefix 018_ \
-    --budget_min 200 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --multi_action --out_suffix=_new_action_vec
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 019_ \
-    --budget_min 50 --budget_max 15000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --out_suffix=_resume_016_sparse_wider_ranges \
-            --dense_weight 0 --sparse_weight 1 \
-                --load_path output/training/ongoing/016_ppo_seed_0_new_action_test --checkpoint_num 10250000
-                
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 021_ \
-    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
-        --new_action --out_suffix=_dense_very_wide_ranges \
-            --dense_weight 1 --sparse_weight 0
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 022_ \
-    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
-        --new_action --out_suffix=_sparse_very_wide_ranges \
-            --dense_weight 0 --sparse_weight 1
-            
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 023_ \
-    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
-        --new_action --out_suffix=_dense_very_wide_ranges_60_obs \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 023_ \
-    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
-        --new_action --out_suffix=_dense_very_wide_ranges_60_obs_multi_act \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys --multi_action
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 024_ \
-    --budget_min 50 --budget_max 50000 --target_cpa_min 1 --target_cpa_max 20 \
-        --new_action --out_suffix=_dense_very_wide_ranges_60_obs \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
-            
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 025_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --multi_action --out_suffix=_dense_base_ranges_60_obs \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 026_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_60_obs_exp_single_action \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys
-            
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 027_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_19_obs_exp_single_action_simplified \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_19_keys --simplified_bidding
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 028_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_16_obs_exp_single_action_simplified \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_16_keys --simplified_bidding
-            
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 029_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_simplified \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --simplified_bidding
-            
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 030_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --multi_action --out_suffix=_dense_base_ranges_16_obs_exp_multi_action_simplified \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_16_keys --simplified_bidding
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 031_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --multi_action --out_suffix=_dense_base_ranges_19_obs_exp_multi_action_simplified \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_19_keys --simplified_bidding
-            
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 032_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --multi_action --out_suffix=_dense_base_ranges_29_obs_exp_multi_action_simplified \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --simplified_bidding
-            
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 033_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --multi_action --out_suffix=_dense_base_ranges_29_obs_exp_multi_action \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys
-            
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 034_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 035_ \
-    --budget_min 100 --budget_max 15000 --target_cpa_min 4 --target_cpa_max 16 \
-        --new_action --exp_action --out_suffix=_dense_larger_ranges_29_obs_exp_single_action_simplified_resume_029 \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --simplified_bidding \
-                --load_path output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified --checkpoint_num 10750000
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 036_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_resume_029 \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
-                --load_path output/training/ongoing/029_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_simplified --checkpoint_num 10750000
-                
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 037_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_3_actions \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --act_type act_3_keys 
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 038_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_noisy_env \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
-                --stochastic_exposure --cost_noise 0.01 --bid_noise 0.01
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 039_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_stoch_exposure \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --stochastic_exposure
-            
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 040_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --imitation_coef 1.0 --pg_coef 0.0 \
-                --simplified_bidding
-                
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 041_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_mixed_pg_bc_simplified \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --imitation_coef 0.1 --pg_coef 1 \
-                --simplified_bidding
-            
-            
-python online/main_train_ppo.py --num_envs 1 --batch_size 16 --num_steps 20_000_000 --out_prefix 000_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_test_bc \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys \
-                --imitation_coef 1.0 --pg_coef 0.0
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 042_ \
-    --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 \
-        --new_action --exp_action --out_suffix=_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified_resume_040 \
-            --load_path output/training/ongoing/040_ppo_seed_0_dense_base_ranges_29_obs_exp_single_action_full_bc_simplified --checkpoint_num 2750000 \
-                --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --imitation_coef 1.0 --pg_coef 0.0 \
-                    --simplified_bidding --learning_rate 1e-5 --save_every 10000
-                    
-python online/main_train_ppo.py --num_envs 20 --batch_size 256 --num_steps 20_000_000 --out_prefix 042_ \
-    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --stochastic_exposure\
-        --new_action --exp_action --out_suffix=_dense_29_obs_exp_single_action_realistic_auction_new_data \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --save_every 50_000 \
-                --pg_coef 1 --imitation_coef 0 
-                    
-
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 024_ \
-    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
-        --new_action --exp_action --out_suffix=_29_obs_6_acts_new_data_realistic \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --act_type act_6_keys --save_every 50_000 \
-                --pg_coef 0 --imitation_coef 1 --learning_rate 1e-3
-                
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 025_ \
-    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
-        --new_action --exp_action --out_suffix=_60_obs_6_acts_new_data_realistic \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys --act_type act_6_keys --save_every 50_000 \
-                --pg_coef 0 --imitation_coef 1 --learning_rate 1e-3
-                
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 027_ \
-    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
-        --new_action --exp_action --out_suffix=_29_obs_6_acts_rl_fine_tune_024 \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_29_keys --act_type act_6_keys --save_every 50_000 \
-                --pg_coef 1 --imitation_coef 0 --learning_rate 1e-5 --ent_coef 1e-4\
-                    --load_path output/training/ongoing/024_ppo_seed_0_29_obs_6_acts_new_data_realistic
-                
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 028_ \
-    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
-        --new_action --exp_action --out_suffix=_60_obs_6_acts_rl_fine_tune_025 \
-            --dense_weight 1 --sparse_weight 0 --obs_type obs_60_keys --act_type act_6_keys --save_every 50_000 \
-                --pg_coef 1 --imitation_coef 0 --learning_rate 1e-5 --ent_coef 1e-4\
-                    --load_path output/training/ongoing/025_ppo_seed_0_60_obs_6_acts_new_data_realistic
-                
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 030_ \
-    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
-        --new_action --exp_action --out_suffix=_60_obs_6_acts_sparse_rl_fine_tune_025 \
-            --dense_weight 0 --sparse_weight 1 --obs_type obs_60_keys --act_type act_6_keys --save_every 10_000 \
-                --pg_coef 1 --imitation_coef 0 --learning_rate 1e-5 --ent_coef 1e-2\
-                    --load_path output/training/ongoing/025_ppo_seed_0_60_obs_6_acts_new_data_realistic
-                    
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 031_ \
-    --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
-        --new_action --exp_action --out_suffix=_29_obs_6_acts_sparse_rl_fine_tune_024 \
-            --dense_weight 0 --sparse_weight 1 --obs_type obs_29_keys --act_type act_6_keys --save_every 10_000 \
-                --pg_coef 1 --imitation_coef 0 --learning_rate 1e-5 --ent_coef 1e-2\
-                    --load_path output/training/ongoing/024_ppo_seed_0_29_obs_6_acts_new_data_realistic
-
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_000_000 --out_prefix 086_ \
     --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 \
         --new_action --exp_action --out_suffix=_imit_1_pg_1 --learning_rate 1e-3 --seed 0 --dense_weight 0 --sparse_weight 1\
@@ -688,4 +454,10 @@ python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 20_00
             --obs_type obs_60_keys --save_every 20000 --stochastic_exposure \
                 --pg_coef 0.1 --imitation_coef 1 --ent_coef 1e-4 --net_arch 256 256 256 \
                     --load_path output/training/ongoing/086_ppo_seed_0_imit_1_pg_1
+                    
+python online/main_train_ppo.py --num_envs 1 --batch_size 512 --num_steps 10_000_000 --out_prefix 003_ \
+    --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --out_suffix=_final_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+            --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
+                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
 """
