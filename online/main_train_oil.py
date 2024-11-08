@@ -212,7 +212,7 @@ parser.add_argument(
 parser.add_argument(
     "--learning_rate",
     type=float,
-    default=2e-05,
+    default=1e-3,
     help="Learning rate",
 )
 parser.add_argument(
@@ -366,7 +366,7 @@ model_config = dict(
     device=args.device,
     batch_size=args.batch_size,
     n_steps=n_steps,
-    learning_rate=args.learning_rate,
+    learning_rate=lambda x: x * args.learning_rate,
     ent_coef=3e-06,
     max_grad_norm=0.7,
     n_epochs=10,
@@ -474,27 +474,13 @@ if __name__ == "__main__":
     trainer.save()
 
 """
-
-python online/main_train_onbc.py --num_envs 21 --batch_size 512 --num_steps 20_000_000 --out_prefix 305_ \
-    --budget_min 2700 --budget_max 2700 --target_cpa_min 100 --target_cpa_max 100 --advertiser_id 19 \
-        --new_action --exp_action --out_suffix=_resume_053_advertiser_19_exclude_self --seed 42\
-            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
-                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
-                    --checkpoint_num 13170000 --stochastic_exposure
-                    
-python online/main_train_onbc.py --num_envs 21 --batch_size 512 --num_steps 20_000_000 --out_prefix 306_ \
-    --budget_min 3100 --budget_max 3100 --target_cpa_min 90 --target_cpa_max 90 --advertiser_id 20 \
-        --new_action --exp_action --out_suffix=_resume_053_advertiser_20_exclude_self --seed 42\
-            --obs_type obs_60_keys --learning_rate 1e-5 --save_every 5000 --num_layers 3 \
-                --load_path output/training/ongoing/053_onbc_seed_0_new_data_realistic_60_obs_resume_050 \
-                    --checkpoint_num 13170000 --stochastic_exposure
-
-# OIL MLP first set of exp.
+# OIL MLP first set of exp. (expert and medium opponents)
+Done
 python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 000_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
         --out_suffix=_final_dataset_flex_oracle_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
-
+Done
 python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 001_ \
     --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
         --out_suffix=_final_dataset_flex_oracle_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
@@ -505,18 +491,18 @@ python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_00
         --out_suffix=_final_dataset_flex_oracle_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
 
-python online/main_train_oil.py --num_envs 1 --batch_size 512 --num_steps 10_000_000 --out_prefix 003_ \
+python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 003_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_flex_oracle_two_slopes_medium_bids --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+        --out_suffix=_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 \
             --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
 
 python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 004_ \
     --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_flex_oracle_two_slopes_medium_bids --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+        --out_suffix=_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 \
             --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
 
 python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 005_ \
     --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_flex_oracle_two_slopes_medium_bids --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+        --out_suffix=_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 \
             --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
 """

@@ -431,15 +431,21 @@ if __name__ == "__main__":
     trainer.save()
 
 """
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 003_ \
+python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 006_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
         --out_suffix=_final_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
+                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
 
-python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 004_ \
+python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 007_ \
     --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
         --out_suffix=_final_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
+                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+
+python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 008_ \
+    --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --out_suffix=_final_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+            --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
+                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
 """
