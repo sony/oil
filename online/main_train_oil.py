@@ -283,7 +283,7 @@ run_name = f"{args.out_prefix}oil_seed_{args.seed}{args.out_suffix}"
 TENSORBOARD_LOG = os.path.join(ROOT_DIR, "output", "training", "ongoing", run_name)
 
 # Reward structure and task parameters:
-with open(OBS_CONFIG_PATH/ f"{args.obs_type}.json", "r") as f:
+with open(OBS_CONFIG_PATH / f"{args.obs_type}.json", "r") as f:
     obs_keys = json.load(f)
 with open(ACT_CONFIG_PATH / f"{args.act_type}.json", "r") as f:
     act_keys = json.load(f)
@@ -508,9 +508,18 @@ python online/main_train_onbc.py --num_envs 21 --batch_size 512 --num_steps 20_0
                     --checkpoint_num 13170000 --stochastic_exposure
 
 # OIL MLP first set of exp.
-python online/main_train_oil.py --num_envs 1 --batch_size 512 --num_steps 10_000_000 --out_prefix 001_ \
+python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 000_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
         --out_suffix=_final_dataset_flex_oracle_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
 
+python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 001_ \
+    --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --out_suffix=_final_dataset_flex_oracle_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+            --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
+
+python online/main_train_oil.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 002_ \
+    --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
+        --out_suffix=_final_dataset_flex_oracle_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+            --num_layers 3 --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_expert_bids
 """
