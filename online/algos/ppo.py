@@ -134,8 +134,10 @@ class BCPPO(PPO):
                     clipped_actions = np.clip(
                         actions, self.action_space.low, self.action_space.high
                     )
-
-            oracle_actions = np.stack(env.env_method("get_oracle_action"))
+            if self.imitation_coef > 0:
+                oracle_actions = np.stack(env.env_method("get_oracle_action"))
+            else:
+                oracle_actions = clipped_actions
             new_obs, rewards, dones, infos = env.step(clipped_actions)
 
             self.num_timesteps += env.num_envs
