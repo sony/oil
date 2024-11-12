@@ -27,7 +27,7 @@ from helpers import (
 torch.manual_seed(0)
 
 CKPT_CHOICE_CRITERION = (
-    "train/imitation_loss"  # "rollout/ep_rew_mean", "rollout/solved"
+    "score"  # "rollout/ep_rew_mean", "rollout/solved"
 )
 descending = False
 
@@ -73,11 +73,7 @@ def main(args):
         env_config["obs_keys"] = train_config["obs_keys"]
         if "act_keys" in train_config:
             env_config["act_keys"] = train_config["act_keys"]
-        env_config["new_action"] = train_config.get("new_action", False)
-        env_config["multi_action"] = train_config.get("multi_action", False)
-        env_config["exp_action"] = train_config.get("exp_action", False)
         env_config["deterministic_conversion"] = args.deterministic_conversion
-        env_config["cpa_multiplier"] = args.cpa_multiplier
         env_config["two_slopes_action"] = train_config.get("two_slopes_action", False)
         env_config["detailed_bid"] = train_config.get("detailed_bid", False)
         env_config["batch_state"] = True
@@ -1325,7 +1321,11 @@ python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing
     --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000 --create_dataset --seed=42424242\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
         
-python online/main_eval.py --algo onbc --experiment_path=output/training/ongoing/026_onbc_seed_0_new_data_realistic_60_obs_resume_023 \
-    --num_episodes=100 --no_save_df --deterministic --checkpoint 4600000 \
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/env_configs/eval_config_realistic.json
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/005_oil_seed_2_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr \
+    --num_episodes=100 --no_save_df --deterministic \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/013_oil_seed_2_final_dataset_realistic_oracle_medium_bids_lin_lr \
+    --num_episodes=100 --no_save_df --deterministic \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
 """
