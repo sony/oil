@@ -147,8 +147,8 @@ class BiddingEnv(gym.Env):
         self.eff_cost_table_f = None
         self.pvs = None
         self.costs = None
-        self.eff_pvs_with_up = None
-        self.eff_costs_with_up = None
+        self.eff_pvs_with_up_f = None
+        self.eff_costs_with_up_f = None
         self.imp_idx_arr = None
         self.pv_idx = 0
         self.cur_pv_num = None
@@ -800,6 +800,12 @@ class BiddingEnv(gym.Env):
             self.eff_cost_table = self.cost_table * exposed_prob
             self.eff_pv_table = np.outer(pvalues_arr, exposed_prob)
             pv_cost_table = self.eff_pv_table / self.eff_cost_table
+            pv_up_table = self.eff_pv_table
+            pv_up_table[:, 1:] = self.eff_pv_table[:, 1:] - self.eff_pv_table[:, :-1]
+            cost_up_table = self.eff_cost_table
+            cost_up_table[:, 1:] = (
+                self.eff_cost_table[:, 1:] - self.eff_cost_table[:, :-1]
+            )
 
             n_impressions, n_slots = pv_cost_table.shape
 
@@ -815,74 +821,46 @@ class BiddingEnv(gym.Env):
 
             # Sort by pv/cost (descending)
             sort_indices = np.argsort(self.pv_costs)[::-1]
-            self.impression_ids = self.impression_ids[sort_indices]
-            self.slots = self.slots[sort_indices]
             self.pv_costs = self.pv_costs[sort_indices]
+            self.eff_costs_with_up = cost_up_table.flatten()[sort_indices]
+            self.eff_pvs_with_up = pv_up_table.flatten()[sort_indices]
             self.time_steps_arr = self.time_steps_arr[sort_indices]
         else:
             n_impressions, n_slots = self.eff_pv_table.shape
             valid_indices = self.time_steps_arr >= self.time_step
-            self.impression_ids = self.impression_ids[valid_indices]
-            self.slots = self.slots[valid_indices]
             self.pv_costs = self.pv_costs[valid_indices]
+            self.eff_costs_with_up = self.eff_costs_with_up[valid_indices]
+            self.eff_pvs_with_up = self.eff_pvs_with_up[valid_indices]
             self.time_steps_arr = self.time_steps_arr[valid_indices]
 
-        if self.impression_ids.size == 0:
-            oracle_action = 1
+        if self.pv_costs.size == 0:
+            action = 1
         else:
-            # Variables to track total cost, total pv, best score, and corresponding alpha
-            cum_cost = self.total_cost
-            cum_pv = self.total_conversions
-            best_score = -np.inf
-
-            # Store current slot selection per impression
-            current_slot = [
-                -1
-            ] * n_impressions  # -1 means no slot is currently selected
-
-            # Step 3: Iterate through the sorted impressions
-            for imp_id, new_slot, pv_cost in zip(
-                self.impression_ids, self.slots, self.pv_costs
-            ):
-
-                # Remove the old contribution from the previous slot if it was set
-                if current_slot[imp_id] != -1:
-                    prev_slot = current_slot[imp_id]
-                    cum_cost -= self.eff_cost_table[imp_id, prev_slot]
-                    cum_pv -= self.eff_pv_table[imp_id, prev_slot]
-
-                # Add the new contribution for the current slot
-                cum_cost += self.eff_cost_table[imp_id, new_slot]
-                cum_pv += self.eff_pv_table[imp_id, new_slot]
-
-                # Update the current slot for this impression
-                current_slot[imp_id] = new_slot
-
-                # Early termination if cost exceeds the budget
-                if cum_cost > self.total_budget:
-                    break
-
-                # Compute CPA and score
-                cpa = cum_cost / cum_pv if cum_pv > 0 else np.inf
-                score = cum_pv * min((self.target_cpa / cpa) ** 2, 1)
-
-                # Find the maximum score within the budget constraint
-                if score > best_score:
-                    best_score = score
-                    best_pv_cost = pv_cost  # Set alpha as cost / pv of max score
-
-            # Transform the best pv over cost into the action
-            if best_score < 0:
-                # We cannot improve the score, just output 1
+            cum_eff_cost = self.total_cost + np.cumsum(self.eff_costs_with_up)
+            cum_eff_pv = self.total_conversions + np.cumsum(self.eff_pvs_with_up)
+            cum_cpa = cum_eff_cost / cum_eff_pv
+            cum_cpa[cum_eff_pv == 0] = np.inf
+            cum_score = (
+                cum_eff_pv
+                * np.minimum(1, (self.target_cpa / cum_cpa) ** 2)
+                * (cum_eff_cost <= self.total_budget)
+            )
+            max_score_idx = np.argmax(cum_score)
+            if cum_score[max_score_idx] == 0:
                 action = 0
             else:
-                action = -np.log(best_pv_cost * self.target_cpa)
-                
+                max_score_mask = np.arange(len(self.pv_costs)) <= max_score_idx
+                valid_mask = max_score_mask
+                action = -np.log(self.pv_costs[valid_mask].min() * self.target_cpa)
+
         if self.two_slopes_action:
             oracle_action = np.array([1 / action, 0, 0])
         else:
             oracle_action = np.zeros(len(self.act_keys))
             oracle_action[self.pvalues_key_pos] = action
+            if self.time_step == 0:
+                # breakpoint()
+                pass
         return oracle_action
 
     def get_flex_oracle_action(self):
@@ -906,8 +884,8 @@ class BiddingEnv(gym.Env):
                 self.impression_ids_f,
                 self.slots_f,
                 self.pv_costs_f,
-                self.eff_costs_with_up,
-                self.eff_pvs_with_up,
+                self.eff_costs_with_up_f,
+                self.eff_pvs_with_up_f,
                 self.costs,
                 self.pvs,
                 self.costs_next_slot,
@@ -919,20 +897,20 @@ class BiddingEnv(gym.Env):
             self.impression_ids_f = self.impression_ids_f[valid_indices]
             self.slots_f = self.slots_f[valid_indices]
             self.pv_costs_f = self.pv_costs_f[valid_indices]
-            self.eff_costs_with_up = self.eff_costs_with_up[valid_indices]
-            self.eff_pvs_with_up = self.eff_pvs_with_up[valid_indices]
+            self.eff_costs_with_up_f = self.eff_costs_with_up_f[valid_indices]
+            self.eff_pvs_with_up_f = self.eff_pvs_with_up_f[valid_indices]
             self.costs = self.costs[valid_indices]
             self.costs_next_slot = self.costs_next_slot[valid_indices]
             self.pvs = self.pvs[valid_indices]
             self.time_steps_arr_f = self.time_steps_arr_f[valid_indices]
             self.imp_idx_arr = self.imp_idx_arr[valid_indices]
 
-        cum_eff_cost = self.total_cost + np.cumsum(self.eff_costs_with_up)
-        cum_eff_pv = self.total_conversions + np.cumsum(self.eff_pvs_with_up)
+        cum_eff_cost = self.total_cost + np.cumsum(self.eff_costs_with_up_f)
+        cum_eff_pv = self.total_conversions + np.cumsum(self.eff_pvs_with_up_f)
         cum_cpa = cum_eff_cost / (cum_eff_pv + self.EPS)
         cum_score = (
             cum_eff_pv
-            * np.minimum(1, self.target_cpa / cum_cpa) ** 2
+            * np.minimum(1, (self.target_cpa / cum_cpa) ** 2)
             * (cum_eff_cost <= self.total_budget)
         )
         max_score_idx = np.argmax(cum_score)
