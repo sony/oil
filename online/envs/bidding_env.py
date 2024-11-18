@@ -858,9 +858,6 @@ class BiddingEnv(gym.Env):
         else:
             oracle_action = np.zeros(len(self.act_keys))
             oracle_action[self.pvalues_key_pos] = action
-            if self.time_step == 0:
-                # breakpoint()
-                pass
         return oracle_action
 
     def get_flex_oracle_action(self):
