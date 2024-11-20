@@ -26,9 +26,7 @@ from helpers import (
 
 torch.manual_seed(0)
 
-CKPT_CHOICE_CRITERION = (
-    "score"  # "rollout/ep_rew_mean", "rollout/solved"
-)
+CKPT_CHOICE_CRITERION = "score"  # "rollout/ep_rew_mean", "rollout/solved"
 descending = False
 
 
@@ -132,9 +130,16 @@ def main(args):
         ep_rew_list = []
         ep_cost_over_budget_list = []
         ep_target_cpa_over_cpa_list = []
+        ep_total_conversions_list = []
         ep_baseline_rew_list = []
         ep_topline_rew_list = []
+        ep_topline_cost_over_budget_list = []
+        ep_topline_target_cpa_over_cpa_list = []
+        ep_topline_total_conversions_list = []
         ep_flex_topline_rew_list = []
+        ep_flex_topline_cost_over_budget_list = []
+        ep_flex_topline_target_cpa_over_cpa_list = []
+        ep_flex_topline_total_conversions_list = []
 
         for i in range(args.num_episodes):
             lstm_states = None
@@ -233,15 +238,17 @@ def main(args):
                     # topline_action = (
                     #     topline_env.unwrapped.get_simplified_oracle_action()
                     # )
-                    _, topline_rewards, _, _, _ = topline_env.step(topline_action)
+                    _, topline_rewards, _, _, topline_info = topline_env.step(
+                        topline_action
+                    )
                     topline_ep_rew += topline_rewards
 
                 if args.compute_flex_topline:
                     flex_topline_action = (
                         flex_topline_env.unwrapped.get_flex_oracle_action()
                     )
-                    _, flex_topline_rewards, _, _, _ = flex_topline_env.step(
-                        flex_topline_action
+                    _, flex_topline_rewards, _, _, flex_topline_info = (
+                        flex_topline_env.step(flex_topline_action)
                     )
                     flex_topline_ep_rew += flex_topline_rewards
 
@@ -252,13 +259,31 @@ def main(args):
             ep_rew_list.append(ep_rew)
             ep_cost_over_budget_list.append(info["cost_over_budget"])
             ep_target_cpa_over_cpa_list.append(info["target_cpa_over_cpa"])
+            ep_total_conversions_list.append(info["conversions"])
 
             if args.compute_baseline:
                 ep_baseline_rew_list.append(baseline_ep_rew)
             if args.compute_topline:
                 ep_topline_rew_list.append(topline_ep_rew)
+                ep_topline_cost_over_budget_list.append(
+                    topline_info["cost_over_budget"]
+                )
+                ep_topline_target_cpa_over_cpa_list.append(
+                    topline_info["target_cpa_over_cpa"]
+                )
+                ep_topline_total_conversions_list.append(topline_info["conversions"])
+
             if args.compute_flex_topline:
                 ep_flex_topline_rew_list.append(flex_topline_ep_rew)
+                ep_flex_topline_cost_over_budget_list.append(
+                    flex_topline_info["cost_over_budget"]
+                )
+                ep_flex_topline_target_cpa_over_cpa_list.append(
+                    flex_topline_info["target_cpa_over_cpa"]
+                )
+                ep_flex_topline_total_conversions_list.append(
+                    flex_topline_info["conversions"]
+                )
 
             mean_ep_rew = np.mean(ep_rew_list)
             sem_ep_rew = np.std(ep_rew_list) / np.sqrt(len(ep_rew_list))
@@ -328,6 +353,84 @@ def main(args):
             out_path.mkdir(parents=True, exist_ok=True)
 
             df.to_csv(out_path / f"results_{start_ts}.csv", index=False)
+        if args.save_dict:
+            experiment_name = experiment_path.name
+            results = [
+                {
+                    "experiment": experiment_name,
+                    "score": {
+                        "mean": mean_ep_rew,
+                        "sem": sem_ep_rew,
+                    },
+                    "cost_over_budget": {
+                        "mean": mean_ep_cost_over_budget,
+                        "sem": sem_ep_cost_over_budget,
+                    },
+                    "target_cpa_over_cpa": {
+                        "mean": mean_ep_target_cpa_over_cpa,
+                        "sem": sem_ep_target_cpa_over_cpa,
+                    },
+                    "total_conversions": {
+                        "mean": np.mean(ep_total_conversions_list),
+                        "sem": np.std(ep_total_conversions_list)
+                        / np.sqrt(len(ep_total_conversions_list)),
+                    },
+                }
+            ]
+            if args.compute_topline:
+                results.append(
+                    {
+                        "experiment": "oracle",
+                        "score": {
+                            "mean": mean_topline_ep_rew,
+                            "sem": sem_topline_ep_rew,
+                        },
+                        "cost_over_budget": {
+                            "mean": np.mean(ep_topline_cost_over_budget_list),
+                            "sem": np.std(ep_topline_cost_over_budget_list)
+                            / np.sqrt(len(ep_topline_cost_over_budget_list)),
+                        },
+                        "target_cpa_over_cpa": {
+                            "mean": np.mean(ep_topline_target_cpa_over_cpa_list),
+                            "sem": np.std(ep_topline_target_cpa_over_cpa_list)
+                            / np.sqrt(len(ep_topline_target_cpa_over_cpa_list)),
+                        },
+                        "total_conversions": {
+                            "mean": np.mean(ep_topline_total_conversions_list),
+                            "sem": np.std(ep_topline_total_conversions_list)
+                            / np.sqrt(len(ep_topline_total_conversions_list)),
+                        },
+                    }
+                )
+            if args.compute_flex_topline:
+                results.append(
+                    {
+                        "experiment": "flex_oracle",
+                        "score": {
+                            "mean": mean_flex_topline_ep_rew,
+                            "sem": sem_flex_topline_ep_rew,
+                        },
+                        "cost_over_budget": {
+                            "mean": np.mean(ep_flex_topline_cost_over_budget_list),
+                            "sem": np.std(ep_flex_topline_cost_over_budget_list)
+                            / np.sqrt(len(ep_flex_topline_cost_over_budget_list)),
+                        },
+                        "target_cpa_over_cpa": {
+                            "mean": np.mean(ep_flex_topline_target_cpa_over_cpa_list),
+                            "sem": np.std(ep_flex_topline_target_cpa_over_cpa_list)
+                            / np.sqrt(len(ep_flex_topline_target_cpa_over_cpa_list)),
+                        },
+                        "total_conversions": {
+                            "mean": np.mean(ep_flex_topline_total_conversions_list),
+                            "sem": np.std(ep_flex_topline_total_conversions_list)
+                            / np.sqrt(len(ep_flex_topline_total_conversions_list)),
+                        },
+                    }
+                )
+                out_path = ROOT_DIR / "output" / "testing" / experiment_name
+                out_path.mkdir(parents=True, exist_ok=True)
+                with open(out_path / f"results_{start_ts}.json", "w") as f:
+                    json.dump(results, f)
 
         if args.create_dataset:
             experiment_name = experiment_path.name
@@ -460,6 +563,12 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Flag to create a dataset of episodes",
+    )
+    parser.add_argument(
+        "--save_dict",
+        action="store_true",
+        default=False,
+        help="Flag to save the results as a dictionary",
     )
     args = parser.parse_args()
     main(args)
@@ -1328,4 +1437,45 @@ python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/013_oil_seed_2_final_dataset_realistic_oracle_medium_bids_lin_lr \
     --num_episodes=100 --no_save_df --deterministic \
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo ppo --experiment_path=output/training/ongoing/015_ppo_seed_0_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr \
+    --num_episodes=1000 --no_save_df --deterministic \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo ppo --experiment_path=output/training/ongoing/016_ppo_seed_1_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr \
+    --num_episodes=1000 --no_save_df --deterministic \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo ppo --experiment_path=output/training/ongoing/017_ppo_seed_2_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr \
+    --num_episodes=1000 --no_save_df --deterministic \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo ppo --experiment_path=output/training/ongoing/022_ppo_seed_1_final_dataset_dense_reward_medium_bids_smaller_lin_lr \
+    --num_episodes=1000 --no_save_df --deterministic \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/046_oil_seed_0_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr_cw_0_52 \
+    --num_episodes=1000 --no_save_df --deterministic \
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/046_oil_seed_0_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr_cw_0_52 \
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/046_oil_seed_0_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr_cw_0_52 \
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/039_oil_seed_0_official_dataset_realistic_oracle_medium_bids_lin_lr \
+    --num_episodes=1000 --no_save_df --deterministic\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json \
+            --compute_flex_topline --two_slopes_action
+
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/049_oil_seed_0_final_dataset_flex_oracle_detailed_bid_medium_bids_lin_lr \
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 1220000\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
+
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/022_ppo_seed_1_final_dataset_dense_reward_medium_bids_smaller_lin_lr \
+    --num_episodes=10 --no_save_df --deterministic --checkpoint 10000000 --save_dict --compute_topline --compute_flex_topline\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
 """
