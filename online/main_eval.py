@@ -430,7 +430,7 @@ def main(args):
                 out_path = ROOT_DIR / "output" / "testing" / experiment_name
                 out_path.mkdir(parents=True, exist_ok=True)
                 with open(out_path / f"results_{start_ts}.json", "w") as f:
-                    json.dump(results, f)
+                    json.dump(results, f, indent=4)
 
         if args.create_dataset:
             experiment_name = experiment_path.name
