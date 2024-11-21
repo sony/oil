@@ -117,8 +117,8 @@ def generate_online_rl_data(traffic_data_paths, out_dir, use_precomputed=False):
 
 if __name__ == "__main__":
     periods = list(range(7, 28))
-    data_dir = ROOT_DIR / "data" / "raw_traffic_final_parquet"
-    out_dir = ROOT_DIR / "data" / "online_rl_data_final_with_ad_idx"
+    data_dir = ROOT_DIR / "data" / "traffic" / "raw_traffic_parquet"
+    out_dir = ROOT_DIR / "data" / "traffic" / "online_rl_data_with_ad_idx"
 
     traffic_data_paths = [data_dir / f"period-{period}.parquet" for period in periods]
     use_precomputed = False

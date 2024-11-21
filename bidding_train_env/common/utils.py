@@ -3,6 +3,22 @@ import os
 import pickle
 import numpy as np
 
+def apply_norm_state(obs, normalize_dict):
+    """
+    Normalize the state for reinforcement learning.
+
+    Args:
+        obs: The state to be normalized.
+        normalize_dict: The dictionary containing normalization statistics.
+
+    Returns:
+        The normalized state.
+    """
+    for i, stats in normalize_dict.items():
+        min_val = stats['min']
+        max_val = stats['max']
+        obs[..., i] = (obs[..., i] - min_val) / (max_val - min_val + 0.01)
+    return obs
 
 def normalize_state(training_data, state_dim, normalize_indices):
     """

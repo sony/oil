@@ -100,7 +100,7 @@ class IQL(nn.Module):
     '''
 
     def __init__(self, dim_obs=3, dim_actions=1, gamma=0.99, tau=0.01, V_lr=1e-4, critic_lr=1e-4, actor_lr=1e-4,
-                 network_random_seed=1, expectile=0.7, temperature=3.0, device='cuda:0'):
+                 network_random_seed=1, expectile=0.7, temperature=3.0):
         super().__init__()
         self.num_of_states = dim_obs
         self.num_of_actions = dim_actions
@@ -126,14 +126,15 @@ class IQL(nn.Module):
         self.critic2_optimizer = Adam(self.critic2.parameters(), lr=self.critic_lr)
         self.actor_optimizer = Adam(self.actors.parameters(), lr=self.actor_lr)
         self.deterministic_action = True
-        self.device = device
-        self.critic1.to(device)
-        self.critic2.to(device)
-        self.critic1_target.to(device)
-        self.critic2_target.to(device)
-        self.value_net.to(device)
-        self.actors.to(device)
-        self.exp_clip = torch.tensor([100.0], dtype=torch.float32, device=device)
+        self.use_cuda = torch.cuda.is_available()
+        self.device = torch.device("cuda:0" if self.use_cuda else "cpu")
+        self.critic1.to(self.device)
+        self.critic2.to(self.device)
+        self.critic1_target.to(self.device)
+        self.critic2_target.to(self.device)
+        self.value_net.to(self.device)
+        self.actors.to(self.device)
+        self.exp_clip = torch.tensor([100.0], dtype=torch.float32, device=self.device)
 
     def step(self, states, actions, rewards, next_states, dones):
         '''
@@ -167,13 +168,16 @@ class IQL(nn.Module):
         '''
         take action
         '''
-        states = torch.Tensor(states).to(self.device)
+        if not isinstance(states, torch.Tensor):
+            states = torch.tensor(states, dtype=torch.float32, device=self.device)
         if self.deterministic_action:
             actions = self.actors.get_det_action(states)
         else:
             actions = self.actors.get_action(states)
-        actions = torch.clamp(actions, 0)
-        actions = actions.cpu().data.numpy()
+        actions = torch.clamp(actions, -10)
+        actions = actions.cpu().data
+        if not isinstance(states, torch.Tensor):
+            actions = actions.numpy()
         return actions
 
     def forward(self, states):

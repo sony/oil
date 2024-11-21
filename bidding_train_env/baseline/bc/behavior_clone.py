@@ -13,6 +13,8 @@ class Actor(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
             nn.Linear(hidden_size, 1),
         )
 
@@ -60,7 +62,9 @@ class BC(nn.Module):
             states = torch.tensor(states, dtype=torch.float32, device=self.device)
         with torch.no_grad():
             actions = self.actor(states)
-        actions = actions.clamp(min=0).cpu().numpy()
+        actions = actions.clamp(min=-10).cpu()
+        if not isinstance(states, torch.Tensor):
+            actions = actions.numpy()
         return actions
 
     def save_net_pkl(self, save_path):
@@ -77,7 +81,6 @@ class BC(nn.Module):
         self.to(self.device)  # Go back to the original device
 
     def forward(self, states):
-
         with torch.no_grad():
             actions = self.actor(states)
         actions = torch.clamp(actions, min=0)
