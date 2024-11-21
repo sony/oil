@@ -40,13 +40,13 @@ def train_iql_model():
     """
     Train the IQL model with periodic testing and wandb logging.
     """
-    seed = 0
+    seed = 2
     reward_continuous = False
-
+    dataset_name = "final"  # official, final
     # Initialize wandb
     wandb.init(
         project="baselines",
-        name=f"iql_training_{seed}_reward_continuous_{reward_continuous}",
+        name=f"iql_training_{seed}_reward_continuous_{reward_continuous}_dataset_{dataset_name}",
         config={
             "batch_size": 100,
             "step_num": 100000,
@@ -57,12 +57,13 @@ def train_iql_model():
             "save_every": 10000,
             "seed": seed,
             "reward_continuous": reward_continuous,
+            "dataset": dataset_name
         },
     )
 
     experiment_name = f"iql_seed_{wandb.config.seed}"
-    train_data_path = "/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data_final/period-7_26_offline_rl_data.parquet"
-    test_data_path = "/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data_final/period-27_27_offline_rl_data.parquet"
+    train_data_path = f"/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data_{dataset_name}/period-7_26_offline_rl_data.parquet"
+    test_data_path = f"/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data_{dataset_name}/period-27_27_offline_rl_data.parquet"
 
     # Load and preprocess training and test data
     training_data = pd.read_parquet(train_data_path)

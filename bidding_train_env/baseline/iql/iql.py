@@ -64,12 +64,14 @@ class Actor(nn.Module):
         self.log_std_max = log_std_max
         self.FC1 = nn.Linear(dim_observation, 256)
         self.FC2 = nn.Linear(256, 256)
+        self.FC3 = nn.Linear(256, 256)
         self.FC_mu = nn.Linear(256, dim_action)
         self.FC_std = nn.Linear(256, dim_action)
 
     def forward(self, obs):
         x = F.relu(self.FC1(obs))
         x = F.relu(self.FC2(x))
+        x = F.relu(self.FC3(x))
         mu = self.FC_mu(x)
         log_std = self.FC_std(x)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)

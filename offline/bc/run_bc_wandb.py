@@ -40,11 +40,12 @@ def train_model():
     Train BC model and log losses.
     """
     seed = 2
+    dataset_name = "final"  # official, final
     
     # Initialize Weights & Biases
     wandb.init(
         project="baselines",
-        name=f"bc_training_{seed}",
+        name=f"bc_training_{seed}_dataset_{dataset_name}",
         config={
             "batch_size": 100,
             "step_num": 100000,
@@ -54,12 +55,14 @@ def train_model():
             "lr": 1e-4,
             "save_every": 10000,
             "seed": seed,
+            "dataset": dataset_name
+
         },
     )
 
     experiment_name = f"bc_seed_{wandb.config.seed}"
-    train_data_path = "/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data_final/period-7_26_offline_rl_data.parquet"
-    test_data_path = "/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data_final/period-27_27_offline_rl_data.parquet"
+    train_data_path = f"/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data_{dataset_name}/period-7_26_offline_rl_data.parquet"
+    test_data_path = f"/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data_{dataset_name}/period-27_27_offline_rl_data.parquet"
 
     # Load training and test data
     training_data = pd.read_parquet(train_data_path)
