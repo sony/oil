@@ -41,7 +41,7 @@ def train_iql_model():
     Train the IQL model with periodic testing and wandb logging.
     """
     seed = 2
-    reward_continuous = False
+    reward_continuous = True
     dataset_name = "official"  # official, final
     # Initialize wandb
     wandb.init(
