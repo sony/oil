@@ -73,7 +73,7 @@ if __name__ == "__main__":
             done = False
             while not done:
                 alpha = compute_alpha(ad_df, env.time_step, target_cpa)
-                obs, reward, terminated, truncated, info = env.step(alpha)
+                next_obs, reward, terminated, truncated, info = env.step(alpha)
                 done = terminated or truncated
                 training_data_rows.append({
                     'deliveryPeriodIndex': period,
@@ -90,6 +90,7 @@ if __name__ == "__main__":
                     'reward_continuous': info["dense"],
                     'done': done
                 })
+                obs = next_obs
         training_data = pd.DataFrame(training_data_rows)
         training_data = training_data.sort_values(by=['deliveryPeriodIndex', 'advertiserNumber', 'timeStepIndex'])
 
