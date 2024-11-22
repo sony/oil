@@ -41,8 +41,8 @@ def train_iql_model():
     Train the IQL model with periodic testing and wandb logging.
     """
     seed = 2
-    reward_continuous = True
-    dataset_name = "official"  # official, final
+    reward_continuous = False
+    dataset_name = "final"  # official, final
     # Initialize wandb
     wandb.init(
         project="baselines",
@@ -61,7 +61,7 @@ def train_iql_model():
         },
     )
 
-    experiment_name = f"iql_seed_{wandb.config.seed}"
+    experiment_name = wandb.run.name
     if dataset_name == "official":
         df_str = ""
     elif dataset_name == "final":

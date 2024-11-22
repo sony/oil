@@ -60,7 +60,7 @@ def train_model():
         },
     )
 
-    experiment_name = f"bc_seed_{wandb.config.seed}"
+    experiment_name = wandb.run.name
     if dataset_name == "official":
         df_str = ""
     elif dataset_name == "final":
