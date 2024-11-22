@@ -66,7 +66,6 @@ if __name__ == "__main__":
                 obs = apply_norm_state(obs, normalize_dict)
                 with torch.no_grad():
                     action = model(obs).cpu().numpy()
-                breakpoint()
                 obs, rew, terminated, truncated, info = env.step(action)
                 ep_rew += rew
                 step += 1

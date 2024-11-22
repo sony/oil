@@ -90,7 +90,6 @@ def eval_model():
             loss = torch.nn.functional.mse_loss(pred_actions, actions).item()
             test_loss += loss * len(batch)
             total_reward += batch["reward_continuous"].sum()
-        breakpoint()
 
     logger.info(
         f"Test Loss: {test_loss / num_samples}, Total Reward: {total_reward / 48}"
