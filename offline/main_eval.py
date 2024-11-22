@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     algo = "bc"
     num_episodes = 1000
-    experiment_name = "bc_training_2_dataset_final"
+    experiment_name = "bc_training_0_dataset_final"
     exp_path = (
         ROOT_DIR
         / "output"
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic.json"
 
     start_ts = int(time.time())
-    model = torch.jit.load(exp_path)
+    model = torch.jit.load(exp_path).actor
     with open(normalize_path, "rb") as f:
         normalize_dict = pickle.load(f)
 

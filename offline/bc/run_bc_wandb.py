@@ -17,6 +17,7 @@ from bidding_train_env.baseline.iql.replay_buffer import ReplayBuffer
 from bidding_train_env.baseline.bc.behavior_clone import BC
 from definitions import ROOT_DIR
 import logging
+import pickle
 
 np.set_printoptions(suppress=True, precision=4)
 
@@ -28,11 +29,72 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_bc():
+def run_bc(only_eval=False):
     """
     Run bc model training and evaluation.
     """
-    train_model()
+    if only_eval:
+        eval_model()
+    else:
+        train_model()
+
+
+def eval_model():
+    seed = 0
+    batch_size = 1
+    dataset_name = "final"  # official, final
+    algo = "bc"
+    experiment_name = f"bc_training_{seed}_dataset_{dataset_name}"
+    model_path = (
+        ROOT_DIR
+        / "output"
+        / "offline"
+        / experiment_name
+        / "model_final"
+        / f"{algo}_model.pth"
+    )
+    normalize_path = (
+        ROOT_DIR / "output" / "offline" / experiment_name / "normalize_dict.pkl"
+    )
+
+    if dataset_name == "official":
+        df_str = ""
+    elif dataset_name == "final":
+        df_str = "_final"
+    else:
+        raise ValueError("Invalid dataset name")
+    test_data_path = f"/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data{df_str}/period-27_27_offline_rl_data.parquet"
+
+    test_data = pd.read_parquet(test_data_path)
+
+    test_data["state"] = test_data["state"].apply(np.array)
+    test_data["next_state"] = test_data["next_state"].apply(np.array)
+
+    model = torch.jit.load(model_path).actor
+
+    with open(normalize_path, "rb") as f:
+        normalize_dict = pickle.load(f)
+
+    test_loss = 0
+    total_reward = 0
+    num_samples = len(test_data)
+    for start_idx in range(0, num_samples, batch_size):
+        batch = test_data.iloc[start_idx : start_idx + batch_size]
+        states = torch.tensor(np.stack(batch["state"].values), dtype=torch.float32)
+        actions = torch.tensor(np.stack(batch["action"].values), dtype=torch.float32)[
+            :, None
+        ]
+        states = apply_norm_state(states, normalize_dict)
+        with torch.no_grad():
+            pred_actions = model(states)
+            loss = torch.nn.functional.mse_loss(pred_actions, actions).item()
+            test_loss += loss * len(batch)
+            total_reward += batch["reward_continuous"].sum()
+        breakpoint()
+
+    logger.info(
+        f"Test Loss: {test_loss / num_samples}, Total Reward: {total_reward / 48}"
+    )
 
 
 def train_model():
@@ -41,7 +103,7 @@ def train_model():
     """
     seed = 2
     dataset_name = "official"  # official, final
-    
+
     # Initialize Weights & Biases
     wandb.init(
         project="baselines",
@@ -55,8 +117,7 @@ def train_model():
             "lr": 1e-4,
             "save_every": 10000,
             "seed": seed,
-            "dataset": dataset_name
-
+            "dataset": dataset_name,
         },
     )
 
@@ -119,16 +180,14 @@ def train_model():
             )
             wandb.log({"test_loss": test_loss}, step=step)
             logger.info(f"Step: {step} Test Loss: {test_loss}")
-            
+
         if step % wandb.config.save_every == 0:
             model.save_jit(
                 ROOT_DIR / "output" / "offline" / experiment_name / f"model_{step}"
             )
 
     # Save the model
-    model.save_jit(
-        ROOT_DIR / "output" / "offline" / experiment_name / "model_final"
-    )
+    model.save_jit(ROOT_DIR / "output" / "offline" / experiment_name / "model_final")
     wandb.finish()
 
 
@@ -182,4 +241,4 @@ def add_to_replay_buffer(replay_buffer, training_data, is_normalize):
 
 
 if __name__ == "__main__":
-    run_bc()
+    run_bc(only_eval=False)
