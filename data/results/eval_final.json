@@ -1,0 +1,361 @@
+{
+    "ppo_sparse": [
+        {
+            "experiment": "033_ppo_seed_0_final_dataset_reward_medium_bids_smaller_lin_lr",
+            "score": {
+                "mean": 19.966995247704713,
+                "sem": 0.4999282656499718
+            },
+            "cost_over_budget": {
+                "mean": 0.7563830923675953,
+                "sem": 0.01118774852439908
+            },
+            "target_cpa_over_cpa": {
+                "mean": 0.8389177092792977,
+                "sem": 0.015440997645424639
+            },
+            "total_conversions": {
+                "mean": 25.089,
+                "sem": 0.4852206498078993
+            }
+        },
+        {
+            "experiment": "034_ppo_seed_1_final_dataset_sparse_reward_medium_bids_smaller_lin_lr",
+            "score": {
+                "mean": 21.018198336662593,
+                "sem": 0.5252814362618327
+            },
+            "cost_over_budget": {
+                "mean": 0.7186909531049376,
+                "sem": 0.011021171156972825
+            },
+            "target_cpa_over_cpa": {
+                "mean": 0.9061905178270856,
+                "sem": 0.02604943916036909
+            },
+            "total_conversions": {
+                "mean": 25.129,
+                "sem": 0.5005320758952417
+            }
+        },
+        {
+            "experiment": "035_ppo_seed_2_final_dataset_sparse_reward_medium_bids_smaller_lin_lr",
+            "score": {
+                "mean": 24.694759017385127,
+                "sem": 0.5562217412480055
+            },
+            "cost_over_budget": {
+                "mean": 0.7611696362355655,
+                "sem": 0.010481539898303355
+            },
+            "target_cpa_over_cpa": {
+                "mean": 0.982388392250111,
+                "sem": 0.01723593550324612
+            },
+            "total_conversions": {
+                "mean": 28.569,
+                "sem": 0.5255199701248279
+            }
+        }
+    ],
+    "ppo_dense": [
+        {
+            "experiment": "021_ppo_seed_0_final_dataset_dense_reward_medium_bids_smaller_lin_lr",
+            "score": {
+                "mean": 27.650980383476526,
+                "sem": 0.5353417066400679
+            },
+            "cost_over_budget": {
+                "mean": 0.9307957570974255,
+                "sem": 0.0031721973099671204
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.0006176162704519,
+                "sem": 0.011466559583112683
+            },
+            "total_conversions": {
+                "mean": 33.618,
+                "sem": 0.4226607102629721
+            }
+        },
+        {
+            "experiment": "022_ppo_seed_1_final_dataset_dense_reward_medium_bids_smaller_lin_lr",
+            "score": {
+                "mean": 28.42015854595549,
+                "sem": 0.5577581356094419
+            },
+            "cost_over_budget": {
+                "mean": 0.8900717844565535,
+                "sem": 0.005372536788230381
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.019848447513709,
+                "sem": 0.011793692675358215
+            },
+            "total_conversions": {
+                "mean": 33.275,
+                "sem": 0.46611090418483025
+            }
+        },
+        {
+            "experiment": "023_ppo_seed_2_final_dataset_dense_reward_medium_bids_smaller_lin_lr",
+            "score": {
+                "mean": 28.91350195521225,
+                "sem": 0.5469981155437578
+            },
+            "cost_over_budget": {
+                "mean": 0.8399612913241724,
+                "sem": 0.0069233566880367615
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.0724530906623395,
+                "sem": 0.01160911407136925
+            },
+            "total_conversions": {
+                "mean": 32.94,
+                "sem": 0.47886991970680304
+            }
+        }
+    ],
+    "ppo_dense_2_slopes": [
+        {
+            "experiment": "015_ppo_seed_0_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr",
+            "score": {
+                "mean": 29.159858837855797,
+                "sem": 0.5445469219447884
+            },
+            "cost_over_budget": {
+                "mean": 0.867215189584769,
+                "sem": 0.006322152742696576
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.0551391759722513,
+                "sem": 0.012025345941309077
+            },
+            "total_conversions": {
+                "mean": 33.581,
+                "sem": 0.46818312549685087
+            }
+        },
+        {
+            "experiment": "016_ppo_seed_1_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr",
+            "score": {
+                "mean": 30.665778096382656,
+                "sem": 0.5589231572489005
+            },
+            "cost_over_budget": {
+                "mean": 0.9025344794583732,
+                "sem": 0.005762662084365094
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.0677353025184277,
+                "sem": 0.01256511746141145
+            },
+            "total_conversions": {
+                "mean": 35.32,
+                "sem": 0.47547407920937185
+            }
+        },
+        {
+            "experiment": "017_ppo_seed_2_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr",
+            "score": {
+                "mean": 30.011022153796656,
+                "sem": 0.5749039617829925
+            },
+            "cost_over_budget": {
+                "mean": 0.8649112936605222,
+                "sem": 0.0054421346371326725
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.0855062294193412,
+                "sem": 0.012988636453682992
+            },
+            "total_conversions": {
+                "mean": 34.377,
+                "sem": 0.48941278181101894
+            }
+        }
+    ],
+    "oil": [
+        {
+            "experiment": "011_oil_seed_0_final_dataset_realistic_oracle_medium_bids_lin_lr",
+            "score": {
+                "mean": 35.40092952237959,
+                "sem": 0.5469289328566184
+            },
+            "cost_over_budget": {
+                "mean": 0.9851917112588626,
+                "sem": 0.0014000682457120002
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.1344145603694358,
+                "sem": 0.012799048908589655
+            },
+            "total_conversions": {
+                "mean": 40.022,
+                "sem": 0.4342044633579899
+            }
+        },
+        {
+            "experiment": "012_oil_seed_1_final_dataset_realistic_oracle_medium_bids_lin_lr",
+            "score": {
+                "mean": 35.28731110342867,
+                "sem": 0.5571723533906334
+            },
+            "cost_over_budget": {
+                "mean": 0.9795239046627886,
+                "sem": 0.0017891167363365652
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.13312788002884,
+                "sem": 0.012810112547608372
+            },
+            "total_conversions": {
+                "mean": 39.914,
+                "sem": 0.44707561329153256
+            }
+        },
+        {
+            "experiment": "013_oil_seed_2_final_dataset_realistic_oracle_medium_bids_lin_lr",
+            "score": {
+                "mean": 35.18341371518728,
+                "sem": 0.54997414678659
+            },
+            "cost_over_budget": {
+                "mean": 0.9823787338688083,
+                "sem": 0.0015856701596187427
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.129152125311978,
+                "sem": 0.012566740485456524
+            },
+            "total_conversions": {
+                "mean": 39.855,
+                "sem": 0.4392311179777681
+            }
+        }
+    ],
+    "oil_2_slopes": [
+        {
+            "experiment": "003_oil_seed_0_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr",
+            "score": {
+                "mean": 34.88536205523841,
+                "sem": 0.5531796713605092
+            },
+            "cost_over_budget": {
+                "mean": 0.9751692426778982,
+                "sem": 0.0023364104785208463
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.1277641428203729,
+                "sem": 0.012535003442406425
+            },
+            "total_conversions": {
+                "mean": 39.501,
+                "sem": 0.44190949186456724
+            }
+        },
+        {
+            "experiment": "004_oil_seed_1_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr",
+            "score": {
+                "mean": 35.049873367207994,
+                "sem": 0.5645624920117633
+            },
+            "cost_over_budget": {
+                "mean": 0.971042951204246,
+                "sem": 0.0024846063133943707
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.129542236863601,
+                "sem": 0.012721371016859882
+            },
+            "total_conversions": {
+                "mean": 39.525,
+                "sem": 0.4557075542494331
+            }
+        },
+        {
+            "experiment": "005_oil_seed_2_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr",
+            "score": {
+                "mean": 34.78828460082013,
+                "sem": 0.559114825135853
+            },
+            "cost_over_budget": {
+                "mean": 0.9652470247937128,
+                "sem": 0.0029138653994756868
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.129197930017004,
+                "sem": 0.012686270495342298
+            },
+            "total_conversions": {
+                "mean": 39.302,
+                "sem": 0.45139871067604964
+            }
+        }
+    ],
+    "oracle": [
+        {
+            "experiment": "oracle",
+            "score": {
+                "mean": 37.03950013670184,
+                "sem": 0.5524672140899908
+            },
+            "cost_over_budget": {
+                "mean": 0.9967115721135958,
+                "sem": 0.0009207490666048062
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.1684277769748932,
+                "sem": 0.013459122337032727
+            },
+            "total_conversions": {
+                "mean": 41.417,
+                "sem": 0.4351816988339468
+            }
+        }
+    ],
+    "flex_oracle": [
+        {
+            "experiment": "flex_oracle",
+            "score": {
+                "mean": 38.075934576762826,
+                "sem": 0.5614892214533439
+            },
+            "cost_over_budget": {
+                "mean": 0.9947925999320032,
+                "sem": 0.001313254959417543
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.191195059618823,
+                "sem": 0.013660276169728286
+            },
+            "total_conversions": {
+                "mean": 42.229,
+                "sem": 0.4488948195290296
+            }
+        }
+    ],
+    "flex_oracle_two_slopes": [
+        {
+            "experiment": "flex_oracle",
+            "score": {
+                "mean": 37.49157675389747,
+                "sem": 0.5424380785630045
+            },
+            "cost_over_budget": {
+                "mean": 0.9942631525760115,
+                "sem": 0.001478383594232516
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.171637139746053,
+                "sem": 0.013126973471074884
+            },
+            "total_conversions": {
+                "mean": 41.611,
+                "sem": 0.43536154974917113
+            }
+        }
+    ]
+
+}
