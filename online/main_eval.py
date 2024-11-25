@@ -1475,33 +1475,34 @@ python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/
     --num_episodes=1000 --no_save_df --deterministic --checkpoint 1220000\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
 
+
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/022_ppo_seed_1_final_dataset_dense_reward_medium_bids_smaller_lin_lr \
     --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict --compute_topline\
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
         
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/023_ppo_seed_2_final_dataset_dense_reward_medium_bids_smaller_lin_lr \
     --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict --compute_flex_topline\
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
 
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/016_ppo_seed_1_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr \
     --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict \
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
         
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/015_ppo_seed_0_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr \
-    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict \
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict --compute_flex_topline --two_slopes_action\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
 
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/039_oil_seed_0_official_dataset_realistic_oracle_medium_bids_lin_lr \
-    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict \
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict  --compute_topline\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
         
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/042_oil_seed_0_official_dataset_flex_oracle_two_slopes_medium_bids_lin_lr \
-    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict \
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict --compute_flex_topline\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
 
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/017_ppo_seed_2_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr \
     --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict \
-        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
         
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/018_ppo_seed_0_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr \
     --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict \
@@ -1511,4 +1512,7 @@ python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/
     --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict \
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
 
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/069_ppo_seed_1_official_dataset_dense_reward_medium_bids_smaller_lin_lr \
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
 """
