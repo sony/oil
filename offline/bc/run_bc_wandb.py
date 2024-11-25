@@ -42,7 +42,7 @@ def run_bc(only_eval=False):
 def eval_model():
     seed = 0
     batch_size = 1
-    dataset_name = "final"  # official, final
+    dataset_name = "official"  # official, final
     algo = "bc"
     experiment_name = f"bc_training_{seed}_dataset_{dataset_name}"
     model_path = (
@@ -101,7 +101,7 @@ def train_model():
     Train BC model and log losses.
     """
     seed = 2
-    dataset_name = "official"  # official, final
+    dataset_name = "final"  # official, final
 
     # Initialize Weights & Biases
     wandb.init(

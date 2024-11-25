@@ -17,19 +17,19 @@ if __name__ == "__main__":
 
     algo = "bc"
     num_episodes = 1000
-    experiment_name = "bc_training_0_dataset_final"
+    experiment_name = "bc_training_0_dataset_official"
     exp_path = (
         ROOT_DIR
         / "output"
         / "offline"
         / experiment_name
-        / "model_final"
+        / "model_20000"
         / f"{algo}_model.pth"
     )
     normalize_path = (
         ROOT_DIR / "output" / "offline" / experiment_name / "normalize_dict.pkl"
     )
-    eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic.json"
+    eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic_official.json"  # add or remove "official"
 
     start_ts = int(time.time())
     model = torch.jit.load(exp_path).actor
@@ -111,3 +111,13 @@ if __name__ == "__main__":
     out_path.mkdir(parents=True, exist_ok=True)
     with open(out_path / f"results_{start_ts}.json", "w") as f:
         json.dump(results, f, indent=4)
+    info_dict = {
+        "num_episodes": num_episodes,
+        "start_ts": start_ts,
+        "algo": algo,
+        "exp_path": str(exp_path),
+        "normalize_path": str(normalize_path),
+        "eval_config_path": str(eval_config_path),
+    }
+    with open(out_path / f"info_{start_ts}.json", "w") as f:
+        json.dump(info_dict, f, indent=4)
