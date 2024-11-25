@@ -15,15 +15,15 @@ from bidding_train_env.common.utils import apply_norm_state
 
 if __name__ == "__main__":
 
-    algo = "bc"
+    algo = "iql"
     num_episodes = 1000
-    experiment_name = "bc_training_0_dataset_official"
+    experiment_name = "iql_training_2_reward_continuous_True_dataset_official"
     exp_path = (
         ROOT_DIR
         / "output"
         / "offline"
         / experiment_name
-        / "model_20000"
+        / "model_final"
         / f"{algo}_model.pth"
     )
     normalize_path = (
@@ -32,7 +32,13 @@ if __name__ == "__main__":
     eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic_official.json"  # add or remove "official"
 
     start_ts = int(time.time())
-    model = torch.jit.load(exp_path).actor
+    model = torch.jit.load(exp_path)
+    if algo == "iql":
+        model_fn = lambda x: model.actors(x)[0]
+    elif algo == "bc":
+        model_fn = lambda x: model.actor(x)
+    else:
+        raise ValueError(f"Unknown algorithm: {algo}")
     with open(normalize_path, "rb") as f:
         normalize_dict = pickle.load(f)
 
@@ -54,7 +60,7 @@ if __name__ == "__main__":
             obs = apply_norm_state(obs, normalize_dict)
             with torch.no_grad():
                 obs = torch.tensor(obs, dtype=torch.float32)
-                action = model(obs).cpu().numpy()
+                action = model_fn(obs).cpu().numpy()
             obs, rew, terminated, truncated, info = env.step(action)
             ep_rew += rew
             step += 1
