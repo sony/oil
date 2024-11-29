@@ -15,21 +15,21 @@ from bidding_train_env.common.utils import apply_norm_state
 
 if __name__ == "__main__":
 
-    algo = "iql"
+    algo = "bc"
     num_episodes = 1000
-    experiment_name = "iql_training_2_reward_continuous_True_dataset_official"
+    experiment_name = "bc_training_2_dataset_final_oracle"
     exp_path = (
         ROOT_DIR
         / "output"
         / "offline"
         / experiment_name
-        / "model_final"
+        / "model_10000"
         / f"{algo}_model.pth"
     )
     normalize_path = (
         ROOT_DIR / "output" / "offline" / experiment_name / "normalize_dict.pkl"
     )
-    eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic_official.json"  # add or remove "official"
+    eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic.json"  # add or remove "official"
 
     start_ts = int(time.time())
     model = torch.jit.load(exp_path)
