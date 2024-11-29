@@ -473,6 +473,10 @@ class BiddingEnv(gym.Env):
 
     def sample_period(self):
         return self.np_random.choice(self.period_list)
+    
+    @property
+    def category(self):
+        return self.advertiser_category_dict[self.advertiser]
 
     def get_state_dict(self, pvalues, pvalues_std):
         state_dict = {
