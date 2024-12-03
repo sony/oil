@@ -64,6 +64,8 @@ if __name__ == "__main__":
     for json_file in ["eval_official.json", "eval_final.json"]:
         json_file = default_json_path / json_file
         copy_experiments(json_file, output_folder)
+    
+    if offline_exp_path.exists():
         copy_folder_contents(offline_exp_path, output_folder) 
 
         
