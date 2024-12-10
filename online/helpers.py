@@ -3,6 +3,7 @@ import sys
 
 sys.path.append(str(pathlib.Path(__file__).parent.parent))
 
+import os
 import numpy as np
 import torch
 from typing import Iterable, Union
@@ -11,7 +12,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from definitions import ENV_PATTERN, MODEL_PATTERN, ALGO_CLASS_DICT
 from stable_baselines3 import PPO
-import os
+from scipy.signal import butter, lfilter
 
 
 def get_number(filename):
@@ -76,7 +77,9 @@ def get_sorted_checkpoints(steps, rewards, checkpoints, verbose=1, descending=Tr
 
 
 def get_best_checkpoint(steps, rewards, checkpoints, verbose=1, descending=True):
-    sorted_checkpoints = get_sorted_checkpoints(steps, rewards, checkpoints, verbose, descending)
+    sorted_checkpoints = get_sorted_checkpoints(
+        steps, rewards, checkpoints, verbose, descending
+    )
     return sorted_checkpoints[0]
 
 
@@ -138,3 +141,13 @@ def my_safe_to_tensor(array: Union[np.ndarray, torch.Tensor], **kwargs) -> torch
         A PyTorch tensor with the same content as `array`.
     """
     return torch.as_tensor(array, dtype=torch.float32, **kwargs)
+
+
+def butter_lowpass(cutoff, fs, order=5):
+    return butter(order, cutoff, fs=fs, btype="low", analog=False)
+
+
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y = lfilter(b, a, data)
+    return y

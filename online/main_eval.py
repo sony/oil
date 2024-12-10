@@ -1515,4 +1515,13 @@ python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/
 python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/069_ppo_seed_1_official_dataset_dense_reward_medium_bids_smaller_lin_lr \
     --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict\
         --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
+
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/051_oil_seed_2_final_dataset_flex_oracle_detailed_bid_medium_bids_lin_lr \
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic.json
+
+python online/main_eval.py --algo oil --experiment_path=output/training/ongoing/052_oil_seed_0_official_dataset_flex_oracle_detailed_bid_medium_bids_lin_lr \
+    --num_episodes=1000 --no_save_df --deterministic --checkpoint 10000000 --save_dict\
+        --eval_config_path=/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/env_configs/eval_config_realistic_official.json
+
 """
