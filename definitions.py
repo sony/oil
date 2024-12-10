@@ -3,7 +3,7 @@ import json
 from stable_baselines3 import SAC, TD3, PPO
 from sb3_contrib import RecurrentPPO
 from online.algos.ppo import BCPPO
-from online.algos.on_policy_bc import OnPolicyBC, OnPolicyTransformerBC
+from online.algos.oil import OnPolicyBC, OnPolicyTransformerBC
 
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parent
