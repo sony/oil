@@ -1,2 +1,0 @@
-docker buildx build --platform linux/amd64 --load -t registry-intl.cn-beijing.aliyuncs.com/alberto-sony/alberto-sony-env:ensemble_final -f ./Dockerfile .
-docker push registry-intl.cn-beijing.aliyuncs.com/alberto-sony/alberto-sony-env:ensemble_final
