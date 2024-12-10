@@ -1,4 +1,4 @@
-# Auto-Bidding in Uncertain Environment - Team dsat2
+# OIL: Auto-Bidding in Real-Time Auctions via Oracle Imitation Learning
 
 Here we present our solution to the final round of the General Track of the NeurIPS 2024 challenge *Auto-Bidding in Uncertain Environment*. The solution is based on an algorithm that we call Oil (Oracle Imitation Learning). The idea of the algorithm is similar to Dagger, as it collects online trajectories with a student policy and labels the trajectories with expert actions. However, it differs from Dagger in three important ways:
 
@@ -11,8 +11,8 @@ Here we present our solution to the final round of the General Track of the Neur
 To run the code, you can either create conda environment or a docker container. To create a conda environment, simply run:
 
 ```bash
-conda create -n dsat2 python=3.9.12 pip=23.0.1
-conda activate dsat2
+conda create -n oil python=3.9.12 pip=23.0.1
+conda activate oil
 pip install -r requirements.txt
 ```
 
