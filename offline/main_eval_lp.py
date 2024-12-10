@@ -25,7 +25,9 @@ if __name__ == "__main__":
 
     algo = "online_lp"
     num_episodes = 1000
-    experiment_name = "online_lp_official"
+    seed = 0
+    dataset = "final"  # "official", "final"
+    experiment_name = f"online_lp_{dataset}_seed_{seed}"
     df_path = (
         ROOT_DIR
         / "output"
@@ -33,7 +35,12 @@ if __name__ == "__main__":
         / experiment_name
         / "data.csv"
     )
-    eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic_official.json"  # add or remove "official"
+    if dataset == "official":
+        eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic_official.json"
+    elif dataset == "final":
+        eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic.json"
+    else:
+        raise ValueError("Invalid dataset name")
     
     lp_df = pd.read_csv(df_path)
 
