@@ -1,7 +1,7 @@
 import pathlib
 import sys
 
-sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
 
 import wandb
 import torch
@@ -10,14 +10,14 @@ import logging
 import pandas as pd
 import ast
 import wandb
-from bidding_train_env.common.utils import (
+from offline.common.utils import (
     normalize_state,
     normalize_reward,
     save_normalize_dict,
     apply_norm_state,
 )
-from bidding_train_env.baseline.iql.replay_buffer import ReplayBuffer
-from bidding_train_env.baseline.iql.iql import IQL
+from offline.iql.replay_buffer import ReplayBuffer
+from offline.iql.iql import IQL
 from definitions import ROOT_DIR
 
 

@@ -2,18 +2,18 @@ import pathlib
 import sys
 import wandb
 
-sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
 
 import numpy as np
 import torch
 import pandas as pd
-from bidding_train_env.common.utils import (
+from offline.common.utils import (
     normalize_state,
     normalize_reward,
     save_normalize_dict,
     apply_norm_state,
 )
-from bidding_train_env.baseline.iql.replay_buffer import ReplayBuffer
+from offline.iql.replay_buffer import ReplayBuffer
 from offline.bc.behavior_clone import BC
 from definitions import ROOT_DIR
 import logging

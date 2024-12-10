@@ -2,7 +2,7 @@ import pathlib
 import sys
 import wandb
 
-sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
 
 import logging
 from offline.lp.onlineLp import OnlineLp
