@@ -28,7 +28,6 @@ class BiddingEnv(gym.Env):
         auction_noise=(0, 0),
         stochastic_exposure=False,
         deterministic_conversion=False,
-        simplified_oracle=False,
         flex_oracle=False,
         flex_oracle_cost_weight=0.5,  # How to mix lower and upper cost
         exclude_self_bids=True,
@@ -64,7 +63,6 @@ class BiddingEnv(gym.Env):
             self.auction_noise_min, self.auction_noise_max = auction_noise
         self.stochastic_exposure = stochastic_exposure
         self.deterministic_conversion = deterministic_conversion
-        self.simplified_oracle = simplified_oracle
         self.flex_oracle = flex_oracle
         self.exclude_self_bids = exclude_self_bids
         self.two_slopes_action = two_slopes_action
@@ -131,7 +129,6 @@ class BiddingEnv(gym.Env):
         self.episode_bids_df = self.get_episode_bids_df()
         self.episode_pvalues_df = self.get_episode_pvalues_df()
 
-        # TODO: try to merge some of these attributes
         self.ranked_df = None
         self.impression_ids = None
         self.slots = None
@@ -737,60 +734,12 @@ class BiddingEnv(gym.Env):
             return self.get_action_from_correct_oracle()
 
     def get_action_from_correct_oracle(self):
-        if self.simplified_oracle:
-            return self.get_simplified_oracle_action()
-        elif self.flex_oracle:
-            return self.get_flex_oracle_action()
+        if self.flex_oracle:
+            return self.get_oracle_upgrade_action()
         else:
-            return self.get_realistic_oracle_action()
+            return self.get_oracle_slot_action()
 
-    def get_simplified_oracle_action(self):
-        if self.ranked_df is None:
-            self.ranked_df = self.compute_ranked_impressions_df()
-        df_sorted = self.ranked_df[
-            self.ranked_df.time_step >= self.time_step
-        ].reset_index(drop=True)
-        df_sorted["cum_conversions"] = (
-            df_sorted["pvalue"].cumsum() * self.simplified_exposure_prob
-            + self.total_conversions
-        )  # If not exposed, no conversion
-        df_sorted["cum_cost"] = (
-            df_sorted["cost"].cumsum() * self.simplified_exposure_prob + self.total_cost
-        )  # If not exposed, no cost
-        df_sorted["cum_cpa"] = df_sorted["cum_cost"] / df_sorted["cum_conversions"]
-        df_sorted["score"] = (
-            df_sorted["cum_conversions"]
-            * np.minimum(1, self.target_cpa / df_sorted["cum_cpa"]) ** 2
-        )
-        # We use total budget because the cost already includes the current total cost
-        df_within_budget = df_sorted[df_sorted["cum_cost"] <= self.total_budget]
-
-        if df_within_budget.empty:
-            # We have run out of budget, it does not matter what we bid
-            action = 1
-        else:
-            # Find the impressions that lead to the max score
-            max_score_row = df_within_budget["score"].idxmax()
-            selected_rows = df_sorted.loc[:max_score_row]
-
-            # Select the action that buys the best impression opportunities
-            action = 1 / selected_rows.pv_over_cost.min() / self.target_cpa
-        if self.new_action:
-            if self.exp_action:
-                action = np.log(action)
-            else:
-                action = action - 1
-        if self.piecewise_linear_action:
-            oracle_action = np.zeros(len(self.pv_range_list) + len(self.act_keys))
-            oracle_action[: len(self.pv_range_list) + 1] = action
-        elif self.two_slopes_action:
-            oracle_action = np.array([1 / action, 0, 0])
-        else:
-            oracle_action = np.zeros(len(self.act_keys))
-            oracle_action[self.pvalues_key_pos] = action
-        return oracle_action
-
-    def get_realistic_oracle_action(self):
+    def get_oracle_slot_action(self):
         if self.impression_ids is None:
             # Sort the impression opportunities for all slots
             self.cost_table = np.vstack(self.episode_bids_df.bid)
@@ -864,7 +813,7 @@ class BiddingEnv(gym.Env):
             oracle_action[self.pvalues_key_pos] = action
         return oracle_action
 
-    def get_flex_oracle_action(self):
+    def get_oracle_upgrade_action(self):
         if self.impression_ids_f is None:
             # Sort the impression opportunities for all slots
             self.cost_table = np.vstack(self.episode_bids_df.bid)
