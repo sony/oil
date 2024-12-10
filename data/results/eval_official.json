@@ -1,4 +1,63 @@
 {
+    "lp": [
+        {
+            "experiment": "online_lp_official_seed_0",
+            "score": {
+                "mean": 331.59699820402784,
+                "sem": 9.02254894713009
+            },
+            "cost_over_budget": {
+                "mean": 0.5480714936983614,
+                "sem": 0.012005487034838723
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.1019394933870226,
+                "sem": 0.00631008748230151
+            },
+            "total_conversions": {
+                "mean": 337.568,
+                "sem": 8.88803473080523
+            }
+        },
+        {
+            "experiment": "online_lp_official_seed_1",
+            "score": {
+                "mean": 331.47112320489384,
+                "sem": 9.024887928068871
+            },
+            "cost_over_budget": {
+                "mean": 0.5478069169337844,
+                "sem": 0.011998724049984626
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.101800426740229,
+                "sem": 0.006324104450188469
+            },
+            "total_conversions": {
+                "mean": 337.49,
+                "sem": 8.889529340746899
+            }
+        },
+        {
+            "experiment": "online_lp_official_seed_2",
+            "score": {
+                "mean": 331.91860987128143,
+                "sem": 9.020464481486316
+            },
+            "cost_over_budget": {
+                "mean": 0.5483085399043887,
+                "sem": 0.012013034489434972
+            },
+            "target_cpa_over_cpa": {
+                "mean": 1.1025504049286692,
+                "sem": 0.006303816492743804
+            },
+            "total_conversions": {
+                "mean": 337.788,
+                "sem": 8.88780338756433
+            }
+        }
+    ],
     "ppo_sparse": [
         {
             "experiment": "071_ppo_seed_0_official_dataset_sparse_reward_medium_bids_smaller_lin_lr",
