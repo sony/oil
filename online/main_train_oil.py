@@ -187,11 +187,7 @@ parser.add_argument(
     default="act_1_key",
     help="Type of action",
 )
-parser.add_argument(
-    "--simplified_oracle",
-    action="store_true",
-    help="Use simplified oracle",
-)
+
 parser.add_argument(
     "--stochastic_exposure",
     action="store_true",
@@ -330,7 +326,6 @@ for period in range(7, 7 + args.num_envs):  # one period per env
                 args.auction_noise_min,
                 args.auction_noise_max,
             ),
-            "simplified_oracle": args.simplified_oracle,
             "exclude_self_bids": args.exclude_self_bids,
             "flex_oracle": args.flex_oracle or args.detailed_bid,
             "two_slopes_action": args.two_slopes_action,

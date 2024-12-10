@@ -158,11 +158,6 @@ parser.add_argument(
     help="Type of action",
 )
 parser.add_argument(
-    "--simplified_oracle",
-    action="store_true",
-    help="Use simplified oracle",
-)
-parser.add_argument(
     "--stochastic_exposure",
     action="store_true",
     help="Stochastic exposure",
@@ -303,7 +298,6 @@ for period in range(7, 7 + args.num_envs):  # one perwith_ad_idx
             "obs_keys": obs_keys,
             "act_keys": act_keys,
             "stochastic_exposure": args.stochastic_exposure,
-            "simplified_oracle": args.simplified_oracle,
             "exclude_self_bids": args.exclude_self_bids,
             "flex_oracle": args.flex_oracle or args.detailed_bid,
             "two_slopes_action": args.two_slopes_action,

@@ -5,7 +5,7 @@ import wandb
 sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))
 
 import logging
-from bidding_train_env.baseline.onlineLp.onlineLp import OnlineLp
+from offline.lp.onlineLp import OnlineLp
 from definitions import ROOT_DIR
 
 # Configure logging

@@ -14,7 +14,7 @@ from bidding_train_env.common.utils import (
     apply_norm_state,
 )
 from bidding_train_env.baseline.iql.replay_buffer import ReplayBuffer
-from bidding_train_env.baseline.bc.behavior_clone import BC
+from offline.bc.behavior_clone import BC
 from definitions import ROOT_DIR
 import logging
 import pickle

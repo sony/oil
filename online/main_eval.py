@@ -235,9 +235,6 @@ def main(args):
 
                 if args.compute_topline:
                     topline_action = topline_env.unwrapped.get_oracle_action()
-                    # topline_action = (
-                    #     topline_env.unwrapped.get_simplified_oracle_action()
-                    # )
                     _, topline_rewards, _, _, topline_info = topline_env.step(
                         topline_action
                     )
