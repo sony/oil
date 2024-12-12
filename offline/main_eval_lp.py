@@ -13,35 +13,28 @@ from definitions import ROOT_DIR
 
 
 def compute_alpha(df, ts, budget, cpa, category):
-    filtered_df = df[(df["timeStepIndex"] == ts) & (df["advertiserCategoryIndex"] == category) & (df["cum_cost"] > budget)]
+    filtered_df = df[
+        (df["timeStepIndex"] == ts)
+        & (df["advertiserCategoryIndex"] == category)
+        & (df["cum_cost"] > budget)
+    ]
     if not filtered_df.empty:
-        alpha = filtered_df.iloc[0]['realCPA'] / cpa
+        alpha = filtered_df.iloc[0]["realCPA"] / cpa
     else:
         alpha = 1
     return np.log(min(1.5, alpha))
-        
-    
+
+
 if __name__ == "__main__":
 
     algo = "online_lp"
     num_episodes = 1000
     seed = 0
-    dataset = "final"  # "official", "final"
+    dataset = "dense"  # "dense", "sparse"
     experiment_name = f"online_lp_{dataset}_seed_{seed}"
-    df_path = (
-        ROOT_DIR
-        / "output"
-        / "offline"
-        / experiment_name
-        / "data.csv"
-    )
-    if dataset == "official":
-        eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic_official.json"
-    elif dataset == "final":
-        eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic.json"
-    else:
-        raise ValueError("Invalid dataset name")
-    
+    df_path = ROOT_DIR / "output" / "offline" / experiment_name / "data.csv"
+    eval_config_path = ROOT_DIR / "data" / "env_configs" / f"eval_config_{dataset}.json"
+
     lp_df = pd.read_csv(df_path)
 
     start_ts = int(time.time())
@@ -64,7 +57,9 @@ if __name__ == "__main__":
         category = env.category
         while not done:
             budget_left = env.remaining_budget
-            action = compute_alpha(df=lp_df, ts=step, budget=budget_left, cpa=cpa, category=category)
+            action = compute_alpha(
+                df=lp_df, ts=step, budget=budget_left, cpa=cpa, category=category
+            )
             obs, rew, terminated, truncated, info = env.step(action)
             ep_rew += rew
             step += 1

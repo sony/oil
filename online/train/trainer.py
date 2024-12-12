@@ -54,8 +54,8 @@ class SingleEnvTrainer:
         )
 
     def save(self) -> None:
-        self.agent.save(os.path.join(self.log_dir, "final_model.pkl"))
-        self.envs.save(os.path.join(self.log_dir, "final_env.pkl"))
+        self.agent.save(os.path.join(self.log_dir, "sparse_model.pkl"))
+        self.envs.save(os.path.join(self.log_dir, "sparse_env.pkl"))
 
     def get_algo_class(self):
         if self.algo in ALGO_CLASS_DICT:

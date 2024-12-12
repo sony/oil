@@ -39,13 +39,12 @@ def run_bc(only_eval=False):
         train_model()
 
 
-
 def train_model():
     """
     Train BC model and log losses.
     """
     seed = 1
-    dataset_name = "final"  # official, final
+    dataset_name = "sparse"  # dense, sparse
     expert = "oracle"  # oracle, dataset
 
     # Initialize Weights & Biases
@@ -62,15 +61,15 @@ def train_model():
             "save_every": 10000,
             "seed": seed,
             "dataset": dataset_name,
-            "expert": expert
+            "expert": expert,
         },
     )
 
     experiment_name = wandb.run.name
-    if dataset_name == "official":
+    if dataset_name == "dense":
         df_str = ""
-    elif dataset_name == "final":
-        df_str = "_final"
+    elif dataset_name == "sparse":
+        df_str = "_sparse"
     else:
         raise ValueError("Invalid dataset name")
     if expert == "oracle":
@@ -79,7 +78,7 @@ def train_model():
         use_oracle_action = False
     else:
         raise ValueError("Invalid expert type")
-    
+
     train_data_path = f"/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data{df_str}/period-7_26_offline_rl_data.parquet"
     test_data_path = f"/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data{df_str}/period-27_27_offline_rl_data.parquet"
 
@@ -107,7 +106,9 @@ def train_model():
         network_random_seed=wandb.config.seed,
     )
     replay_buffer = ReplayBuffer(device="cuda" if model.use_cuda else "cpu")
-    add_to_replay_buffer(replay_buffer, training_data, is_normalize, oracle_action=use_oracle_action)
+    add_to_replay_buffer(
+        replay_buffer, training_data, is_normalize, oracle_action=use_oracle_action
+    )
 
     logger.info(f"Replay buffer size: {len(replay_buffer.memory)}")
 
@@ -128,7 +129,12 @@ def train_model():
         # Test periodically
         if step % test_interval == 0:
             test_loss = evaluate_model(
-                model, test_data, batch_size, is_normalize, normalize_dic, use_oracle_action=use_oracle_action
+                model,
+                test_data,
+                batch_size,
+                is_normalize,
+                normalize_dic,
+                use_oracle_action=use_oracle_action,
             )
             wandb.log({"test_loss": test_loss}, step=step)
             logger.info(f"Step: {step} Test Loss: {test_loss}")
@@ -139,32 +145,33 @@ def train_model():
             )
 
     # Save the model
-    model.save_jit(ROOT_DIR / "output" / "offline" / experiment_name / "model_final")
+    model.save_jit(ROOT_DIR / "output" / "offline" / experiment_name / "model_sparse")
     wandb.finish()
+
 
 def eval_model():
     seed = 0
     batch_size = 1
-    dataset_name = "official"  # official, final
+    dataset_name = "dense"  # dense, sparse
     algo = "bc"
-    expert = "oracle",  # oracle, dataset 
+    expert = ("oracle",)  # oracle, dataset
     experiment_name = f"bc_training_{seed}_dataset_{dataset_name}_{expert}"
     model_path = (
         ROOT_DIR
         / "output"
         / "offline"
         / experiment_name
-        / "model_final"
+        / "model_sparse"
         / f"{algo}_model.pth"
     )
     normalize_path = (
         ROOT_DIR / "output" / "offline" / experiment_name / "normalize_dict.pkl"
     )
 
-    if dataset_name == "official":
+    if dataset_name == "dense":
         df_str = ""
-    elif dataset_name == "final":
-        df_str = "_final"
+    elif dataset_name == "sparse":
+        df_str = "_sparse"
     else:
         raise ValueError("Invalid dataset name")
     test_data_path = f"/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data{df_str}/period-27_27_offline_rl_data.parquet"
@@ -186,13 +193,13 @@ def eval_model():
         batch = test_data.iloc[start_idx : start_idx + batch_size]
         states = torch.tensor(np.stack(batch["state"].values), dtype=torch.float32)
         if expert == "dataset":
-            actions = torch.tensor(np.stack(batch["action"].values), dtype=torch.float32)[
-                :, None
-            ]
+            actions = torch.tensor(
+                np.stack(batch["action"].values), dtype=torch.float32
+            )[:, None]
         elif expert == "oracle":
-            actions = torch.tensor(np.stack(batch["oracle_action"].values), dtype=torch.float32)[
-                :, None
-            ]
+            actions = torch.tensor(
+                np.stack(batch["oracle_action"].values), dtype=torch.float32
+            )[:, None]
         else:
             raise ValueError("Invalid expert type")
         states = apply_norm_state(states, normalize_dict)
@@ -207,7 +214,9 @@ def eval_model():
     )
 
 
-def evaluate_model(model, test_data, batch_size, is_normalize, normalize_dic, use_oracle_action=False):
+def evaluate_model(
+    model, test_data, batch_size, is_normalize, normalize_dic, use_oracle_action=False
+):
     """
     Evaluate model on test data.
     """
@@ -217,13 +226,13 @@ def evaluate_model(model, test_data, batch_size, is_normalize, normalize_dic, us
         batch = test_data.iloc[start_idx : start_idx + batch_size]
         states = torch.tensor(np.stack(batch["state"].values), dtype=torch.float32)
         if use_oracle_action:
-            actions = torch.tensor(np.stack(batch["oracle_action"].values), dtype=torch.float32)[
-                :, None
-            ]
+            actions = torch.tensor(
+                np.stack(batch["oracle_action"].values), dtype=torch.float32
+            )[:, None]
         else:
-            actions = torch.tensor(np.stack(batch["action"].values), dtype=torch.float32)[
-                :, None
-            ]
+            actions = torch.tensor(
+                np.stack(batch["action"].values), dtype=torch.float32
+            )[:, None]
         if is_normalize:
             states = apply_norm_state(states, normalize_dic)
         with torch.no_grad():
@@ -233,7 +242,9 @@ def evaluate_model(model, test_data, batch_size, is_normalize, normalize_dic, us
     return test_loss / num_samples
 
 
-def add_to_replay_buffer(replay_buffer, training_data, is_normalize, oracle_action=False):
+def add_to_replay_buffer(
+    replay_buffer, training_data, is_normalize, oracle_action=False
+):
     for row in training_data.itertuples():
         state, action, reward, next_state, done = (
             row.state if not is_normalize else row.normalize_state,

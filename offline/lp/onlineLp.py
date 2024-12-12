@@ -10,10 +10,10 @@ class OnlineLp:
     def __init__(self, dataPath, dataset, seed=0):
         self.dataPath = dataPath
         self.dataset = dataset
-        self.seed=seed
+        self.seed = seed
 
     def train(self, save_path):
-        
+
         save_path.mkdir(parents=True, exist_ok=True)
         file_names = [f"period-{i}.parquet" for i in range(7, 27)]
         print(file_names)
@@ -32,9 +32,9 @@ class OnlineLp:
         df_filter = df[(df["pValue"] > 0) & (df["leastWinningCost"] > 0.0001)]
         grouped_df = df_filter.groupby("advertiserCategoryIndex")
         num_tick = 48
-        if self.dataset == "final":
+        if self.dataset == "sparse":
             max_budget = 6000
-        elif self.dataset == "official":
+        elif self.dataset == "dense":
             max_budget = 12000
         else:
             raise ValueError("Invalid dataset name")
@@ -79,8 +79,8 @@ class OnlineLp:
                         result.append(row)
                         last_selected = row["cum_cost"]
 
-                final_df = pd.DataFrame(result)
-                result_dfs.append(final_df)
+                sparse_df = pd.DataFrame(result)
+                result_dfs.append(sparse_df)
 
-        final_result_df = pd.concat(result_dfs).reset_index(drop=True)
-        return final_result_df
+        sparse_result_df = pd.concat(result_dfs).reset_index(drop=True)
+        return sparse_result_df

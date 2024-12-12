@@ -10,14 +10,16 @@ import time
 import numpy as np
 from definitions import ROOT_DIR
 from online.envs.environment_factory import EnvironmentFactory
-from bidding_train_env.common.utils import apply_norm_state
+from offline.common.utils import apply_norm_state
 
 
 if __name__ == "__main__":
 
     algo = "bc"
     num_episodes = 1000
-    experiment_name = "bc_training_2_dataset_final_oracle"
+    dataset = "sparse" # "dense", "sparse"
+    algo = "bc" # "bc", "iql"
+    experiment_name = f"{algo}_training_2_dataset_{dataset}_oracle"
     exp_path = (
         ROOT_DIR
         / "output"
@@ -29,7 +31,9 @@ if __name__ == "__main__":
     normalize_path = (
         ROOT_DIR / "output" / "offline" / experiment_name / "normalize_dict.pkl"
     )
-    eval_config_path = ROOT_DIR / "data" / "env_configs" / "eval_config_realistic.json"  # add or remove "official"
+    eval_config_path = (
+        ROOT_DIR / "data" / "env_configs" / f"eval_config_{dataset}.json"
+    ) 
 
     start_ts = int(time.time())
     model = torch.jit.load(exp_path)

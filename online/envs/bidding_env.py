@@ -28,11 +28,11 @@ class BiddingEnv(gym.Env):
         auction_noise=(0, 0),
         stochastic_exposure=False,
         deterministic_conversion=False,
-        flex_oracle=False,
-        flex_oracle_cost_weight=0.5,  # How to mix lower and upper cost
+        oracle_upgrade=False,
+        oracle_upgrade_cost_weight=0.5,  # How to mix lower and upper cost
         exclude_self_bids=True,
         two_slopes_action=False,
-        detailed_bid=False,
+        single_io_bid=False,
         batch_state=False,  # For evaluation, return matrix obs
         advertiser_categories=None,
         seed=0,
@@ -40,7 +40,7 @@ class BiddingEnv(gym.Env):
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(len(obs_keys) + 2 * detailed_bid,),
+            shape=(len(obs_keys) + 2 * single_io_bid,),
             dtype=np.float32,
         )
         self.act_keys = act_keys
@@ -63,11 +63,11 @@ class BiddingEnv(gym.Env):
             self.auction_noise_min, self.auction_noise_max = auction_noise
         self.stochastic_exposure = stochastic_exposure
         self.deterministic_conversion = deterministic_conversion
-        self.flex_oracle = flex_oracle
+        self.oracle_upgrade = oracle_upgrade
         self.exclude_self_bids = exclude_self_bids
         self.two_slopes_action = two_slopes_action
-        self.cost_weight = flex_oracle_cost_weight
-        self.detailed_bid = detailed_bid
+        self.cost_weight = oracle_upgrade_cost_weight
+        self.single_io_bid = single_io_bid
         self.batch_state = batch_state
 
         if pvalues_df_path is None or bids_df_path is None:
@@ -167,7 +167,7 @@ class BiddingEnv(gym.Env):
         pvalues, pvalues_std = self.get_pvalues_mean_and_std()
         state_dict = self.get_state_dict(pvalues, pvalues_std)
         state = self.get_state(state_dict)
-        if self.detailed_bid and not self.batch_state:
+        if self.single_io_bid and not self.batch_state:
             self.cur_matrix_state = state
             self.cur_pv_num = len(pvalues)
             self.cur_action = np.zeros((self.cur_pv_num, len(self.act_keys)))
@@ -176,7 +176,7 @@ class BiddingEnv(gym.Env):
         return state, {}
 
     def step(self, action):
-        if self.detailed_bid and not self.batch_state:
+        if self.single_io_bid and not self.batch_state:
             # The action is just for one pv, we need to keep track of the bids for all pvs
             self.cur_action[self.pv_idx, self.pvalues_key_pos] = action
             self.pv_idx = (self.pv_idx + 1) % self.cur_pv_num
@@ -470,7 +470,7 @@ class BiddingEnv(gym.Env):
 
     def sample_period(self):
         return self.np_random.choice(self.period_list)
-    
+
     @property
     def category(self):
         return self.advertiser_category_dict[self.advertiser]
@@ -544,7 +544,7 @@ class BiddingEnv(gym.Env):
         state_vec = np.array([state_dict[key] for key in self.obs_keys]).astype(
             np.float32
         )
-        if self.detailed_bid:
+        if self.single_io_bid:
             # Create a matrix with pv, pv_sigma and state for each impression
             state = np.zeros((state_dict["current_pv_num"], 2 + len(self.obs_keys)))
             state[:, 0] = state_dict["pvalues"]
@@ -723,10 +723,10 @@ class BiddingEnv(gym.Env):
         return df_sorted
 
     def get_oracle_action(self):
-        if self.detailed_bid and not self.batch_state:
+        if self.single_io_bid and not self.batch_state:
             if self.pv_idx == 0:
                 self.cur_oracle_action = self.get_action_from_correct_oracle()
-            if self.flex_oracle:
+            if self.oracle_upgrade:
                 return self.cur_oracle_action[self.pv_idx]
             else:
                 return self.cur_oracle_action
@@ -734,7 +734,7 @@ class BiddingEnv(gym.Env):
             return self.get_action_from_correct_oracle()
 
     def get_action_from_correct_oracle(self):
-        if self.flex_oracle:
+        if self.oracle_upgrade:
             return self.get_oracle_upgrade_action()
         else:
             return self.get_oracle_slot_action()

@@ -42,7 +42,7 @@ def train_iql_model():
     """
     seed = 2
     reward_continuous = False
-    dataset_name = "final"  # official, final
+    dataset_name = "sparse"  # dense, sparse
     # Initialize wandb
     wandb.init(
         project="baselines",
@@ -57,15 +57,15 @@ def train_iql_model():
             "save_every": 10000,
             "seed": seed,
             "reward_continuous": reward_continuous,
-            "dataset": dataset_name
+            "dataset": dataset_name,
         },
     )
 
     experiment_name = wandb.run.name
-    if dataset_name == "official":
+    if dataset_name == "dense":
         df_str = ""
-    elif dataset_name == "final":
-        df_str = "_final"
+    elif dataset_name == "sparse":
+        df_str = "_sparse"
     else:
         raise ValueError("Invalid dataset name")
     train_data_path = f"/home/ubuntu/Dev/NeurIPS_Auto_Bidding_General_Track_Baseline/data/traffic/offline_rl_data{df_str}/period-7_26_offline_rl_data.parquet"
@@ -149,7 +149,7 @@ def train_iql_model():
             )
 
     # Save model
-    model.save_jit(ROOT_DIR / "output" / "offline" / experiment_name / "model_final")
+    model.save_jit(ROOT_DIR / "output" / "offline" / experiment_name / "model_sparse")
     wandb.finish()
 
 

@@ -216,7 +216,7 @@ parser.add_argument(
     help="Exclude self bids from the auction",
 )
 parser.add_argument(
-    "--flex_oracle",
+    "--oracle_upgrade",
     action="store_true",
     help="Use flexible oracle",
 )
@@ -226,9 +226,9 @@ parser.add_argument(
     help="Use two slopes for the action transformation",
 )
 parser.add_argument(
-    "--detailed_bid",
+    "--single_io_bid",
     action="store_true",
-    help="Use detailed prediction",
+    help="Predict for each IO",
 )
 parser.add_argument(
     "--batch_state",
@@ -251,7 +251,7 @@ parser.add_argument(
 parser.add_argument(
     "--data_folder_name",
     type=str,
-    default="online_rl_data_final_with_ad_idx",
+    default="online_rl_data_sparse",
     help="Data folder name",
 )
 args = parser.parse_args()
@@ -299,9 +299,9 @@ for period in range(7, 7 + args.num_envs):  # one perwith_ad_idx
             "act_keys": act_keys,
             "stochastic_exposure": args.stochastic_exposure,
             "exclude_self_bids": args.exclude_self_bids,
-            "flex_oracle": args.flex_oracle or args.detailed_bid,
+            "oracle_upgrade": args.oracle_upgrade or args.single_io_bid,
             "two_slopes_action": args.two_slopes_action,
-            "detailed_bid": args.detailed_bid,
+            "single_io_bid": args.single_io_bid,
             "batch_state": args.batch_state,
             "advertiser_categories": args.advertiser_categories,
             "seed": args.seed,
@@ -427,210 +427,210 @@ if __name__ == "__main__":
 """
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 006_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_sparse
 
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 007_ \
     --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_sparse
 
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 008_ \
     --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_two_slopes --obs_type obs_60_keys --learning_rate 2e-5 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_sparse
 
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 009_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_two_slopes_medium_bids_lin_lr --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_two_slopes_medium_bids_lin_lr --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_sparse
 
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 010_ \
     --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_two_slopes_medium_bids_lin_lr --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_two_slopes_medium_bids_lin_lr --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_sparse
 
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 011_ \
     --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_two_slopes_medium_bids_lin_lr --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_two_slopes_medium_bids_lin_lr --obs_type obs_60_keys --learning_rate 1e-3 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_sparse
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 015_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_sparse
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 016_ \
     --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_sparse
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 017_ \
     --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_final_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_sparse
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 018_ \
     --seed 0 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_dense
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 019_ \
     --seed 1 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_dense
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 020_ \
     --seed 2 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_dense
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 021_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --data_folder_name online_rl_data_final_with_ad_idx
+                --data_folder_name online_rl_data_sparse
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 022_ \
     --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --data_folder_name online_rl_data_final_with_ad_idx
+                --data_folder_name online_rl_data_sparse
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 023_ \
     --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_sparse_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --data_folder_name online_rl_data_final_with_ad_idx
+                --data_folder_name online_rl_data_sparse
 
 # Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 024_ \
     --seed 0 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 025_ \
     --seed 1 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 026_ \
     --seed 2 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 
 
 
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 033_ \
     --seed 0 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_sparse_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 1 --dense_weight 0 \
-                --data_folder_name online_rl_data_final_with_ad_idx
+                --data_folder_name online_rl_data_sparse
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 034_ \
     --seed 1 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_sparse_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 1 --dense_weight 0 \
-                --data_folder_name online_rl_data_final_with_ad_idx
+                --data_folder_name online_rl_data_sparse
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 035_ \
     --seed 2 --budget_min 1000 --budget_max 6000 --target_cpa_min 50 --target_cpa_max 150 --exclude_self_bids\
-        --out_suffix=_final_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_sparse_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 1 --dense_weight 0 \
-                --data_folder_name online_rl_data_final_with_ad_idx
+                --data_folder_name online_rl_data_sparse
 Done
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 036_ \
     --seed 0 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 037_ \
     --seed 1 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 Old
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 038_ \
     --seed 2 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 
-PPO dense two slopes official
+PPO dense two slopes dense
 cpu 3
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 055_ \
     --seed 0 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_dense
 cpu 2
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 056_ \
     --seed 1 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_dense
 cpu 2
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 057_ \
     --seed 2 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --flex_oracle --two_slopes_action --data_folder_name online_rl_data_with_ad_idx
+                --oracle_upgrade --two_slopes_action --data_folder_name online_rl_data_dense
                 
-PPO dense official
+PPO dense dense
 cpu 2
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 068_ \
     --seed 0 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 cpu 2
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 069_ \
     --seed 1 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 cpu 3
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 070_ \
     --seed 2 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_dense_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 0 --dense_weight 1 \
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 
-PPO sparse official
+PPO sparse dense
 cpu 3
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 071_ \
     --seed 0 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 1 --dense_weight 0 \
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 cpu 1
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 072_ \
     --seed 1 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 1 --dense_weight 0 \
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 cpu 1
 python online/main_train_ppo.py --num_envs 20 --batch_size 512 --num_steps 10_000_000 --out_prefix 073_ \
     --seed 2 --budget_min 400 --budget_max 12000 --target_cpa_min 6 --target_cpa_max 12 --exclude_self_bids\
-        --out_suffix=_official_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
+        --out_suffix=_dense_dataset_sparse_reward_medium_bids_smaller_lin_lr --obs_type obs_60_keys --learning_rate 1e-4 --save_every 10000 \
             --net_arch 256 256 256 --imitation_coef 0 --pg_coef 1 --sparse_weight 1 --dense_weight 0 \
-                --data_folder_name online_rl_data_with_ad_idx
+                --data_folder_name online_rl_data_dense
 
 """
