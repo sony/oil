@@ -58,10 +58,10 @@ if __name__ == "__main__":
 
     default_json_path = ROOT_DIR / "data" / "results"
     offline_exp_path = ROOT_DIR / "output" / "offline"
-    output_folder = ROOT_DIR / "saved_model" / "paper"
+    output_folder = ROOT_DIR / "pretrained"
 
     # Extract the checkpoints
-    for json_file in ["eval_official.json", "eval_final.json"]:
+    for json_file in ["eval_dense.json", "eval_sparse.json"]:
         json_file = default_json_path / json_file
         copy_experiments(json_file, output_folder)
         copy_folder_contents(offline_exp_path, output_folder) 
