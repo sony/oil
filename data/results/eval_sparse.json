@@ -1,7 +1,7 @@
 {
     "lp": [
         {
-            "experiment": "online_lp_final_seed_0",
+            "experiment": "online_lp_sparse_seed_0",
             "score": {
                 "mean": 24.120730611494935,
                 "sem": 0.5231204586962273
@@ -20,7 +20,7 @@
             }
         },
         {
-            "experiment": "online_lp_final_seed_1",
+            "experiment": "online_lp_sparse_seed_1",
             "score": {
                 "mean": 24.031447489157063,
                 "sem": 0.5239851822571311
@@ -39,7 +39,7 @@
             }
         },
         {
-            "experiment": "online_lp_final_seed_2",
+            "experiment": "online_lp_sparse_seed_2",
             "score": {
                 "mean": 24.049351032741008,
                 "sem": 0.5249334798439655
@@ -58,9 +58,9 @@
             }
         }
     ],
-    "ppo_sparse": [
+    "ppo_score": [
         {
-            "experiment": "033_ppo_seed_0_final_dataset_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_0_score_reward_sparse_dataset",
             "score": {
                 "mean": 19.966995247704713,
                 "sem": 0.4999282656499718
@@ -79,7 +79,7 @@
             }
         },
         {
-            "experiment": "034_ppo_seed_1_final_dataset_sparse_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_1_score_reward_sparse_dataset",
             "score": {
                 "mean": 21.018198336662593,
                 "sem": 0.5252814362618327
@@ -98,7 +98,7 @@
             }
         },
         {
-            "experiment": "035_ppo_seed_2_final_dataset_sparse_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_2_score_reward_sparse_dataset",
             "score": {
                 "mean": 24.694759017385127,
                 "sem": 0.5562217412480055
@@ -117,9 +117,9 @@
             }
         }
     ],
-    "ppo_dense": [
+    "ppo_shaped": [
         {
-            "experiment": "021_ppo_seed_0_final_dataset_dense_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_0_shaped_reward_sparse_dataset",
             "score": {
                 "mean": 27.650980383476526,
                 "sem": 0.5353417066400679
@@ -138,7 +138,7 @@
             }
         },
         {
-            "experiment": "022_ppo_seed_1_final_dataset_dense_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_1_shaped_reward_sparse_dataset",
             "score": {
                 "mean": 28.42015854595549,
                 "sem": 0.5577581356094419
@@ -157,7 +157,7 @@
             }
         },
         {
-            "experiment": "023_ppo_seed_2_final_dataset_dense_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_2_shaped_reward_sparse_dataset",
             "score": {
                 "mean": 28.91350195521225,
                 "sem": 0.5469981155437578
@@ -176,9 +176,9 @@
             }
         }
     ],
-    "ppo_dense_2_slopes": [
+    "ppo_shaped_2_slopes": [
         {
-            "experiment": "015_ppo_seed_0_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_0_shaped_reward_2s_sparse_dataset",
             "score": {
                 "mean": 29.159858837855797,
                 "sem": 0.5445469219447884
@@ -197,7 +197,7 @@
             }
         },
         {
-            "experiment": "016_ppo_seed_1_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_1_shaped_reward_2s_sparse_dataset",
             "score": {
                 "mean": 30.665778096382656,
                 "sem": 0.5589231572489005
@@ -216,7 +216,7 @@
             }
         },
         {
-            "experiment": "017_ppo_seed_2_final_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_2_shaped_reward_2s_sparse_dataset",
             "score": {
                 "mean": 30.011022153796656,
                 "sem": 0.5749039617829925
@@ -237,7 +237,7 @@
     ],
     "oil": [
         {
-            "experiment": "011_oil_seed_0_final_dataset_realistic_oracle_medium_bids_lin_lr",
+            "experiment": "oil_seed_0_oracle_slot_sparse_dataset",
             "score": {
                 "mean": 35.40092952237959,
                 "sem": 0.5469289328566184
@@ -256,7 +256,7 @@
             }
         },
         {
-            "experiment": "012_oil_seed_1_final_dataset_realistic_oracle_medium_bids_lin_lr",
+            "experiment": "oil_seed_1_oracle_slot_sparse_dataset",
             "score": {
                 "mean": 35.28731110342867,
                 "sem": 0.5571723533906334
@@ -275,7 +275,7 @@
             }
         },
         {
-            "experiment": "013_oil_seed_2_final_dataset_realistic_oracle_medium_bids_lin_lr",
+            "experiment": "oil_seed_2_oracle_slot_sparse_dataset",
             "score": {
                 "mean": 35.18341371518728,
                 "sem": 0.54997414678659
@@ -296,7 +296,7 @@
     ],
     "oil_2_slopes": [
         {
-            "experiment": "003_oil_seed_0_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr",
+            "experiment": "oil_seed_0_oracle_upgrade_2s_sparse_dataset",
             "score": {
                 "mean": 34.88536205523841,
                 "sem": 0.5531796713605092
@@ -315,7 +315,7 @@
             }
         },
         {
-            "experiment": "004_oil_seed_1_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr",
+            "experiment": "oil_seed_1_oracle_upgrade_2s_sparse_dataset",
             "score": {
                 "mean": 35.049873367207994,
                 "sem": 0.5645624920117633
@@ -334,7 +334,7 @@
             }
         },
         {
-            "experiment": "005_oil_seed_2_final_dataset_flex_oracle_two_slopes_medium_bids_lin_lr",
+            "experiment": "oil_seed_2_oracle_upgrade_2s_sparse_dataset",
             "score": {
                 "mean": 34.78828460082013,
                 "sem": 0.559114825135853
@@ -353,9 +353,9 @@
             }
         }
     ],
-    "oil_detailed": [
+    "oil_upgrade": [
         {
-            "experiment": "049_oil_seed_0_final_dataset_flex_oracle_detailed_bid_medium_bids_lin_lr",
+            "experiment": "oil_seed_0_oracle_upgrade_sparse_dataset",
             "score": {
                 "mean": 29.128839096976666,
                 "sem": 0.47888875921411117
@@ -374,7 +374,7 @@
             }
         },
         {
-            "experiment": "050_oil_seed_1_final_dataset_flex_oracle_detailed_bid_medium_bids_lin_lr",
+            "experiment": "oil_seed_1_oracle_upgrade_sparse_dataset",
             "score": {
                 "mean": 29.6409708982346,
                 "sem": 0.48900527791605514
@@ -393,7 +393,7 @@
             }
         },
         {
-            "experiment": "051_oil_seed_2_final_dataset_flex_oracle_detailed_bid_medium_bids_lin_lr",
+            "experiment": "oil_seed_2_oracle_upgrade_sparse_dataset",
             "score": {
                 "mean": 29.479282598880914,
                 "sem": 0.4865593949240781
@@ -414,7 +414,7 @@
     ],
     "oil_offline": [
         {
-            "experiment": "bc_training_0_dataset_final_oracle",
+            "experiment": "bc_training_0_dataset_sparse_oracle",
             "score": {
                 "mean": 31.178434892797917,
                 "sem": 0.5230880727283573
@@ -433,7 +433,7 @@
             }
         },
         {
-            "experiment": "bc_training_1_dataset_final_oracle",
+            "experiment": "bc_training_1_dataset_sparse_oracle",
             "score": {
                 "mean": 31.89652009015809,
                 "sem": 0.5257598454211639
@@ -452,7 +452,7 @@
             }
         },
         {
-            "experiment": "bc_training_2_dataset_final_oracle",
+            "experiment": "bc_training_2_dataset_sparse_oracle",
             "score": {
                 "mean": 31.352389833468543,
                 "sem": 0.5567618423898066
@@ -492,9 +492,9 @@
             }
         }
     ],
-    "flex_oracle": [
+    "oracle_upgrade": [
         {
-            "experiment": "flex_oracle",
+            "experiment": "oracle_upgrade",
             "score": {
                 "mean": 38.075934576762826,
                 "sem": 0.5614892214533439
@@ -513,9 +513,9 @@
             }
         }
     ],
-    "flex_oracle_two_slopes": [
+    "oracle_upgrade_two_slopes": [
         {
-            "experiment": "flex_oracle",
+            "experiment": "oracle_upgrade",
             "score": {
                 "mean": 37.49157675389747,
                 "sem": 0.5424380785630045
@@ -536,7 +536,7 @@
     ],
     "bc": [
         {
-            "experiment": "bc_training_0_dataset_final",
+            "experiment": "bc_training_0_dataset_sparse",
             "score": {
                 "mean": 18.635384788113615,
                 "sem": 0.46709757692935633
@@ -555,7 +555,7 @@
             }
         },
         {
-            "experiment": "bc_training_1_dataset_final",
+            "experiment": "bc_training_1_dataset_sparse",
             "score": {
                 "mean": 19.823451463152896,
                 "sem": 0.5838596993664696
@@ -574,7 +574,7 @@
             }
         },
         {
-            "experiment": "bc_training_2_dataset_final",
+            "experiment": "bc_training_2_dataset_sparse",
             "score": {
                 "mean": 18.921106728227247,
                 "sem": 0.5814547968030206
@@ -595,7 +595,7 @@
     ],
     "iql_sparse": [
         {
-            "experiment": "iql_training_0_reward_continuous_False_dataset_final",
+            "experiment": "iql_training_0_reward_continuous_False_dataset_sparse",
             "score": {
                 "mean": 14.154582148312638,
                 "sem": 0.4343324894399841
@@ -614,7 +614,7 @@
             }
         },
         {
-            "experiment": "iql_training_1_reward_continuous_False_dataset_final",
+            "experiment": "iql_training_1_reward_continuous_False_dataset_sparse",
             "score": {
                 "mean": 13.709511710361076,
                 "sem": 0.5184153953241627
@@ -633,7 +633,7 @@
             }
         },
         {
-            "experiment": "iql_training_2_reward_continuous_False_dataset_final",
+            "experiment": "iql_training_2_reward_continuous_False_dataset_sparse",
             "score": {
                 "mean": 22.76443416037187,
                 "sem": 0.5489247346448344
@@ -654,7 +654,7 @@
     ],
     "iql_dense": [
         {
-            "experiment": "iql_training_0_reward_continuous_True_dataset_final",
+            "experiment": "iql_training_0_reward_continuous_True_dataset_sparse",
             "score": {
                 "mean": 17.01427024890894,
                 "sem": 0.5205892738466675
@@ -673,7 +673,7 @@
             }
         },
         {
-            "experiment": "iql_training_1_reward_continuous_True_dataset_final",
+            "experiment": "iql_training_1_reward_continuous_True_dataset_sparse",
             "score": {
                 "mean": 16.5059662271411,
                 "sem": 0.5015169222809098
@@ -692,7 +692,7 @@
             }
         },
         {
-            "experiment": "iql_training_2_reward_continuous_True_dataset_final",
+            "experiment": "iql_training_2_reward_continuous_True_dataset_sparse",
             "score": {
                 "mean": 14.331966398359132,
                 "sem": 0.4892648684281765

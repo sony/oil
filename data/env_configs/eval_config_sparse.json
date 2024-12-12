@@ -1,7 +1,7 @@
 {
     "env_name": "BiddingEnv",
-    "pvalues_df_path": "data/online_rl_data_final_with_ad_idx/period-27_pvalues.parquet",
-    "bids_df_path": "data/online_rl_data_final_with_ad_idx/period-27_bids.parquet",
+    "pvalues_df_path": "data/traffic/online_rl_data_sparse/period-27_pvalues.parquet",
+    "bids_df_path": "data/traffic/online_rl_data_sparse/period-27_bids.parquet",
     "budget_range": [
         2000,
         4850
@@ -14,10 +14,8 @@
         "dense": 0,
         "sparse": 1
     },
-    "simplified_bidding": false,
     "stochastic_exposure": true,
-    "exclude_self_bids": false,
+    "exclude_self_bids": true,
     "deterministic_conversion": false,
-    "seed": 0,
-    "max_bid": 0.23
+    "seed": 0
 }

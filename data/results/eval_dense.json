@@ -1,7 +1,7 @@
 {
     "lp": [
         {
-            "experiment": "online_lp_official_seed_0",
+            "experiment": "online_lp_dense_seed_0",
             "score": {
                 "mean": 331.59699820402784,
                 "sem": 9.02254894713009
@@ -20,7 +20,7 @@
             }
         },
         {
-            "experiment": "online_lp_official_seed_1",
+            "experiment": "online_lp_dense_seed_1",
             "score": {
                 "mean": 331.47112320489384,
                 "sem": 9.024887928068871
@@ -39,7 +39,7 @@
             }
         },
         {
-            "experiment": "online_lp_official_seed_2",
+            "experiment": "online_lp_dense_seed_2",
             "score": {
                 "mean": 331.91860987128143,
                 "sem": 9.020464481486316
@@ -58,9 +58,9 @@
             }
         }
     ],
-    "ppo_sparse": [
+    "ppo_score": [
         {
-            "experiment": "071_ppo_seed_0_official_dataset_sparse_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_0_score_reward_dense_dataset",
             "score": {
                 "mean": 398.36625731472094,
                 "sem": 9.115487668850164
@@ -79,7 +79,7 @@
             }
         },
         {
-            "experiment": "072_ppo_seed_1_official_dataset_sparse_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_1_score_reward_dense_dataset",
             "score": {
                 "mean": 390.90850839872894,
                 "sem": 9.214356965205837
@@ -98,7 +98,7 @@
             }
         },
         {
-            "experiment": "073_ppo_seed_2_official_dataset_sparse_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_2_score_reward_dense_dataset",
             "score": {
                 "mean": 356.6458936206098,
                 "sem": 8.312092102572588
@@ -117,9 +117,9 @@
             }
         }
     ],
-    "ppo_dense": [
+    "ppo_shaped": [
         {
-            "experiment": "068_ppo_seed_0_official_dataset_dense_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_0_shaped_reward_dense_dataset",
             "score": {
                 "mean": 352.843624107646,
                 "sem": 7.6796987401068755
@@ -138,7 +138,7 @@
             }
         },
         {
-            "experiment": "069_ppo_seed_1_official_dataset_dense_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_1_shaped_reward_dense_dataset",
             "score": {
                 "mean": 404.27148011364335,
                 "sem": 9.278832434107304
@@ -157,7 +157,7 @@
             }
         },
         {
-            "experiment": "070_ppo_seed_2_official_dataset_dense_reward_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_2_shaped_reward_dense_dataset",
             "score": {
                 "mean": 397.0293870309035,
                 "sem": 9.304724113885118
@@ -176,9 +176,9 @@
             }
         }
     ],
-    "ppo_dense_2_slopes": [
+    "ppo_shaped_2_slopes": [
         {
-            "experiment": "055_ppo_seed_0_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_0_shaped_reward_2s_dense_dataset",
             "score": {
                 "mean": 236.89037753882334,
                 "sem": 5.940668087830314
@@ -197,7 +197,7 @@
             }
         },
         {
-            "experiment": "056_ppo_seed_1_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_1_shaped_reward_2s_dense_dataset",
             "score": {
                 "mean": 314.8665606566401,
                 "sem": 8.30993640157955
@@ -216,7 +216,7 @@
             }
         },
         {
-            "experiment": "057_ppo_seed_2_official_dataset_dense_reward_two_slopes_medium_bids_smaller_lin_lr",
+            "experiment": "ppo_seed_2_shaped_reward_2s_dense_dataset",
             "score": {
                 "mean": 322.99090154638174,
                 "sem": 7.82179724792503
@@ -237,7 +237,7 @@
     ],
     "oil": [
         {
-            "experiment": "039_oil_seed_0_official_dataset_realistic_oracle_medium_bids_lin_lr",
+            "experiment": "oil_seed_0_oracle_slot_dense_dataset",
             "score": {
                 "mean": 466.62170320717934,
                 "sem": 9.591798438607718
@@ -256,7 +256,7 @@
             }
         },
         {
-            "experiment": "040_oil_seed_1_official_dataset_realistic_oracle_medium_bids_lin_lr",
+            "experiment": "oil_seed_1_oracle_slot_dense_dataset",
             "score": {
                 "mean": 465.34096044941447,
                 "sem": 9.519677395445287
@@ -275,7 +275,7 @@
             }
         },
         {
-            "experiment": "041_oil_seed_2_official_dataset_realistic_oracle_medium_bids_lin_lr",
+            "experiment": "oil_seed_2_oracle_slot_dense_dataset",
             "score": {
                 "mean": 467.1257005430927,
                 "sem": 9.547615121904835
@@ -296,7 +296,7 @@
     ],
     "oil_2_slopes": [
         {
-            "experiment": "042_oil_seed_0_official_dataset_flex_oracle_two_slopes_medium_bids_lin_lr",
+            "experiment": "oil_seed_0_oracle_upgrade_2s_dense_dataset",
             "score": {
                 "mean": 467.11830701255053,
                 "sem": 9.592622582817826
@@ -315,7 +315,7 @@
             }
         },
         {
-            "experiment": "043_oil_seed_1_official_dataset_flex_oracle_two_slopes_medium_bids_lin_lr",
+            "experiment": "oil_seed_1_oracle_upgrade_2s_dense_dataset",
             "score": {
                 "mean": 436.4703435519108,
                 "sem": 9.152425147986971
@@ -334,7 +334,7 @@
             }
         },
         {
-            "experiment": "044_oil_seed_2_official_dataset_flex_oracle_two_slopes_medium_bids_lin_lr",
+            "experiment": "oil_seed_2_oracle_upgrade_2s_dense_dataset",
             "score": {
                 "mean": 474.0488037234549,
                 "sem": 9.728517261145038
@@ -353,9 +353,28 @@
             }
         }
     ],
-    "oil_detailed": [
+    "oil_upgrade": [
         {
-            "experiment": "053_oil_seed_1_official_dataset_flex_oracle_detailed_bid_medium_bids_lin_lr",
+            "experiment": "oil_seed_0_oracle_upgrade_dense_dataset",
+            "score": {
+                "mean": 449.93359633234724,
+                "sem": 9.137032374883514
+            },
+            "cost_over_budget": {
+                "mean": 0.942939346290005,
+                "sem": 0.0028823123476360243
+            },
+            "target_cpa_over_cpa": {
+                "mean": 0.9686423940522325,
+                "sem": 0.009997650559780094
+            },
+            "total_conversions": {
+                "mean": 583.296,
+                "sem": 9.075065640754342
+            }
+        },
+        {
+            "experiment": "oil_seed_1_oracle_upgrade_dense_dataset",
             "score": {
                 "mean": 431.7814157163646,
                 "sem": 8.87469011342075
@@ -374,7 +393,7 @@
             }
         },
         {
-            "experiment": "054_oil_seed_2_official_dataset_flex_oracle_detailed_bid_medium_bids_lin_lr",
+            "experiment": "oil_seed_2_oracle_upgrade_dense_dataset",
             "score": {
                 "mean": 422.89024762872896,
                 "sem": 8.514985617431897
@@ -391,30 +410,11 @@
                 "mean": 578.946,
                 "sem": 8.844990281735758
             }
-        },
-        {
-            "experiment": "052_oil_seed_0_official_dataset_flex_oracle_detailed_bid_medium_bids_lin_lr",
-            "score": {
-                "mean": 449.93359633234724,
-                "sem": 9.137032374883514
-            },
-            "cost_over_budget": {
-                "mean": 0.942939346290005,
-                "sem": 0.0028823123476360243
-            },
-            "target_cpa_over_cpa": {
-                "mean": 0.9686423940522325,
-                "sem": 0.009997650559780094
-            },
-            "total_conversions": {
-                "mean": 583.296,
-                "sem": 9.075065640754342
-            }
         }
     ],
     "oil_offline": [
         {
-            "experiment": "bc_training_0_dataset_official_oracle",
+            "experiment": "bc_training_0_dataset_dense_oracle",
             "score": {
                 "mean": 435.2872951715948,
                 "sem": 8.793003763212155
@@ -433,7 +433,7 @@
             }
         },
         {
-            "experiment": "bc_training_1_dataset_official_oracle",
+            "experiment": "bc_training_1_dataset_dense_oracle",
             "score": {
                 "mean": 422.6787438013543,
                 "sem": 8.676593072094933
@@ -452,7 +452,7 @@
             }
         },
         {
-            "experiment": "bc_training_2_dataset_official_oracle",
+            "experiment": "bc_training_2_dataset_dense_oracle",
             "score": {
                 "mean": 409.32792173823856,
                 "sem": 8.084659762507634
@@ -492,9 +492,9 @@
             }
         }
     ],
-    "flex_oracle": [
+    "oracle_upgrade": [
         {
-            "experiment": "flex_oracle",
+            "experiment": "oracle_upgrade",
             "score": {
                 "mean": 532.5995306886018,
                 "sem": 10.232496342130409
@@ -513,9 +513,9 @@
             }
         }
     ],
-    "flex_oracle_two_slopes": [
+    "oracle_upgrade_two_slopes": [
         {
-            "experiment": "flex_oracle",
+            "experiment": "oracle_upgrade",
             "score": {
                 "mean": 510.85464879205847,
                 "sem": 9.936412120056247
@@ -536,7 +536,7 @@
     ],
     "bc": [
         {
-            "experiment": "bc_training_0_dataset_official",
+            "experiment": "bc_training_0_dataset_dense",
             "score": {
                 "mean": 241.56932111464363,
                 "sem": 4.920033309781911
@@ -555,7 +555,7 @@
             }
         },
         {
-            "experiment": "bc_training_1_dataset_official",
+            "experiment": "bc_training_1_dataset_dense",
             "score": {
                 "mean": 93.61125954444171,
                 "sem": 3.550202406240925
@@ -574,7 +574,7 @@
             }
         },
         {
-            "experiment": "bc_training_2_dataset_official",
+            "experiment": "bc_training_2_dataset_dense",
             "score": {
                 "mean": 193.391621807112,
                 "sem": 6.280753027869473
@@ -595,7 +595,7 @@
     ],
     "iql_sparse": [
         {
-            "experiment": "iql_training_0_reward_continuous_False_dataset_official",
+            "experiment": "iql_training_0_reward_continuous_False_dataset_dense",
             "score": {
                 "mean": 371.9215131151322,
                 "sem": 8.858426011764239
@@ -614,7 +614,7 @@
             }
         },
         {
-            "experiment": "iql_training_1_reward_continuous_False_dataset_official",
+            "experiment": "iql_training_1_reward_continuous_False_dataset_dense",
             "score": {
                 "mean": 381.3210627006022,
                 "sem": 8.538629531710201
@@ -633,7 +633,7 @@
             }
         },
         {
-            "experiment": "iql_training_2_reward_continuous_False_dataset_official",
+            "experiment": "iql_training_2_reward_continuous_False_dataset_dense",
             "score": {
                 "mean": 396.79256666695284,
                 "sem": 9.07948105752891
@@ -654,7 +654,7 @@
     ],
     "iql_dense": [
         {
-            "experiment": "iql_training_0_reward_continuous_True_dataset_official",
+            "experiment": "iql_training_0_reward_continuous_True_dataset_dense",
             "score": {
                 "mean": 307.62151117706486,
                 "sem": 8.483967069780084
@@ -673,7 +673,7 @@
             }
         },
         {
-            "experiment": "iql_training_1_reward_continuous_True_dataset_official",
+            "experiment": "iql_training_1_reward_continuous_True_dataset_dense",
             "score": {
                 "mean": 399.0680793087308,
                 "sem": 9.034163007143874
@@ -692,7 +692,7 @@
             }
         },
         {
-            "experiment": "iql_training_2_reward_continuous_True_dataset_official",
+            "experiment": "iql_training_2_reward_continuous_True_dataset_dense",
             "score": {
                 "mean": 311.2213410945422,
                 "sem": 8.069800319050723

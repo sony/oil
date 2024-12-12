@@ -1,7 +1,7 @@
 {
     "env_name": "BiddingEnv",
-    "pvalues_df_path": "data/traffic/online_rl_data_with_ad_idx/period-27_pvalues.parquet",
-    "bids_df_path": "data/traffic/online_rl_data_with_ad_idx/period-27_bids.parquet",
+    "pvalues_df_path": "data/traffic/online_rl_data_dense/period-27_pvalues.parquet",
+    "bids_df_path": "data/traffic/online_rl_data_dense/period-27_bids.parquet",
     "budget_range": [
         400,
         12000
