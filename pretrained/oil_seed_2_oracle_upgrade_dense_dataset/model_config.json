@@ -1,0 +1,25 @@
+{
+    "policy": "<not serializable>",
+    "device": "cuda",
+    "batch_size": 512,
+    "n_steps": 128,
+    "learning_rate": "<not serializable>",
+    "ent_coef": 3e-06,
+    "max_grad_norm": 0.7,
+    "n_epochs": 10,
+    "use_sde": false,
+    "policy_kwargs": {
+        "log_std_init": 0.0,
+        "activation_fn": "<not serializable>",
+        "net_arch": [
+            256,
+            256,
+            256
+        ]
+    },
+    "rollout_buffer_class": "<not serializable>",
+    "rollout_buffer_kwargs": {
+        "batch_state_subsample": 100
+    },
+    "seed": 2
+}
