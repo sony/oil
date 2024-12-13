@@ -57,7 +57,7 @@ python bidding_train_env/dataloader/online_rl_data_generator.py
 
 The traffic data will be in the corresponding folder at `data/traffic`.
 
-## Training with Oil
+## Training with OIL
 
 We have prepared some scripts to replicate the training experiments of OIL. They are in the folder `train_scripts`. For example, to train **OIL-slot** in the **Alibaba-dense** dataset, run:
 
