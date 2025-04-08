@@ -2,7 +2,7 @@
 import sys
 import pathlib
 
-sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
 import pandas as pd
 import numpy as np
 from definitions import ROOT_DIR

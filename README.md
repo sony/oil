@@ -52,7 +52,7 @@ This script will create the new folders `data/traffic/raw_traffic_dense_parquet`
 `BiddingEnv` accepts two separate datasets per period, one including the traffic of impression opportunities over time, and another one with the bids of each advertiser for each impression opportunity. This representation reduces the amount of memory necessary for the environment to simulate advertisement campaigns. It also allows to easily change the bids of the competitors, to test how the auto-bidding agent deals with different situations. To create the two datasets for each period, run:
 
 ```bash
-python bidding_train_env/dataloader/online_rl_data_generator.py
+python dataloader/online_rl_data_generator.py
 ```
 
 The traffic data will be in the corresponding folder at `data/traffic`.

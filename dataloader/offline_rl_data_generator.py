@@ -6,7 +6,7 @@ from online.envs.helpers import safe_mean
 
 import numpy as np
 
-sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
 
 import json
 import pandas as pd
