@@ -4,11 +4,13 @@ Official implementation of OIL, the algorithm introduced in [**Auto-Bidding in R
 
 <img src="data/images/overview.png" width="512">
 
+**Note**: this work started before the public release of the [AuctionNet dataset](https://github.com/alimama-tech/AuctionNet) by Alimama and is based on the data used during [the associated NeurIPS challenge](https://tianchi.aliyun.com/specials/promotion/neurips2024_alimama#/). These instructions refer to the challenge dataset, which did not provide a campaign simulator and use the one implemented in this repository.
+
 The most important parts you might be interested in are:
 
-* The advertising **campaign simulator environment**. It is a Gymnasium envinonment which leverages the advertisement traffic from the **Alibaba dataset** to simulate a real-time bidding auction. It is the class `BiddingEnv` implemented at `online/envs/bidding_env.py`
+* The advertising **campaign simulator environment**. It is a Gymnasium envinonment which leverages the advertisement traffic from the [**AuctionNet dataset** to simulate a real-time bidding auction. It is the class `BiddingEnv` implemented at `online/envs/bidding_env.py`
 * The **oracle algorithm**. It is the greedy heuristic to solve the multiple-choice knapsack problem (MCKP) whose solution is a near-optimal bidding strategy, based on complete campaign information. The **oracle-slot** and the **oracle-upgrade** algorithms are implemented within the methods `get_oracle_slot_action` and `get_oracle_upgrade_action` of `BiddingEnv`.
-* **OIL**, which subclasses the `OnPolicyAlgorithm` class of **Stable Baselines 3** and is thus compatible with the many code bases using this reinforcement learning library. It is implemented at `online/algos/oil.py`
+* **OIL**, which subclasses the `OnPolicyAlgorithm` class of [**Stable Baselines 3**](https://github.com/DLR-RM/stable-baselines3) and is thus compatible with the many code bases using this reinforcement learning library. It is implemented at `online/algos/oil.py`
 * Preatrained checkpoints. The folder `pretrained` included all the checkpoints used for the evaluation of OIL and of the baselines
 
 In the following sections we explain how to reproduce the training experiments and evaluate the policies.
