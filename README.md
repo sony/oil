@@ -1,6 +1,6 @@
 # OIL: Auto-Bidding in Real-Time Auctions via Oracle Imitation Learning
 
-Official implementation of OIL, the algorithm introduced in **Auto-Bidding in Real-Time Auctions via Oracle Imitation Learning**, Chiappa, A.S., Gangopadhyay, B., Wang, Z., Takamatsu, S. (2024). In OIL, an auto-bidding agent learns to mimic the bids of an perfectly knowledgeable *oracle* policy, to navigate the uncertainty of advertisement campaigns.
+Official implementation of OIL, the algorithm introduced in [**Auto-Bidding in Real-Time Auctions via Oracle Imitation Learning**](https://arxiv.org/abs/2412.11434), Chiappa, A.S., Gangopadhyay, B., Wang, Z., Takamatsu, S., published in the research track of KDD 2025. In OIL, an auto-bidding agent learns to mimic the bids of an perfectly knowledgeable *oracle* policy, to navigate the uncertainty of advertisement campaigns.
 
 <img src="data/images/overview.png" width="512">
 
