@@ -84,3 +84,11 @@ The pre-trained OIL agents are in the `pretrained` folder. We will separately up
 ## Baselines
 
 The code in the folders `online` and `offline` can be used to train and test all the agents we have used as baselines (LP, BC, IQL, PPO).
+
+## Contact
+
+If you have questions or feedback, please contact:
+
+- Name: [Zhao Wang]
+- Email: [Zhao.Wang@sony.com]
+
